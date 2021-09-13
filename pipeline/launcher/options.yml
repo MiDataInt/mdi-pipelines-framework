@@ -1,0 +1,148 @@
+---
+#--------------------------------------------------------------------
+# universal options applied to all pipelines and commands
+# these optionFamilies do not need to be invoked
+#--------------------------------------------------------------------
+optionFamilies:
+    output: 
+        order: 101
+        universal: true
+        template: true
+        options:        
+            output-dir:
+                order: 1
+                short: O
+                type: string
+                required: true
+                default: null
+                directory:
+                    must-exist: true
+                description: "the directory where output files will be placed; must already exist"
+            data-name:
+                order: 2
+                short: N
+                type: string
+                required: true
+                default: null
+                description: "simple name for the data (e.g. sample) being analyzed (no spaces or periods)"
+    resources: # always required, even when running pipeline as a simple inline command
+        order: 102
+        universal: true
+        template: true
+        options:      
+            n-cpu:
+                order: 1
+                short: p
+                type: integer
+                required: false
+                default: 1
+                description: "number of CPUs used for parallel processing"
+            ram-per-cpu:
+                order: 2
+                short: r
+                type: string
+                required: false
+                default: 4G
+                description: "RAM allocated per CPU (e.g. 500M, 4G)"
+            tmp-dir:
+                order: 3
+                short: t
+                type: string
+                required: false
+                default: /tmp
+                directory:
+                    must-exist: true
+                description: "directory used for small temporary files (recommend SSD)"
+            tmp-dir-large:
+                order: 4
+                short: T
+                type: string
+                required: false
+                default: /tmp
+                directory:
+                    must-exist: true
+                description: "directory used for large temporary files (generally >10GB)"
+    job-manager: # only required when queuing jobs with jobManager (in contrast to family 'resources')
+        order: 103
+        universal: true
+        options:
+            email:
+                order: 1
+                short: null
+                type: string
+                required: false
+                default: nobody@nowhere.edu
+                description: "email address of the user submitting the job"    
+            account:
+                order: 2
+                short: null
+                type: string
+                required: false
+                default: NA
+                description: "name of the account used to run a job on the server"
+            time-limit:
+                order: 3
+                short: null
+                type: string
+                required: false
+                default: 10:00
+                description: "time limit for the running job (e.g. slurm #SBATCH --time, dd-hh:mm:ss)"
+            partition: 
+                order: 4
+                short: null
+                type: string
+                required: false
+                default: standard
+                description: "slurm #SBATCH --partition (standard, gpu, largemem, viz, standard-oc)" 
+    workflow:
+        order: 104
+        universal: true
+        options:
+            task-id:
+                order: 0
+                hidden: true   
+                short: null
+                type: integer
+                required: false
+                default: 0
+                description: "the arrayed options task number to run, from 1 to N (used programatically)"
+            force:
+                order: 1
+                short: f
+                type: boolean
+                required: false
+                default: false
+                description: "execute certain actions and outcomes without prompting (create, rollback, etc.)"                  
+            rollback:
+                order: 2
+                short: R
+                type: integer
+                required: false
+                default: null
+                description: "revert to this pipeline step number before beginning at the next step (implies --force)"  
+            quiet:
+                order: 3
+                short: q
+                type: boolean
+                required: false
+                default: false
+                description: "suppress the configuration feedback in the output log stream"  
+    help: 
+        order: 105
+        universal: true
+        options:
+            help:
+                order: 1
+                short: h
+                type: boolean
+                required: false
+                default: false
+                description: "show pipeline help"
+            dry-run:
+                order: 2
+                short: d
+                type: boolean
+                required: false
+                default: false
+                description: "only show parsed variable values; do not execute the command"
+

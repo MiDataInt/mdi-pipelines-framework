@@ -1,0 +1,55 @@
+---
+
+#--------------------------------------------------------------------
+# universal commands available to all pipelines
+# called as ./<pipelineName> <command> [options]
+#--------------------------------------------------------------------
+
+commands:
+    
+    # visible user commands
+    template:
+        order: 1
+        universal: true
+        resources:
+            required:
+                total-ram: null
+        optionFamilies: null        
+        description: "return a template for creating an input-specific 'data.yml' file"      
+    conda:
+        order: 2
+        universal: true
+        resources:
+            required:
+                total-ram: null
+        optionFamilies: null        
+        description: "create or list the conda environment(s) required by the pipeline" 
+    status:
+        order: 3
+        universal: true
+        resources:
+            required:
+                total-ram: null
+        optionFamilies: null        
+        description: "print the pipeline status file for an output directory"
+    rollback:
+        order: 4
+        universal: true
+        resources:
+            required:
+                total-ram: null
+        optionFamilies: null        
+        description: "revert the pipeline to an earlier step for an output directory"    
+    
+    # hidden developer commands
+    options:
+        order: 5
+        universal: true
+        hidden: true        
+        resources:
+            required:
+                total-ram: null
+        optionFamilies: null        
+        description: "show a concise, alphabetically sorted option list for a command" 
+        
+        
