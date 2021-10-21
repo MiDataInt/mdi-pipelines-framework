@@ -6,6 +6,8 @@ installing and running a variety of HPC data analysis pipelines
 and interactive R Shiny data visualization applications
 within a standardized design and implementation interface.
 
+<https://midataint.github.io/>
+
 ## Organization and contents
 
 ### MDI code stages
@@ -57,7 +59,7 @@ frameworks encodes script utilities that:
 The preferred way to use the MDI pipelines is via the 
 MDI manager utility found here:
 
-https://github.com/MiDataInt/mdi
+<https://github.com/MiDataInt/mdi-manager>
 
 which will allow you to configure and run pipelines via a web
 interface for greatest clarity and ease.
@@ -67,7 +69,7 @@ interface for greatest clarity and ease.
 As a robust alternative to using the web interface, you can
 also execute all pipelines using the 'mdi' command line
 helper function. To do so, you must still install the MDI
-using the steps in the 'MiDataInt/mdi' repository above.
+using the steps in the 'MiDataInt/mdi-manager' repository above.
 Then, simply close and reopen your command shell and type:
 
 ```
@@ -130,8 +132,7 @@ was done, especially if you use our job manager.
 
 Config files are valid YAML files, although the interpeter
 we use to read them only processes a subset of YAML features.
-Learn more about YAML on the internet, or just proceed, it is
-intuitive and easy.
+[Learn more about YAML on the internet](https://www.google.com/search?q=yaml+basics), or just proceed, it is intuitive and easy.
 
 ### Config file templates
 
@@ -163,10 +164,10 @@ execute:
 ```
 
 As a convenience for when you get tired of have many files
-with the same option values (e.g. a data directory), you may
-also create a file called 'pipeline.yml' or '<pipelineName.yml>'
-in the same directory as '<myData.yml>'. Options will be read
-from 'pipeline.yml' first, then '<myData.yml>', then finally
-from any values you specific on the commands line, in that
+with the same option values (e.g., a shared data directory), you may
+also create a file called 'pipeline.yml' or '\<pipelineName\>.yml'
+in the same directory as '\<myData\>.yml'. Options will be read
+from 'pipeline.yml' first, then '\<myData\>.yml', then finally
+from any values you specify on the command line, in that
 order of precedence.
 
