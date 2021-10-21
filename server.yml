@@ -4,14 +4,14 @@
 #--------------------------------------------------------------
 #   - typically constant for all jobs run on a given server
 #   - can be overridden in lower level config files
-#   - variables available for use in <data.yml> by end user
-#   - options available as variables in the environment of running jobs
+#   - variables are available for use in <data.yml> by end user
+#   - options are available as variables in the environment of running jobs
 #--------------------------------------------------------------
 #  default values are appropriate for UM Great Lakes
 #--------------------------------------------------------------
 
 #--------------------------------------------------------------
-# environment variables; by convention names are ALL_UPPER_CASE
+# environment variables; by convention variable names are ALL_UPPER_CASE
 #--------------------------------------------------------------
 variables:
     # conda (for creating runtime environments)
@@ -42,4 +42,3 @@ conda:
     # path to conda.sh initialization script
     # if null, tries $(conda info --base)/etc/profile.d/conda.sh
     profile-script: /sw/arcts/centos7/$ANACONDA/etc/profile.d/conda.sh
-

@@ -2,11 +2,10 @@
 'mdi-pipelines-framework' carries support scripts that are used by all
 MDI pipelines
 
-job_manager  utilities that execute the command 'mdi submit' and related
+job_manager  utilities that execute 'mdi submit' and related commands,
              i.e.,  job submission to a cluster server job scheduler
 
 pipeline     utilities that enable pipeline executables;
              thus, 'pipeline' scripts are called by 'job_manager' scripts
 
 shell        custom shell utilities available to all running pipelines
-
