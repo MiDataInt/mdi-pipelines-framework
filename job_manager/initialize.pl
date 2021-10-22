@@ -3,6 +3,7 @@ use strict;
 use warnings;
 use Cwd(qw(abs_path));
 use File::Basename;
+use File::Copy;
 
 #========================================================================
 # 'initialize.pl' sets up job manager for use on a host server system
@@ -13,6 +14,7 @@ $| = 1;
 #------------------------------------------------------------------------
 # get the job manager directory and executable name
 #------------------------------------------------------------------------
+my ($rootDir) = @ARGV;
 my $jobManagerName = 'mdi';
 print STDERR "initializing the '$jobManagerName program' target\n";
 my $script = abs_path($0);
@@ -85,7 +87,7 @@ use warnings;
 # it is created automatically by \'initialize.pl\'
 
 # set names and paths
-our $rootDir  = '."'$ENV{ROOT_DIR}'".';
+our $rootDir  = '."'$rootDir'".';
 our $jobManagerDir  = '."'$jobManagerDir'".';
 our $jobManagerName = '."'$jobManagerName'".';
 our $perlPath = '."'$perlPath'".';
@@ -131,16 +133,17 @@ sub slurpFile {  # read the entire contents of a disk file into memory
     return $contents;
 }
 my $bashRc = "$ENV{HOME}/.bashrc";
+my $bashRcBackup = "$bashRc.mdi-backup";
+-e $bashRcBackup or copy($bashRc, $bashRcBackup);
 my $bashRcContents = slurpFile($bashRc);
+$bashRcContents =~ s/# >>> mdi initialize.+mdi initialize <<<//g;
 my $bashRcBlock = "
-# >>> mdi-pipelines initialize >>>
-# !! Contents within this block are managed by '$jobManagerName initialize' !!
-export PATH=\"$ENV{ROOT_DIR}:\$PATH\"
-# <<< mdi-pipelines initialize <<<
+# >>> mdi initialize >>>
+export PATH=\"$rootDir:\$PATH\"
+# <<< mdi initialize <<<
 ";
-$bashRcContents =~ m/$bashRcBlock/ and exit;
-open $outH, ">>", $bashRc or die "could not append to:\n    $bashRc\n$!\n";
-print $outH $bashRcBlock;
+$bashRcContents = join("\n", $bashRcContents, $bashRcBlock)."\n";
+open $outH, ">", $bashRc or die "could not write to:\n    $bashRc\n$!\n";
+print $outH $bashRcContents;
 close $outH;
 #========================================================================
-

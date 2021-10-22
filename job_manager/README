@@ -5,7 +5,6 @@ Grid Engine or Torque PBS.
 
 initialize.pl   a script that creates the executable target
                 called implicitly by the main 'mdi' executable
-                in the mdi-pipelines-framework root directory
              
 lib/main        scripts that set up the job manager interface
 
@@ -13,4 +12,3 @@ lib/commands    scripts that act on individual job manager commands
                 e.g. submit, delete, etc.
 
 lib/utilities.sh  bash functions to support job manager scripts
-
