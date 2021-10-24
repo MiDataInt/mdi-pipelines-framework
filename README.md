@@ -1,7 +1,6 @@
-
 # Michigan Data Interface
 
-The Michigan Data Interface (MDI) is a framework for developing,
+The [Michigan Data Interface](https://midataint.github.io/) (MDI) is a framework for developing,
 installing and running a variety of HPC data analysis pipelines
 and interactive R Shiny data visualization applications
 within a standardized design and implementation interface.
@@ -11,7 +10,9 @@ within a standardized design and implementation interface.
 ### MDI code stages
 
 Data analysis in the MDI is logically separated
-into two stages of code execution called Stage 1 HPC **pipelines**
+into 
+[two stages of code execution](https://midataint.github.io/docs/analysis-flow/) 
+called Stage 1 HPC **pipelines**
 and Stage 2 web applications (i.e., **apps**).
 
 ### Repository contents
@@ -50,25 +51,86 @@ frameworks encodes script utilities that:
 - wrap pipelines into a friendly command-line executable function
 - coordinate pipeline job submission to HPC schedulers
 
+### Related repositories
+
+Code developers are directed to this repository for a template to
+**create your own pipelines suites**:
+
+- <https://github.com/MiDataInt/mdi-pipelines-suite-template>
+
+## Prerequisites
+
+**R** is required to install the MDI manager, which is in turn used 
+to install the MDI pipelines. Two specialized programs are futher required 
+to run pipelines: **git** and **conda**. Git is always available on Great Lakes,
+and R and conda can be loaded with (change versions as needed):
+
+```
+module load R/4.1.0
+module load python3.7-anaconda
+```
+
+On other systems, install R, git, and conda as needed:
+
+<https://www.r-project.org/>
+https://git-scm.com/book/en/v2/Getting-Started-Installing-Git  
+https://docs.conda.io/en/latest/miniconda.html
+
+If you use the job manager utility to submit pipeline jobs
+on a cluster server (recommended), you need to work on a
+Linux server running the bash command shell.
+
 ## Installation and usage
+
+### Pipelines framework and suites installation
+
+This repository is not used directly. Instead, it is cloned
+and managed by the MDI manager utility found here:
+
+<https://github.com/MiDataInt/mdi-manager>
+
+Please follow the manager installation instructions, being sure
+to update the pipelines suites you wish to install in 'mdi/config.yml':
+
+```
+# mdi/config.yml
+suites:
+    pipelines:
+        - https://github.com/GIT_USER/SUITE_NAME-mdi-pipelines.git
+```
+
+and then running' 'mdi::install()' a second time, or calling 
+'mdi install' on the command line. If you use the Stage 2 web tools,
+you will also be able install new pipelines suites from within the 
+Pipeline Runner app.
 
 ### Web-based pipeline execution via the MDI server
 
-The preferred way to use the MDI pipelines is via the 
-MDI manager utility found here:
-
-https://github.com/MiDataInt/mdi
-
+A great way to use  MDI pipelines is via the Pipeline Runner app,
 which will allow you to configure and run pipelines via a web
-interface for greatest clarity and ease.
+interface for greatest clarity and ease. The Pipeline Runner is 
+available through the Stage 2 apps interface by executing
+
+```
+Rscript -e 'mdi::run()'
+```
+
+or 
+
+```
+mdi server
+```
+
+either of which will launch the web server interface on your computer.
 
 ### Command line pipeline execution
 
 As a robust alternative to using the web interface, you can
 also execute all pipelines using the 'mdi' command line
 helper function. To do so, you must still install the MDI
-using the steps in the 'MiDataInt/mdi' repository above.
-Then, simply close and reopen your command shell and type:
+using the steps in the 'MiDataInt/mdi-manager' repository 
+as indicated above. Then, simply close and reopen your command 
+shell and type:
 
 ```
 mdi
@@ -77,24 +139,7 @@ mdi
 which will provide help information on using the command line 
 utility to run and queue pipeline jobs.
 
-### Prerequisites
 
-Only two specialized programs are required to run pipelines:
-git and conda. Git is always available on Great Lakes,
-and conda can be loaded with:
-
-```
-module load python3.7-anaconda
-```
-
-On other systems, install git and conda as needed:
-
-https://git-scm.com/book/en/v2/Getting-Started-Installing-Git  
-https://docs.conda.io/en/latest/miniconda.html
-
-If you use the job manager utility to submit pipeline jobs
-on a cluster server (recommended), you need to work on a
-Linux server running the bash command shell.
 
 ## General pipeline organization
 
@@ -130,8 +175,7 @@ was done, especially if you use our job manager.
 
 Config files are valid YAML files, although the interpeter
 we use to read them only processes a subset of YAML features.
-Learn more about YAML on the internet, or just proceed, it is
-intuitive and easy.
+[Learn more about YAML on the internet](https://www.google.com/search?q=yaml+basics), or just proceed, it is intuitive and easy.
 
 ### Config file templates
 
@@ -163,10 +207,9 @@ execute:
 ```
 
 As a convenience for when you get tired of have many files
-with the same option values (e.g. a data directory), you may
-also create a file called 'pipeline.yml' or '<pipelineName.yml>'
-in the same directory as '<myData.yml>'. Options will be read
-from 'pipeline.yml' first, then '<myData.yml>', then finally
-from any values you specific on the commands line, in that
+with the same option values (e.g., a shared data directory), you may
+also create a file called 'pipeline.yml' or '\<pipelineName\>.yml'
+in the same directory as '\<myData\>.yml'. Options will be read
+from 'pipeline.yml' first, then '\<myData\>.yml', then finally
+from any values you specify on the command line, in that
 order of precedence.
-
