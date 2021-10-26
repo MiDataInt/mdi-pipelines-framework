@@ -1,11 +1,14 @@
 use strict;
 use warnings;
 
-# generic code invoked by a pipeline-specific wrapper script
-# configures the environment and launches the worker script(s)
+# execute, i.e., launch, a pipeline
+# called by the 'mdi' command line function
+# configures the environment and launches pipeline worker script(s)
 
 # working variables
-use vars qw($pipelineDir);
+our ($pipelineDir) = @ARGV;
+
+
 our ($pipelineName, %conda,
      %longOptions, %shortOptions, %optionArrays, %optionValues);
 
@@ -85,5 +88,3 @@ if ($target =~ m/\.yml$/) {
 }
 
 1;
-
-     
