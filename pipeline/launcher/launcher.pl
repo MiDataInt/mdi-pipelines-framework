@@ -5,9 +5,33 @@ use warnings;
 # called by the 'mdi' command line function
 # configures the environment and launches pipeline worker script(s)
 
-# working variables
-our ($pipelineDir) = @ARGV;
+# collect the requested pipeline, command, data.yml, and option arguments
+# target could be a command or a config file with embedded commands via 'execute' key
+my ($pipelineName, $target, @args) = @ARGV;
 
+# discover the pipeline target and whether to use developer or definitive fork
+# use the first matching pipeline name in order given in mdi.yml
+my ($pipelinesFile, $definitiveDir, $developerDir) = ("$ENV{MDI_DIR}/suites/pipelines.txt");
+open my $pH, "<", $pipelinesFile or die "could not read file: $pipelinesFile: $!\n";
+while (my $line = <$pH>){
+    chomp $line;
+    $line =~ m/$pipelineName\t(.*)\t(.*)/ or next;
+    ($definitiveDir, $developerDir) = ($1, $2);
+    last;
+}
+close $pH;
+$definitiveDir or die "not a known command or pipeline: $pipelineName\n";
+my $pipelineDir = ($ENV{DEVELOPER_MODE} and $developerDir) ? $developerDir : $definitiveDir;
+
+
+
+
+
+
+
+# working variables
+
+our ($pipelineDir) = @ARGV;
 
 our ($pipelineName, %conda,
      %longOptions, %shortOptions, %optionArrays, %optionValues);
@@ -42,9 +66,9 @@ map { $_ =~ m/launcher\.pl$/ or require $_ } glob("$launcherDir/*.pl");
 our $config = loadPipelineConfig();
 $ENV{PIPELINE_NAME} = $$config{pipeline}{name}[0] or throwError("missing pipeline name\n");
 
-# requested command, data.yml and option arguments
-# target could be a command or a config file with embedded commands via 'execute' key
-our ($target, @args) = @ARGV;
+# # requested command, data.yml, and option arguments
+# # target could be a command or a config file with embedded commands via 'execute' key
+# our ($target, @args) = @ARGV;
 
 # establish lists of the universal options
 our @universalOptionFamilies = sort {
