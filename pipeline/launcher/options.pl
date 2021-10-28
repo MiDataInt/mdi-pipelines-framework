@@ -6,7 +6,7 @@ use File::Spec;
 # subs for loading available options and their requested values
 
 # working variables
-use vars qw($mainDir $pipelineDir
+use vars qw($mainDir $pipeline
             $config $isSingleCommand @args
             @universalOptionFamilies %allOptionFamilies
             %longOptions %shortOptions %optionArrays

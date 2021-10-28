@@ -5,7 +5,7 @@ use warnings;
 # modified by end user to simplify calls to the pipeline
 
 # working variables
-use vars qw($config $mainDir $launcherDir $pipelineDir
+use vars qw($config $mainDir $launcherDir $pipeline
             @universalTemplateFamilies);
 my ($allOptions, $addComments);
 my $indent = " " x 4;

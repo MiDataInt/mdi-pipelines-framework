@@ -6,69 +6,60 @@ use warnings;
 # configures the environment and launches pipeline worker script(s)
 
 # collect the requested pipeline, command, data.yml, and option arguments
-# target could be a command or a config file with embedded commands via 'execute' key
+# pipelineName could be a pipeline name only, or be directed to a specific repository as suite/pipeline
+# target could be a command, or a config file with embedded commands via 'execute' key
 my ($pipelineName, $target, @args) = @ARGV;
+my @pipelineName = reverse(split('/', $pipelineName, 2)); # thus [name, maybe a suite]
+$pipelineName[1] and $ENV{PIPELINES_SUITE_NAMES} = $pipelineName[1]; # form 'mdi suite/pipelineName'
+my $pipeline;
 
-# discover the pipeline target and whether to use developer or definitive fork
-# use the first matching pipeline name in order given in mdi.yml
-my ($pipelinesFile, $definitiveDir, $developerDir) = ("$ENV{MDI_DIR}/suites/pipelines.txt");
-open my $pH, "<", $pipelinesFile or die "could not read file: $pipelinesFile: $!\n";
-while (my $line = <$pH>){
-    chomp $line;
-    $line =~ m/$pipelineName\t(.*)\t(.*)/ or next;
-    ($definitiveDir, $developerDir) = ($1, $2);
-    last;
+# discover the pipeline source and whether to use a developer or the definitive fork
+# if not directed to a specific repository, use the first matching pipeline name in order found in mdi.yml
+# developer-forks take precedence in developer mode, ignored otherwise
+my %Forks = (definitive => "definitive", developer => "developer-forks");
+sub getPipeline {
+    my ($fork) = @_;
+    foreach my $suite(split(" ", $ENV{PIPELINES_SUITE_NAMES})){
+        my $pipelineDir = "$ENV{MDI_DIR}/suites/$fork/$suite/pipelines/$pipelineName[0]";
+        -d $pipelineDir and return { directory => $pipelineDir, fork => $fork, 
+                                     suite => $suite, name => $pipelineName[0] };
+    }
 }
-close $pH;
-$definitiveDir or die "not a known command or pipeline: $pipelineName\n";
-my $pipelineDir = ($ENV{DEVELOPER_MODE} and $developerDir) ? $developerDir : $definitiveDir;
-
-
-
-
-
-
+$ENV{DEVELOPER_MODE} and $pipeline = getPipeline($Forks{developer});
+!$pipeline and $pipeline = getPipeline($Forks{definitive});
+!$pipeline and die "not a known command or pipeline: $target\n"; 
+$pipelineName = $$pipeline{name};
 
 # working variables
-
-our ($pipelineDir) = @ARGV;
-
-our ($pipelineName, %conda,
-     %longOptions, %shortOptions, %optionArrays, %optionValues);
+our (%conda, %longOptions, %shortOptions, %optionArrays, %optionValues);
 
 # various paths
-$ENV{PIPELINE_EXECUTABLE} = $0;
+our $pipelineDir = $$pipelineDir{directory};
 $ENV{PIPELINE_DIR} = $pipelineDir;
-our $mainDir = "$pipelineDir/../..";
-our $environmentsDir = "$mainDir/environments";
-our $optionsDir      = "$mainDir/options";
-our $modulesDir      = "$mainDir/modules";
-our $_sharedDir = "$pipelineDir/../_shared";
-our $toolsDir = "$mainDir/tools";
-our $launcherDir    = "$toolsDir/pipeline/launcher";
-our $workFlowDir    = "$toolsDir/pipeline/workflow";
-our $workflowScript = "$workFlowDir/workflow.sh";
-our $configFile = "$pipelineDir/_assembly/mdi.yml";
-$ENV{SLURP} = "$toolsDir/shell/slurp";
-#$ENV{BED_UTIL} = "$toolsDir/shell/slurp";
-$ENV{WORKFLOW_DIR} = $workFlowDir;
-$ENV{WORKFLOW_SH}  = $workflowScript;
-$ENV{SHARED_DIR}   = $_sharedDir;
+our $sharedDir = "$pipelineDir/../../shared";
+our $environmentsDir = "$sharedDir/environments";
+our $optionsDir      = "$sharedDir/options";
+our $modulesDir      = "$sharedDir/modules";
 $ENV{MODULES_DIR}  = $modulesDir;
+# our $_sharedDir = "$pipelineDir/../_shared";
+# $ENV{SHARED_DIR}   = $_sharedDir;
+our $launcherDir    = "$ENV{FRAMEWORK_DIR}/pipeline/launcher";
 $ENV{LAUNCHER_DIR} = $launcherDir;
-$ENV{JOB_MANAGER_DIR} = "$mainDir/tools/job_manager";
- 
+our $workFlowDir    = "$ENV{FRAMEWORK_DIR}/pipeline/workflow";
+$ENV{WORKFLOW_DIR} = $workFlowDir;
+our $workflowScript = "$workFlowDir/workflow.sh";
+$ENV{WORKFLOW_SH}  = $workflowScript;
+$ENV{SLURP} = "$ENV{FRAMEWORK_DIR}/shell/slurp";
+
+our $configFile = "$pipelineDir/_assembly/mdi.yml";
+
 # load launcher scripts
 map { $_ =~ m/launcher\.pl$/ or require $_ } glob("$launcherDir/*.pl");
 
 # load the composite pipeline configuration from files
-# NB: this is not the user's data configuration
+# NB: this is not the user's data configuration, it defines the pipeline
 our $config = loadPipelineConfig();
 $ENV{PIPELINE_NAME} = $$config{pipeline}{name}[0] or throwError("missing pipeline name\n");
-
-# # requested command, data.yml, and option arguments
-# # target could be a command or a config file with embedded commands via 'execute' key
-# our ($target, @args) = @ARGV;
 
 # establish lists of the universal options
 our @universalOptionFamilies = sort {
