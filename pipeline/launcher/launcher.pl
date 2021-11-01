@@ -1,8 +1,7 @@
 use strict;
 use warnings;
 
-# generic code invoked by a pipeline-specific wrapper script
-# configures the environment and launches the worker script(s)
+# configure the environment and launch a pipeline's worker script(s)
 
 # working variables
 use vars qw($pipelineDir);
@@ -85,5 +84,3 @@ if ($target =~ m/\.yml$/) {
 }
 
 1;
-
-     
