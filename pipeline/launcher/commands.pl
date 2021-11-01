@@ -5,7 +5,7 @@ use warnings;
 # most commands terminate execution or never return
 
 # working variables
-use vars qw($pipelineDir $launcherDir $mainDir
+use vars qw($pipeline $launcherDir $mainDir
             @args $config %longOptions $workflowScript);
 
 # switch for acting on restricted commands
