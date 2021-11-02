@@ -6,7 +6,7 @@ use vars qw($jobManagerName %commands %commandOptions %optionInfo);
 my $commandTabLength = 12; 
 my $optionTabLength = 20;
 our $separatorLength = 87;
-our $leftPad = (" ") x 4;
+our $leftPad = (" ") x 2;
 our $errorHighlight = "!" x 60;
 our @optionGroups = qw(main submit status job rollback);  # ensure that similar options group together
 my %useOptionGroupDelimiter = (submit=>1, extend=>1, resubmit=>1);  # break long options lists into separate groups
@@ -23,11 +23,13 @@ sub reportUsage { # program help, always exits
     print $message ? "\n$message\n\n" : "\n";
     my $jmName = "$leftPad$jobManagerName";
     print 
-        "usage\n".
-        "$jmName <pipeline> [options] # alias for './<pipeline>/<pipeline> [options]'\n".
-        "$jmName <command> [options] <data.yml ...> [options] # apply command to data.yml(s)\n".
+        "usage:\n".
+        "$jmName <pipeline> [options]  # run a pipeline with the given options\n".
+        "$jmName <command> [options] <data.yml ...> [options] # apply pipeline command to data.yml(s)\n".
+        "$jmName <command> [options]   # additional management command shortcuts\n".
+        "$jmName <pipeline> --help\n".
         "$jmName <command> --help\n".
-        "$jmName --help\n\n";        
+        "$jmName --help\n";        
     if($command){
         $commands{$command} ? reportOptionHelp($command) : reportCommandsHelp();
     } else {
@@ -37,11 +39,12 @@ sub reportUsage { # program help, always exits
     exit $exitStatus; 
 }
 sub reportCommandsHelp { # help on the set of available commands, organized by topic
-    print "\navailable commands\n\n";
+    print "\navailable commands:\n\n";
     reportCommandChunk("job submission",              qw(submit extend));  
     reportCommandChunk("status and result reporting", qw(status report script));   
     reportCommandChunk("error handling",              qw(delete));           
-    reportCommandChunk("pipeline management",         qw(rollback purge));       
+    reportCommandChunk("pipeline management",         qw(rollback purge));  
+    reportCommandChunk("server management",           qw(server install));  
 }
 sub reportOptionHelp { 
     my ($command) = @_;
@@ -58,7 +61,7 @@ sub reportOptionHelp {
             my $option = "-$shortOption,--$longOption";
             $valueString and $option .= " $valueString";
             ${$commandOptions{$command}}{$longOption} and $optionHelp = "**REQUIRED** $optionHelp";
-            $parsedOptions{$optionGroup}{$groupOrder} = "    $option".(" " x ($optionTabLength - length($option)))."$optionHelp\n";
+            $parsedOptions{$optionGroup}{$groupOrder} = "$leftPad$option".(" " x ($optionTabLength - length($option)))."$optionHelp\n";
         }
         my $delimiter = "";
         foreach my $optionGroup(@optionGroups){
@@ -70,15 +73,15 @@ sub reportOptionHelp {
             $delimiter = "\n";
         }
     } else {
-        print "    none\n";
+        print $leftPad."none\n";
     }
     print "\n";
 }
 sub reportCommandChunk {
     my ($header, @commands) = @_;
-    print "  $header:\n";
+    print $leftPad."$header:\n";
     foreach my $command (@commands){
-        print "    ", getCommandLine($command);
+        print $leftPad, $leftPad, getCommandLine($command);
     }
     print "\n";
 }

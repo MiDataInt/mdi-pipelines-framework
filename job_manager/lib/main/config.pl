@@ -19,6 +19,9 @@ our %commands = (  # [executionSub, commandHelp]
     rollback    =>  [\&qRollback,    "revert pipeline to the most recently archived status file"],
     purge       =>  [\&qPurge,       "remove all status, script and log files associated with the jobs"],
     #move        =>  [\&qMove,        "move/rename <data.yml> and its associated script and status files"],
+#------------------------------------------------------------------------------------------------------------
+    server      =>  [undef,          "launch the MDI web server for interactive Stage 2 apps"],
+    install     =>  [undef,          "re-run the MDI installation process to add new suites, etc."],
 ); 
 #------------------------------------------------------------------------
 # options
@@ -49,6 +52,9 @@ our %optionInfo = (# [shortOption, valueString, optionGroup, groupOrder, optionH
     '_extending_'=>    ["NA", undef,   "NA", "NA", 0, "internalOption"], 
     '_q_remote_'=>     ["NA", undef,   "NA", "NA", 0, "internalOption"], 
     '_server_mode_'=>  ["NA", undef,   "NA", "NA", 0, "internalOption"], 
+#------------------------------------------------------------------------------------------------------------
+    'develop'=>["d", undef,   "server", "NA", 0, "launch the server in developer mode"],
+    'ondemand'=>["o", undef,   "server", "NA", 0, "launch the server in ondemand mode"],
 );
 our %longOptions = map { ${$optionInfo{$_}}[0] => $_ } keys %optionInfo; # for converting short options to long; long options are used internally
 #------------------------------------------------------------------------
@@ -67,7 +73,10 @@ our %commandOptions =  ( # 0=allowed, 1=required
 #------------------------------------------------------------------------------------------------------------
     rollback   =>  {'dry-run'=>0,'force'=>0,'count'=>0}, 
     purge      =>  {'dry-run'=>0,'force'=>0},
-    #move       =>  {'move-to'=>1,'force'=>0}
+    #move       =>  {'move-to'=>1,'force'=>0},
+#------------------------------------------------------------------------------------------------------------
+    server   =>  {'develop'=>0,'ondemand'=>0}, 
+    install  =>  {},
 );  
 #========================================================================
 

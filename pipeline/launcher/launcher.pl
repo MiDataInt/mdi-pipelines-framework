@@ -27,7 +27,7 @@ sub getPipeline {
 }
 $ENV{DEVELOPER_MODE} and $pipeline = getPipeline($Forks{developer});
 !$pipeline and $pipeline = getPipeline($Forks{definitive});
-!$pipeline and die "not a known command or pipeline: $target\n"; 
+!$pipeline and die "\nmdi error: not a known command or pipeline: $pipelineName\n\n"; 
 $pipelineName = $$pipeline{name};
 
 # working variables
