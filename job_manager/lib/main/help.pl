@@ -8,7 +8,7 @@ my $optionTabLength = 20;
 our $separatorLength = 87;
 our $leftPad = (" ") x 2;
 our $errorHighlight = "!" x 60;
-our @optionGroups = qw(main submit status job rollback);  # ensure that similar options group together
+our @optionGroups = qw(main submit status job rollback run install);  # ensure that similar options group together
 my %useOptionGroupDelimiter = (submit=>1, extend=>1, resubmit=>1);  # break long options lists into separate groups
 
 #========================================================================
@@ -20,6 +20,7 @@ sub throwError {
 }
 sub reportUsage { # program help, always exits 
     my ($message, $command, $die) = @_;
+    print "\n>>> Michigan Data Interface (MDI) <<<\n";
     print $message ? "\n$message\n\n" : "\n";
     my $jmName = "$leftPad$jobManagerName";
     print 
@@ -44,7 +45,7 @@ sub reportCommandsHelp { # help on the set of available commands, organized by t
     reportCommandChunk("status and result reporting", qw(status report script));   
     reportCommandChunk("error handling",              qw(delete));           
     reportCommandChunk("pipeline management",         qw(rollback purge));  
-    reportCommandChunk("server management",           qw(server install));  
+    reportCommandChunk("server management",           qw(run install));  
 }
 sub reportOptionHelp { 
     my ($command) = @_;

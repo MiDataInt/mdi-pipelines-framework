@@ -6,7 +6,7 @@ use warnings;
 #------------------------------------------------------------------------
 # commands
 #------------------------------------------------------------------------
-our %commands = (  # [executionSub, commandHelp]
+our %commands = (  # [executionSub, commandHelp, mdiStage2]
     submit      =>  [\&qSubmit,      "queue all required data analysis jobs on the server"],      
     extend      =>  [\&qExtend,      "queue only new or deleted/unsatisfied jobs"],   
 #------------------------------------------------------------------------------------------------------------
@@ -20,8 +20,8 @@ our %commands = (  # [executionSub, commandHelp]
     purge       =>  [\&qPurge,       "remove all status, script and log files associated with the jobs"],
     #move        =>  [\&qMove,        "move/rename <data.yml> and its associated script and status files"],
 #------------------------------------------------------------------------------------------------------------
-    server      =>  [undef,          "launch the MDI web server for interactive Stage 2 apps"],
-    install     =>  [undef,          "re-run the MDI installation process to add new suites, etc."],
+    run         =>  [\&mdiRun,        "launch the MDI web server to use interactive Stage 2 apps",   1],
+    install     =>  [\&mdiInstall,    "re-run the MDI installation process to add new suites, etc.", 1],
 ); 
 #------------------------------------------------------------------------
 # options
@@ -53,8 +53,11 @@ our %optionInfo = (# [shortOption, valueString, optionGroup, groupOrder, optionH
     '_q_remote_'=>     ["NA", undef,   "NA", "NA", 0, "internalOption"], 
     '_server_mode_'=>  ["NA", undef,   "NA", "NA", 0, "internalOption"], 
 #------------------------------------------------------------------------------------------------------------
-    'develop'=>["d", undef,   "server", "NA", 0, "launch the server in developer mode"],
-    'ondemand'=>["o", undef,   "server", "NA", 0, "launch the server in ondemand mode"],
+    'develop'=>        ["d", undef,   "run", 0, "launch the web server in developer mode"],
+    'ondemand'=>       ["o", undef,   "run", 1, "launch or install the web server in ondemand mode"],
+    'data-dir'=>       ["D", undef,   "run", 2, "the path to the data directory [./data]"],
+    'ondemand-dir'=>   ["O", undef,   "run", 3, "the path to the ondemand shared/public directory"],
+    'install-apps'=>   ["a", undef,   "install", 0, "install Stage 2 apps and associated R packages"],
 );
 our %longOptions = map { ${$optionInfo{$_}}[0] => $_ } keys %optionInfo; # for converting short options to long; long options are used internally
 #------------------------------------------------------------------------
@@ -75,10 +78,9 @@ our %commandOptions =  ( # 0=allowed, 1=required
     purge      =>  {'dry-run'=>0,'force'=>0},
     #move       =>  {'move-to'=>1,'force'=>0},
 #------------------------------------------------------------------------------------------------------------
-    server   =>  {'develop'=>0,'ondemand'=>0}, 
-    install  =>  {},
+    run        =>  {'develop'=>0,'ondemand'=>0,'data-dir'=>0,'ondemand-dir'=>0}, 
+    install    =>  {'install-apps'=>0,'ondemand'=>0},
 );  
 #========================================================================
 
 1;
-

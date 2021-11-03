@@ -10,8 +10,7 @@ our (@options, %options);
 # get and check requested commands and options
 #-----------------------------------------------------------------------
 sub checkCommand { # check for help request or validity of requested command
-    my $descriptionString = ">>> Michigan Data Interface (MDI) <<<\n\n".
-                            "$jobManagerName is a utility for:\n".
+    my $descriptionString = "$jobManagerName is a utility for:\n".
                             "  - submitting, monitoring and managing Stage 1 data analysis pipelines\n".
                             "  - launching the web interface that runs all Stage 2 interactive apps";
     $command or reportUsage($descriptionString);    

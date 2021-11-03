@@ -6,7 +6,7 @@ use Cwd(qw(abs_path));
 #========================================================================
 # main execution block
 #========================================================================
-use vars qw($jobManagerDir $jobManagerName @options);
+use vars qw($jobManagerDir $jobManagerName %commands @options);
 our ($command, @args) = @ARGV;
 our ($dataYmlFile, $pipelineOptions);
 #------------------------------------------------------------------------
@@ -16,9 +16,12 @@ sub jobManagerMain {
 
     # parse the various arguments provided on the job manager command line
     checkCommand();
-    @args or (reportOptionHelp($command) and exit);
+    my $isStage2 = $commands{$command}[2];
+    @args or $isStage2 or (reportOptionHelp($command) and exit);
+
     my @pipelineOptions = setOptions();
     checkRequiredOptions();    
+    $isStage2 and executeCommand(); # shortcut to stage2 mdi:XXX execution
     my @dataYmlFiles; # our target file(s) that specific data jobs
     while (defined $pipelineOptions[0] and $pipelineOptions[0] =~ m/\.yml$/) {
         my $dataYmlFile = shift @pipelineOptions;
