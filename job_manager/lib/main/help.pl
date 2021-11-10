@@ -45,7 +45,7 @@ sub reportCommandsHelp { # help on the set of available commands, organized by t
     reportCommandChunk("status and result reporting", qw(status report script));   
     reportCommandChunk("error handling",              qw(delete));           
     reportCommandChunk("pipeline management",         qw(rollback purge));  
-    reportCommandChunk("server management",           qw(run install));  
+    reportCommandChunk("server management",           qw(initialize install run));  
 }
 sub reportOptionHelp { 
     my ($command) = @_;
@@ -62,7 +62,9 @@ sub reportOptionHelp {
             my $option = "-$shortOption,--$longOption";
             $valueString and $option .= " $valueString";
             ${$commandOptions{$command}}{$longOption} and $optionHelp = "**REQUIRED** $optionHelp";
-            $parsedOptions{$optionGroup}{$groupOrder} = "$leftPad$option".(" " x ($optionTabLength - length($option)))."$optionHelp\n";
+            my $nSpaces = $optionTabLength - length($option);
+            $nSpaces < 1 and $nSpaces = 1;
+            $parsedOptions{$optionGroup}{$groupOrder} = "$leftPad$option".(" " x ($nSpaces))."$optionHelp\n";
         }
         my $delimiter = "";
         foreach my $optionGroup(@optionGroups){

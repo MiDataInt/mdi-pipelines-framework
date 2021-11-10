@@ -16,7 +16,7 @@ $| = 1;
 #------------------------------------------------------------------------
 my ($rootDir) = @ARGV;
 my $jobManagerName = 'mdi';
-print STDERR "initializing the '$jobManagerName program' target\n";
+print STDERR "initializing the '$jobManagerName' program target\n";
 my $script = abs_path($0);
 $script =~ m|(.*)/initialize.pl$| or die "fatal error: could not establish the job manager directory\n";
 my $jobManagerDir = $1;
@@ -119,31 +119,4 @@ close $outH;
 # make the job manager program target script executable
 #------------------------------------------------------------------------
 qx|chmod ugo+x $script|;
-
-#------------------------------------------------------------------------
-# add the mdi target program to the user's PATH
-# TODO: implement auto-completion script and activate in .bashrc
-#------------------------------------------------------------------------
-sub slurpFile {  # read the entire contents of a disk file into memory
-    my ($file) = @_;
-    local $/ = undef; 
-    open my $inH, "<", $file or die "could not open $file for reading: $!\n";
-    my $contents = <$inH>; 
-    close $inH;
-    return $contents;
-}
-my $bashRc = "$ENV{HOME}/.bashrc";
-my $bashRcBackup = "$bashRc.mdi-backup";
--e $bashRcBackup or copy($bashRc, $bashRcBackup);
-my $bashRcContents = slurpFile($bashRc);
-$bashRcContents =~ s/# >>> mdi initialize.+mdi initialize <<<//g;
-my $bashRcBlock = "
-# >>> mdi initialize >>>
-export PATH=\"$rootDir:\$PATH\"
-# <<< mdi initialize <<<
-";
-$bashRcContents = join("\n", $bashRcContents, $bashRcBlock)."\n";
-open $outH, ">", $bashRc or die "could not write to:\n    $bashRc\n$!\n";
-print $outH $bashRcContents;
-close $outH;
 #========================================================================

@@ -22,7 +22,7 @@ refer to a series of analysis actions coordinated by scripts.
 
 - sample autonomous, i.e., they are executed "per sample"
 - executed only once on an input data set, not iteratively
-- executed the same way on every sample, regardless of the experiment
+- executed the same way on every sample
 - hands-off, i.e. not interactive
 - resource intensive, in storage and/or CPU needs
 - executed on a high-performance compute (HPC) cluster
@@ -58,7 +58,7 @@ Code developers are directed to this repository for a template to
 ## Prerequisites
 
 **R** is required to install the MDI manager, which is in turn used 
-to install the MDI pipelines. Two specialized programs are futher required 
+to install the MDI pipelines. Two specialized programs are further required 
 to run pipelines: **git** and **conda**. Git is always available on Great Lakes,
 and R and conda can be loaded with (change versions as needed):
 
@@ -87,13 +87,13 @@ and managed by the MDI manager utility found here:
 <https://github.com/MiDataInt/mdi-manager>
 
 Please follow the manager installation instructions, being sure
-to update the pipelines suites you wish to install in 'mdi/mdi.yml':
+to update the pipelines suites you wish to install in 'mdi/config/suites.yml':
 
 ```
-# mdi/mdi.yml
+# mdi/config/suites.yml
 suites:
-    pipelines:
-        - https://github.com/GIT_USER/SUITE_NAME-mdi-pipelines.git
+  pipelines:
+    - https://github.com/GIT_USER/SUITE_NAME-mdi-pipelines.git
 ```
 
 and then running' 'mdi::install()' a second time, or calling 
@@ -136,8 +136,6 @@ mdi
 which will provide help information on using the command line 
 utility to run and queue pipeline jobs.
 
-
-
 ## General pipeline organization
 
 As noted above, pipelines are defined by code in
@@ -170,9 +168,10 @@ the path to that file to the pipeline. This makes
 it easy to assemble jobs and to keep a history of what
 was done, especially if you use our job manager.
 
-Config files are valid YAML files, although the interpeter
+Config files are valid YAML files, although the interpreter
 we use to read them only processes a subset of YAML features.
-[Learn more about YAML on the internet](https://www.google.com/search?q=yaml+basics), or just proceed, it is intuitive and easy.
+[Learn more about YAML on the internet](https://www.google.com/search?q=yaml+basics), 
+or just proceed, it is intuitive and easy.
 
 ### Config file templates
 

@@ -10,11 +10,11 @@ use warnings;
 # target could be a command, or a config file with embedded commands via 'execute' key
 my ($pipelineName, $target, @args) = @ARGV;
 my @pipelineName = reverse(split('/', $pipelineName, 2)); # thus [name, maybe a suite]
-$pipelineName[1] and $ENV{PIPELINES_SUITE_NAMES} = $pipelineName[1]; # form 'mdi suite/pipelineName'
+$pipelineName[1] and $ENV{PIPELINES_SUITE_NAMES} = $pipelineName[1]; # form 'suite/pipelineName'
 my $pipeline;
 
 # discover the pipeline source and whether to use a developer or the definitive fork
-# if not directed to a specific repository, use the first matching pipeline name in order found in mdi.yml
+# if not directed to a specific repository, use the first matching pipeline name in order found in config/suites.yml
 # developer-forks take precedence in developer mode, ignored otherwise
 my %Forks = (definitive => "definitive", developer => "developer-forks");
 sub getPipeline {

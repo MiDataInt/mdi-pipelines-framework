@@ -16,20 +16,17 @@ use vars qw(%options);
 # main execution block
 #------------------------------------------------------------------------
 sub mdiRun { 
-    my ($action, $opts);
+    my ($action, $opts) = ("", "");
     if($options{'develop'}){
         $action = "develop";
-        $opts = "";
     } elsif($options{'ondemand'}) {
         $action = "ondemand";
-        $options{'ondemand-dir'} or throwError("option '--ondemand-dir' is required when option '--ondemand' is set", 'run');
-        $opts = ", ondemandDir = \"".$options{'ondemand-dir'}."\"";
     } else {
         $action = "run";
-        $opts = "";
     }
     my $dataDir = $options{'data-dir'} ? ", dataDir = \"".$options{'data-dir'}."\"" : "";
-    exec "Rscript -e 'mdi::$action(mdiDir = \"$ENV{MDI_DIR}\" $dataDir $opts)'";
+    my $sharedDir = $options{'shared-dir'} ? ", sharedDir = \"".$options{'shared-dir'}."\"" : "";
+    exec "Rscript -e 'mdi::$action(mdiDir = \"$ENV{MDI_DIR}\" $dataDir $sharedDir $opts)'";
 }
 #========================================================================
             
