@@ -25,9 +25,9 @@ sub mdiRun {
         $action = "run";
     }
     my $dataDir = $options{'data-dir'} ? ", dataDir = \"".$options{'data-dir'}."\"" : "";
-    my $sharedDir = $options{'shared-dir'} ? ", sharedDir = \"".$options{'shared-dir'}."\"" : "";
-    exec "Rscript -e 'mdi::$action(mdiDir = \"$ENV{MDI_DIR}\" $dataDir $sharedDir $opts)'";
+    my $hostDir = $options{'host-dir'} ? ", hostDir = \"".$options{'host-dir'}."\"" : "";
+    exec "Rscript -e 'mdi::$action(mdiDir = \"$ENV{MDI_DIR}\" $dataDir $hostDir $opts)'";
 }
 #========================================================================
-            
+
 1;

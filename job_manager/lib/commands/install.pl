@@ -16,9 +16,9 @@ use vars qw(%options);
 # main execution block
 #------------------------------------------------------------------------
 sub mdiInstall { 
-    my $installApps = $options{'install-apps'} ? "TRUE" : "FALSE";
+    my $installPackages = $options{'install-packages'} ? "TRUE" : "FALSE";
     exec "Rscript -e 'mdi::install(\"$ENV{MDI_DIR}\", ".
-         "installApps = $installApps, confirm = FALSE, addToPATH = FALSE, ".
+         "installPackages = $installPackages, confirm = FALSE, addToPATH = FALSE, ".
          "clone = TRUE, force = FALSE)'";
 }
 #========================================================================
