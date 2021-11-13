@@ -26,11 +26,11 @@ sub reportUsage { # program help, always exits
     print 
         "usage:\n".
         "$jmName <pipeline> [options]  # run a pipeline with the given options\n".
-        "$jmName <command> [options] <data.yml ...> [options] # apply pipeline command to data.yml(s)\n".
-        "$jmName <command> [options]   # additional management command shortcuts\n".
-        "$jmName <pipeline> --help\n".
-        "$jmName <command> --help\n".
-        "$jmName --help\n";        
+        "$jmName <command> [options] <data.yml ...> [options] # apply manager command to data.yml(s)\n".
+        "$jmName <command> [options]   # additional manager command shortcuts\n".
+        "$jmName <pipeline> --help\n". # pipeline help
+        "$jmName <command> --help\n".  # manager command help
+        "$jmName --help\n";            # show all manager commands
     if($command){
         $commands{$command} ? reportOptionHelp($command) : reportCommandsHelp();
     } else {
