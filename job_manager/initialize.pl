@@ -14,9 +14,9 @@ $| = 1;
 #------------------------------------------------------------------------
 # get the job manager directory and executable name
 #------------------------------------------------------------------------
-my ($rootDir) = @ARGV;
+my ($rootDir, $suppressLog) = @ARGV;
 my $jobManagerName = 'mdi';
-print STDERR "initializing the '$jobManagerName' program target\n";
+$suppressLog or print STDERR "initializing the '$jobManagerName' program target\n";
 my $script = abs_path($0);
 $script =~ m|(.*)/initialize.pl$| or die "fatal error: could not establish the job manager directory\n";
 my $jobManagerDir = $1;
@@ -53,7 +53,7 @@ $timeVersion eq "UNKNOWN" and $timeVersion = 1.8;
 my $memoryCorrection = $timeVersion > 1.7 ? 1 : 4; # for time <= v1.7, account for the known bug that memory values are 4-times too large
 my $memoryMessage = $timeVersion > 1.7 ? "" : "q: !! maxvmem value above is 4-fold too high due to known bug in GNU time utility !!"; 
 #------------------------------------------------------------------------
-# discover the job scheduler in use on the server
+# discover and store the job scheduler in use on the server
 #------------------------------------------------------------------------
 my ($qType, $schedulerDir, $submitTarget) = ('','',''); # no scheduler, will require submit option -e
 if(my $check = getProgramPath('qhost')){
@@ -69,6 +69,10 @@ if(my $check = getProgramPath('qhost')){
     $schedulerDir = dirname($check);
     $submitTarget = "$schedulerDir/sbatch";
 }
+my $qTypeFile = "$jobManagerDir/qType";
+open my $qTypeH, ">", $qTypeFile or die "could not open $qTypeFile for writing: $1\n";
+print $qTypeH $qType;
+close $qTypeH;
 #------------------------------------------------------------------------
 # parse the path to the job manager program and environment targets
 #------------------------------------------------------------------------

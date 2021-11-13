@@ -7,22 +7,25 @@ use warnings;
 
 # collect the requested pipeline, command, data.yml, and option arguments
 # pipelineName could be a pipeline name only, or be directed to a specific repository as suite/pipeline
-# target could be a command, or a config file with embedded commands via 'execute' key
+# target could be a pipeline command, or a config file with embedded commands via 'execute' key
 my ($pipelineName, $target, @args) = @ARGV;
 my @pipelineName = reverse(split('/', $pipelineName, 2)); # thus [name, maybe a suite]
-$pipelineName[1] and $ENV{PIPELINES_SUITE_NAMES} = $pipelineName[1]; # form 'suite/pipelineName'
 my $pipeline;
 
 # discover the pipeline source and whether to use a developer or the definitive fork
 # if not directed to a specific repository, use the first matching pipeline name in order found in config/suites.yml
 # developer-forks take precedence in developer mode, ignored otherwise
 my %Forks = (definitive => "definitive", developer => "developer-forks");
+my @pipelineDirs = split(/\s/, $ENV{PIPELINES_SUITES});
 sub getPipeline {
     my ($fork) = @_;
-    foreach my $suite(split(" ", $ENV{PIPELINES_SUITE_NAMES})){
-        my $pipelineDir = "$ENV{MDI_DIR}/suites/$fork/$suite/pipelines/$pipelineName[0]";
-        -d $pipelineDir and return { directory => $pipelineDir, fork => $fork, 
-                                     suite => $suite, name => $pipelineName[0] };
+    foreach my $pipelineDir(@pipelineDirs){
+        # MDI_DIR/suites/definitive/mdi-pipelines-suite-template/pipelines/_template/
+        my ($mdiDir, $suitesLabel, $pipelineFork, $suiteRepo, $pipelinesLabel, $pipelineName) = split('/', $pipelineDir);
+        $pipelineName[0] eq $pipelineName or next;
+        $pipelineName[1] and ($pipelineName[1] eq $suiteRepo or next);
+        $fork eq $pipelineFork or next;
+        return { directory => $pipelineDir, fork => $pipelineFork, suite => $suiteRepo, name => $pipelineName };
     }
 }
 $ENV{DEVELOPER_MODE} and $pipeline = getPipeline($Forks{developer});
