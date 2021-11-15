@@ -25,12 +25,15 @@ sub reportUsage { # program help, always exits
     my $jmName = "$leftPad$jobManagerName";
     print 
         "usage:\n".
-        "$jmName <pipeline> [options]  # run a pipeline with the given options\n".
+        "$jmName <pipeline> <data.yml> [options]  # run all pipeline actions in data.yml\n".
+        "$jmName <pipeline> <action> <data.yml> [options] # run one action from data.yml\n".
+        "$jmName <pipeline> <action> <options>    # run one action, all options from command line\n".
         "$jmName <command> [options] <data.yml ...> [options] # apply manager command to data.yml(s)\n".
-        "$jmName <command> [options]   # additional manager command shortcuts\n".
-        "$jmName <pipeline> --help\n". # pipeline help
-        "$jmName <command> --help\n".  # manager command help
-        "$jmName --help\n";            # show all manager commands
+        "$jmName <command> [options]              # additional manager command shortcuts\n".
+        "$jmName <pipeline> <action> --help       # pipeline action help\n".
+        "$jmName <pipeline> --help                # summarize pipeline actions\n". 
+        "$jmName <command> --help                 # manager command help\n".
+        "$jmName --help                           # summarize manager commands\n";           
     if($command){
         $commands{$command} ? reportOptionHelp($command) : reportCommandsHelp();
     } else {

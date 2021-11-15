@@ -1,6 +1,6 @@
 ---
 #--------------------------------------------------------------------
-# universal options applied to all pipelines and commands
+# universal options applied to all pipelines and actions
 # these optionFamilies do not need to be invoked
 #--------------------------------------------------------------------
 optionFamilies:
@@ -144,5 +144,4 @@ optionFamilies:
                 type: boolean
                 required: false
                 default: false
-                description: "only show parsed variable values; do not execute the command"
-
+                description: "only show parsed variable values; do not execute the action"

@@ -9,7 +9,7 @@ use vars qw(%longOptions %optionValues);
 #------------------------------------------------------------------------------
 # confirm dangerous actions
 #------------------------------------------------------------------------------
-sub confirmAction {
+sub getPermission {
     my ($message, $force) = @_;
     ($optionValues{force} or $force) and return 1;
     print "$message\n";
@@ -77,4 +77,3 @@ sub slurpFile {  # read the entire contents of a disk file into memory
 }
 
 1;
-

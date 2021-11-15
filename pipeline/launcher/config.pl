@@ -19,9 +19,9 @@ sub loadPipelineConfig {
     my @optionFamilies = (loadYamlFile("$launcherDir/options.yml", 1, 1));
     my %loaded = (universal => 1);
 
-    # cascade to add option families invoked by a command
-    foreach my $command(keys %{$$pipeline{commands}}){ 
-        my $optionFamilies = $$pipeline{commands}{$command}{optionFamilies} or next;
+    # cascade to add option families invoked by a pipeline action
+    foreach my $action(keys %{$$pipeline{actions}}){ 
+        my $optionFamilies = $$pipeline{actions}{$action}{optionFamilies} or next;
         ref($optionFamilies) eq 'ARRAY' or next;
         foreach my $optionFamily(@$optionFamilies){
             $loaded{$optionFamily} and next;
@@ -41,8 +41,8 @@ sub loadPipelineConfig {
 # expand options get the set of option values for each required task
 #------------------------------------------------------------------------------
 sub reportAssembledConfig {
-    my ($command, $condaPaths) = @_;
-    my $cmd = getCmdHash($command);
+    my ($action, $condaPaths) = @_;
+    my $cmd = getCmdHash($action);
     my $indent = "    ";
     
     # print the config header, top-level metadata
@@ -54,10 +54,10 @@ sub reportAssembledConfig {
     $report .= "pipeline:\n";
     $report .= $indent."name: $pName\n";
     $report .= $indent."description: \"$desc\"\n";
-    $report .= "execute: $command\n";
+    $report .= "execute: $action\n";
     $report .= "thread: $thread\n";
-    $report .= "nTasks: $nTasks{$command}\n";
-    $report .= "$command:\n";
+    $report .= "nTasks: $nTasks{$action}\n";
+    $report .= "$action:\n";
     
     # print the options
     my %familySeen;
@@ -84,7 +84,7 @@ sub reportAssembledConfig {
                 my $spaces = (" ") x ($nSpaces > 1 ? $nSpaces : 1);
                 my $value = getReportOptionValue($option, $$values[0]);
                 $$option{hidden}[0] or $report .= "$indent$indent$longOption:$spaces$value\n";
-                foreach my $i(1..$nTasks{$command}){
+                foreach my $i(1..$nTasks{$action}){
                     $taskOptions[$i-1]{$longOption} = $$values[0];
                 }
             }
@@ -115,4 +115,3 @@ sub getReportOptionValue {
 }
 
 1;
-

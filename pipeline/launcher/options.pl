@@ -7,10 +7,10 @@ use File::Spec;
 
 # working variables
 use vars qw($mainDir $pipeline
-            $config $isSingleCommand @args
+            $config $isSingleAction @args
             @universalOptionFamilies %allOptionFamilies
             %longOptions %shortOptions %optionArrays
-            $helpCommand $helpCmd
+            $helpAction $helpCmd
             %nTasks $errorSeparator);
 our (%nTasks);
 
@@ -18,35 +18,35 @@ our (%nTasks);
 # top-level function that discovers and checks all expected and requested option values
 #------------------------------------------------------------------------------
 sub parseAllOptions {
-    my ($actionCommand, $subjectCommand) = @_;
-    $subjectCommand or $subjectCommand = $actionCommand;
-    $ENV{PIPELINE_COMMAND} = $subjectCommand;    
+    my ($actionCommand, $subjectAction) = @_;
+    $subjectAction or $subjectAction = $actionCommand;
+    $ENV{PIPELINE_ACTION} = $subjectAction;    
     
-    # set the known options list for a pipeline action command
-    my $cmd = getCmdHash($subjectCommand);
-    ($helpCommand, $helpCmd) = ($subjectCommand, $cmd);
-    loadCommandOptions($cmd);
-    $isSingleCommand and (!$args[0] or $args[0] eq '-h' or $args[0] eq '--help') and showOptionsHelp();
+    # set the known options list for a pipeline action
+    my $cmd = getCmdHash($subjectAction);
+    ($helpAction, $helpCmd) = ($subjectAction, $cmd);
+    loadActionOptions($cmd);
+    $isSingleAction and (!$args[0] or $args[0] eq '-h' or $args[0] eq '--help') and showOptionsHelp();
     
     # define and load a series of config scripts in increasing order of precedence
-    my $configYml = assembleCompositeConfig($cmd, $subjectCommand);
-    setOptionsFromConfigComposite($configYml, $subjectCommand);
+    my $configYml = assembleCompositeConfig($cmd, $subjectAction);
+    setOptionsFromConfigComposite($configYml, $subjectAction);
     
     # add options values from the command line; takes precedence over any config file
     setOptionsFromCommandLine();
     
     # ensure that we have a complete and valid set of options
-    validateOptionArrays($subjectCommand);
+    validateOptionArrays($subjectAction);
     $cmd = getCmdHash($actionCommand);
-    ($helpCommand, $helpCmd) = ($actionCommand, $cmd);
+    ($helpAction, $helpCmd) = ($actionCommand, $cmd);
     validateOptionValues($cmd, $actionCommand);
     $configYml;
 }
 # extend parseAllOptions with a check that options specify a specific task
 sub checkRestrictedTask {
-    my ($subjectCommand) = @_;
+    my ($subjectAction) = @_;
     my $taskId;
-    if ($nTasks{$subjectCommand} > 1) {
+    if ($nTasks{$subjectAction} > 1) {
         $taskId = $optionArrays{'task-id'}[0];
         defined $taskId and $taskId ne 'null' and $taskId >= 1 or throwError(
             "option '--task-id' must be specified for arrayed option values"
@@ -61,11 +61,11 @@ sub checkRestrictedTask {
 }
 
 #------------------------------------------------------------------------------
-# create option lookups for the active command based on the pipeline's defition
+# create option lookups for the active action based on the pipeline's defition
 #------------------------------------------------------------------------------
-sub loadCommandOptions {
+sub loadActionOptions {
     my ($cmd) = @_;
-    %longOptions = %shortOptions = %optionArrays = %nTasks = (); # reset is for multi-command mode
+    %longOptions = %shortOptions = %optionArrays = %nTasks = (); # reset is for multi-action mode
     my %familySeen;
     foreach my $family(getAllOptionFamilies($cmd)){
         $allOptionFamilies{$family}++;
@@ -86,14 +86,14 @@ sub loadCommandOptions {
 }
 sub getAllOptionFamilies {
     my ($cmd) = @_;
-    my @commandOptionFamilies = ($cmd and $$cmd{optionFamilies}) ? @{$$cmd{optionFamilies}} : ();
+    my @actionOptionFamilies = ($cmd and $$cmd{optionFamilies}) ? @{$$cmd{optionFamilies}} : ();
     my $order = 1; # order the family presentation the same way as the calling config file
-    foreach my $family(@commandOptionFamilies){
+    foreach my $family(@actionOptionFamilies){
         $$config{optionFamilies}{$family} or next;
         $$config{optionFamilies}{$family}{order} = [$order];
         $order++;
     }
-    (@commandOptionFamilies, @universalOptionFamilies); # universal option ordering is preset
+    (@actionOptionFamilies, @universalOptionFamilies); # universal option ordering is preset
 }
 sub getFamilyOptions { # pipeline takes precedence over universal options, i.e can override if needed
     my ($family) = @_;
@@ -107,7 +107,7 @@ sub getFamilyOptions { # pipeline takes precedence over universal options, i.e c
 #------------------------------------------------------------------------------
 # define and load a series of option config file in increasing order of precedence
 sub assembleCompositeConfig {
-    my ($cmd, $subjectCommand) = @_;
+    my ($cmd, $subjectAction) = @_;
     
     # collect the user's provided config file, if any
     my ($dataYmlFile, $dataYmlDir);
@@ -118,10 +118,10 @@ sub assembleCompositeConfig {
         shift @args;
     }
 
-    # initialize the composite config with developer-level recommended resources for the command
+    # initialize the composite config with developer-level recommended resources for the action
     my %resourcesYml;
-    fillResourceRecommendations($subjectCommand, $cmd, 'resources',   \%resourcesYml);
-    fillResourceRecommendations($subjectCommand, $cmd, 'job-manager', \%resourcesYml);
+    fillResourceRecommendations($subjectAction, $cmd, 'resources',   \%resourcesYml);
+    fillResourceRecommendations($subjectAction, $cmd, 'job-manager', \%resourcesYml);
 
     # add further configs at increasing precedence
     my @configYmlFiles = (
@@ -153,16 +153,16 @@ sub assembleCompositeConfig {
     $yml;
 }
 sub fillResourceRecommendations {
-    my ($subjectCommand, $cmd, $family, $resourcesYml) = @_;
+    my ($subjectAction, $cmd, $family, $resourcesYml) = @_;
     if ($cmd and $$cmd{$family} and $$cmd{$family}{recommended}) {
         my $recs = $$cmd{$family}{recommended};
         my $i = 1;
         foreach my $option(keys %$recs){
             my $rec = [$$recs{$option}[0]];
-            $$resourcesYml{$subjectCommand}{$family}{$option} = $rec;
+            $$resourcesYml{$subjectAction}{$family}{$option} = $rec;
             push @{$$resourcesYml{parsed_}}, [
                 'KEYED',
-                join(":", $subjectCommand, $family, $option),
+                join(":", $subjectAction, $family, $option),
                 $rec,
                 0,
                 $i
@@ -193,37 +193,37 @@ sub loadOptionsConfigFile {
     # return the hash, still with variable names, not their values
     $yaml;
 }
-# execute an ordered filling of option values from assembled composite config for a single command
+# execute an ordered filling of option values from assembled composite config for a single action
 sub setOptionsFromConfigComposite {
-    my ($yaml, $subjectCommand) = @_;
+    my ($yaml, $subjectAction) = @_;
     setConfigFileOptions($yaml, 'shared');
-    setConfigFileOptions($yaml, $subjectCommand);
+    setConfigFileOptions($yaml, $subjectAction);
 }
 sub setConfigFileOptions {
-    my ($yaml, $commandType) = @_;
-    my $cmd  = $$yaml{$commandType};
+    my ($yaml, $yamlKey) = @_; # yamlKey is either 'shared' or a pipeline action
+    my $cmd  = $$yaml{$yamlKey};
     my $vars = $$yaml{variables};
     ref($cmd) eq 'HASH' or return;
     ref($vars) eq 'HASH' or $vars = {};
  
     # process each option found in the config
     foreach my $family($cmd ? keys %$cmd : ()){
-        ref($$cmd{$family}) eq 'HASH' or throwConfigError(undef, $commandType, $family);
-        $allOptionFamilies{$family} or $commandType eq 'shared' or
-            throwConfigError("'$family' is not a recognized optionFamily\n", $commandType, $family); 
+        ref($$cmd{$family}) eq 'HASH' or throwConfigError(undef, $yamlKey, $family);
+        $allOptionFamilies{$family} or $yamlKey eq 'shared' or
+            throwConfigError("'$family' is not a recognized optionFamily\n", $yamlKey, $family); 
         foreach my $longOption(keys %{$$cmd{$family}}){
             
             # validate the option and data type
             my $optionConfig = $longOptions{$longOption};    
             if (!defined $optionConfig) {
-                $commandType eq 'shared' and next; # no error, shared option might not apply to this command
-                throwConfigError("'$longOption' is not a valid option for command '$commandType'\n",
-                                 $commandType, $family);
+                $yamlKey eq 'shared' and next; # no error, shared option might not apply to this action
+                throwConfigError("'$longOption' is not a valid option for action '$yamlKey'\n",
+                                 $yamlKey, $family);
             }
             if ($$optionConfig{family} ne $family) {
-                $commandType ne 'shared' and
-                    throwConfigError("'$longOption' is not a member of family '$family' for command '$commandType'\n",
-                                     $commandType, $family);
+                $yamlKey ne 'shared' and
+                    throwConfigError("'$longOption' is not a member of family '$family' for action '$yamlKey'\n",
+                                     $yamlKey, $family);
             }
             my $type = $$optionConfig{type} ? $$optionConfig{type}[0] : undef;
             $type or throwError("configuration error:\n    missing data type for option:\n        $family : $longOption");
@@ -338,7 +338,7 @@ sub removeInternalDoubleQuotes { # in case pattern "$ABC""_123" was used to ensu
 # get command line option specifications; takes precedence over .yml values
 #------------------------------------------------------------------------------
 sub setOptionsFromCommandLine {
-    my ($subjectCommand) = @_;
+    my ($subjectAction) = @_;
     while (defined (my $optionList = shift @args)){
         defined $optionList or last; # no more options to process
         unless($optionList =~ m/^\-./){ # next item is a value, not an option
@@ -347,10 +347,10 @@ sub setOptionsFromCommandLine {
         }
         if($optionList =~ m/^\-\-(.+)/){ # long option formatted request
             my $longOption = $1;
-            checkAndSetOption(\%longOptions, $longOption, $subjectCommand);
+            checkAndSetOption(\%longOptions, $longOption, $subjectAction);
         } elsif ($optionList =~ m/^\-(.+)/){ # short option formatted request
             foreach my $shortOption(split('', $1)){
-                checkAndSetOption(\%shortOptions, $shortOption, $subjectCommand);
+                checkAndSetOption(\%shortOptions, $shortOption, $subjectAction);
             }   
         } else {
             showOptionsHelp("malformed option list");
@@ -358,11 +358,11 @@ sub setOptionsFromCommandLine {
     }     
 }
 sub checkAndSetOption {
-    my ($options, $optionName, $subjectCommand) = @_;
+    my ($options, $optionName, $subjectAction) = @_;
     if (defined $$options{$optionName}) { # set known options
         setOption($$options{$optionName});
-    } elsif($isSingleCommand){ # no option errors in multi-command mode, it may apply to another command
-        showOptionsHelp("'$optionName' is not a recognized option for command '$subjectCommand'");
+    } elsif($isSingleAction){ # no option errors in multi-action mode, it may apply to another action
+        showOptionsHelp("'$optionName' is not a recognized option for action '$subjectAction'");
     }   
 }
 sub setOption { 
@@ -385,11 +385,11 @@ sub setEnvVariable {
 }
 
 #------------------------------------------------------------------------------
-# validate all requested option values for a given command
+# validate all requested option values for a given action
 #------------------------------------------------------------------------------
 # makes sure option lists are all of length 1 or a constant N
 sub validateOptionArrays {
-    my ($command) = @_;
+    my ($action) = @_;
     
     # get the lengths of all option lists
     my @nListValues = sort { $b <=> $a } map {
@@ -405,15 +405,15 @@ sub validateOptionArrays {
             $nValues > 1 ? "    $_: $nValues" : ();
         } keys %optionArrays; 
         throwError(
-            "too many different lengths of option value lists for command '$command'\n".
+            "too many different lengths of option value lists for action '$action'\n".
             "all option lists must be of length 1 or a single constant value N\n".
             "got lengths: \n".join("\n", @offendingOptions)
         );
     }
     
     # if multiple tasks, either OUTPUT_DIR or DATA_NAME must be arrayed to yield unique output paths
-    $nTasks{$command} = $nListValues[0] || 1; # largest length of options lists, i.e N
-    if ($nTasks{$command} > 1) {
+    $nTasks{$action} = $nListValues[0] || 1; # largest length of options lists, i.e N
+    if ($nTasks{$action} > 1) {
         @{$optionArrays{'output-dir'}} > 1 or @{$optionArrays{'data-name'}} > 1 or throwError(
             "task arrays must have multiple values for either '--output-dir' or '--data-name'"
         )
@@ -431,7 +431,7 @@ sub validateOptionArrays {
 }
 # check for the existence and proper data types for all expected options
 sub validateOptionValues {
-    my ($cmd, $command) = @_;
+    my ($cmd, $action) = @_;
     foreach my $family(getAllOptionFamilies($cmd)){
         my $options = getFamilyOptions($family);
         foreach my $longOption(keys %$options){
@@ -440,7 +440,7 @@ sub validateOptionValues {
             # check for required values or fill defaults if not required or present
             my $valueExists = defined ${$optionArrays{$longOption}}[0];       
             if($$option{required}[0]){
-                $valueExists or showOptionsHelp("option '$longOption' is required for command '$command'");
+                $valueExists or showOptionsHelp("option '$longOption' is required for action '$action'");
             } elsif(!$valueExists and defined $$option{default}[0]){ # options can carry 0 or zero-length strings
                 $optionArrays{$longOption} = [ $$option{default}[0] ];
             }
@@ -469,4 +469,3 @@ sub validateOptionValues {
 }
 
 1;
-

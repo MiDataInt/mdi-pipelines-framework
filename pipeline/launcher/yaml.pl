@@ -49,9 +49,9 @@ sub loadYamlFile {
         $indentLen and $indent % $indentLen and throwError("inconsistent indenting in file:\n    $file");
         $prevIndent = $indent;
 
-        # implicitly incorporate invoked command modules
+        # implicitly incorporate invoked modules
         $fillModules and $indentLen and $indent == 2 * $indentLen and $line =~ m/^module:/ and
-            addCommandModule($file, $line, \$prevIndent, $indentLen, \@lines, \@indents, \@addenda);  
+            addActionModule($file, $line, \$prevIndent, $indentLen, \@lines, \@indents, \@addenda);  
     }
     close $inH;
     
@@ -235,4 +235,3 @@ sub printYAML {
 }
 
 1;
-

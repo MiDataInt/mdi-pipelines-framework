@@ -4,16 +4,16 @@ use warnings;
 # functions that provide executable help feedback on the command line
 
 # working variables
-use vars qw($config %optionValues $helpCommand $helpCmd);
-my $commandTabLength = 15;
+use vars qw($config %optionValues $helpAction $helpCmd);
+my $actionTabLength = 15;
 my $optionTabLength = 20;
 our $leftPad = (" ") x 4;
 our $errorSeparator = "!" x 60;
 
 #------------------------------------------------------------------------------
-# show a listing of the commands available for a pipeline
+# show a listing of the actions available for a pipeline
 #------------------------------------------------------------------------------
-sub showCommandsHelp {
+sub showActionsHelp {
     my ($error, $exit) = @_;
     $error and print "\n".$errorSeparator."\n$error\n".$errorSeparator."\n";    
     my $pName = "$leftPad$$config{pipeline}{name}[0]";
@@ -21,28 +21,28 @@ sub showCommandsHelp {
     my $usage =
         "$$config{pipeline}{name}[0]: $desc\n\n".
         "usage\n".
-        "$pName <data.yml> [options]           # run all commands found in data.yml\n".
-        "$pName <command> <data.yml> [options] # run one command, with options from data.yml\n".
-        "$pName <command> <options>            # run one command, all options from command line\n".
-        "$pName <command> --help\n".
-        "$pName --help\n";
+        "mdi $pName <data.yml> [options]  # run all pipeline actions in data.yml\n".
+        "mdi $pName <action> <data.yml> [options] # run one action from data.yml\n".
+        "mdi $pName <action> <options>    # run one action, all options from command line\n".
+        "mdi $pName <action> --help       # pipeline action help\n".
+        "mdi $pName --help                # summarize pipeline actions\n";
     print "\n$usage\n";
-    my $commands = $$config{commands};
+    my $actions = $$config{actions};
     my $prevLevel = -1;
     foreach my $name(sort {
-        ($$commands{$a}{universal}[0] || 0) <=> ($$commands{$b}{universal}[0] || 0) or
-        $$commands{$a}{order}[0] <=> $$commands{$b}{order}[0]
-    } keys %$commands){
-        my $level = $$commands{$name}{universal}[0] || 0;
+        ($$actions{$a}{universal}[0] || 0) <=> ($$actions{$b}{universal}[0] || 0) or
+        $$actions{$a}{order}[0] <=> $$actions{$b}{order}[0]
+    } keys %$actions){
+        my $level = $$actions{$name}{universal}[0] || 0;
         if($level != $prevLevel){
-            print $level ? "\ngeneral workflow commands\n" : "pipeline specific commands\n";
+            print $level ? "\ngeneral workflow commands\n" : "pipeline specific actions\n";
             $prevLevel = $level;
         }
-        my $command = $$commands{$name};
-        $$command{hidden}[0] and next;
-        my $commandLength = length($name);
-        my $spaces = (" ") x ($commandTabLength - $commandLength);
-        my $desc = getTemplateValue($$command{description});
+        my $action = $$actions{$name};
+        $$action{hidden}[0] and next;
+        my $actionLength = length($name);
+        my $spaces = (" ") x ($actionTabLength - $actionLength);
+        my $desc = getTemplateValue($$action{description});
         print  "$leftPad"."$name$spaces$desc\n";
     }
     print  "\n"; 
@@ -50,7 +50,7 @@ sub showCommandsHelp {
 }
 
 #------------------------------------------------------------------------------
-# show a listing of the options available for a pipeline command
+# show a listing of the options available for a pipeline action
 # the list can show either descriptions or the values currently in use
 #------------------------------------------------------------------------------
 sub showOptionsHelp {
@@ -59,11 +59,11 @@ sub showOptionsHelp {
     my $pName = $$config{pipeline}{name}[0];
     my $pDesc = getTemplateValue($$config{pipeline}{description});
     print "\n$pName: $pDesc\n";
-    if ($helpCommand) {
-        my $cDesc = $$config{commands}{$helpCommand}{description}[0];
+    if ($helpAction) {
+        my $cDesc = $$config{actions}{$helpAction}{description}[0];
         $cDesc =~ s/^"//;
         $cDesc =~ s/"$//;
-        print "$helpCommand: $cDesc\n\n";
+        print "$helpAction: $cDesc\n\n";
     } 
     my %familySeen;
     foreach my $family(sort { getFamilyOrder($a) <=> getFamilyOrder($b) } getAllOptionFamilies($helpCmd)){
@@ -135,24 +135,12 @@ variables:
 shared:
     optionFamily:
         option: value
-command:
+action:
     optionFamily:
         option: value
 execute:
-    - command";
+    - action";
     showOptionsHelp("malformed config file near '$key'\n".$message.$pattern);
 }
 
-#sub showDependencyHelp {
-#    my ($suppressExit) = @_;
-#    foreach my $dependency(@dependencies){
-#        my $commandLength = length($$dependency{name});
-#        my $spaces = (" ") x ($commandTabLength - $commandLength);        
-#        my $path = qx(bash -c "command -v $$dependency{name}");
-#        print "$$dependency{name}$spaces".($path ? $path : "!!! MISSING !!!\n");
-#    }
-#    $suppressExit or exit;
-#}
-
 1;
-
