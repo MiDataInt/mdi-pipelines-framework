@@ -16,12 +16,12 @@ our $errorSeparator = "!" x 60;
 sub showActionsHelp {
     my ($error, $exit) = @_;
     $error and print "\n".$errorSeparator."\n$error\n".$errorSeparator."\n";    
-    !$error and print "\n>>> Michigan Data Interface (MDI) <<<\n";
+    !$error and print "\n>>> Michigan Data Interface (MDI): Stage 1 Pipelines <<<\n";
     my $pName = $leftPad."mdi $$config{pipeline}{name}[0]";
     my $desc = getTemplateValue($$config{pipeline}{description});
     my $usage =
         "$$config{pipeline}{name}[0]: $desc\n\n".
-        "usage\n".
+        "usage:\n".
         "$pName <data.yml> [options]  # run all pipeline actions in data.yml\n".
         "$pName <action> <data.yml> [options] # run one action from data.yml\n".
         "$pName <action> <options>    # run one action, all options from command line\n".
@@ -36,7 +36,7 @@ sub showActionsHelp {
     } keys %$actions){
         my $level = $$actions{$name}{universal}[0] || 0;
         if($level != $prevLevel){
-            print $level ? "\ngeneral workflow commands\n" : "pipeline specific actions\n";
+            print $level ? "\ngeneral workflow commands:\n" : "pipeline specific actions:\n";
             $prevLevel = $level;
         }
         my $action = $$actions{$name};
@@ -72,7 +72,7 @@ sub showOptionsHelp {
         $familySeen{$family}++;
         my $options = getFamilyOptions($family);
         scalar(keys %$options) or next;
-        print "$family options\n";        
+        print "$family options:\n";        
         foreach my $longOption(sort { getOptionOrder($a, $options) <=> getOptionOrder($b, $options) }
                                      keys %$options){
             my $option = $$options{$longOption};
