@@ -7,7 +7,7 @@ use warnings;
 use vars qw($config %optionValues $helpAction $helpCmd);
 my $actionTabLength = 15;
 my $optionTabLength = 20;
-our $leftPad = (" ") x 4;
+our $leftPad = (" ") x 2;
 our $errorSeparator = "!" x 60;
 
 #------------------------------------------------------------------------------
@@ -16,16 +16,17 @@ our $errorSeparator = "!" x 60;
 sub showActionsHelp {
     my ($error, $exit) = @_;
     $error and print "\n".$errorSeparator."\n$error\n".$errorSeparator."\n";    
-    my $pName = "$leftPad$$config{pipeline}{name}[0]";
+    !$error and print "\n>>> Michigan Data Interface (MDI) <<<\n";
+    my $pName = $leftPad."mdi $$config{pipeline}{name}[0]";
     my $desc = getTemplateValue($$config{pipeline}{description});
     my $usage =
         "$$config{pipeline}{name}[0]: $desc\n\n".
         "usage\n".
-        "mdi $pName <data.yml> [options]  # run all pipeline actions in data.yml\n".
-        "mdi $pName <action> <data.yml> [options] # run one action from data.yml\n".
-        "mdi $pName <action> <options>    # run one action, all options from command line\n".
-        "mdi $pName <action> --help       # pipeline action help\n".
-        "mdi $pName --help                # summarize pipeline actions\n";
+        "$pName <data.yml> [options]  # run all pipeline actions in data.yml\n".
+        "$pName <action> <data.yml> [options] # run one action from data.yml\n".
+        "$pName <action> <options>    # run one action, all options from command line\n".
+        "$pName <action> --help       # pipeline action help\n".
+        "$pName --help                # summarize pipeline actions\n";
     print "\n$usage\n";
     my $actions = $$config{actions};
     my $prevLevel = -1;

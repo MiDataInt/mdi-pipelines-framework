@@ -17,11 +17,13 @@ my $pipeline;
 # developer-forks take precedence in developer mode, ignored otherwise
 my %Forks = (definitive => "definitive", developer => "developer-forks");
 my @pipelineDirs = split(/\s/, $ENV{PIPELINES_SUITES});
+
 sub getPipeline {
     my ($fork) = @_;
     foreach my $pipelineDir(@pipelineDirs){
         # MDI_DIR/suites/definitive/mdi-pipelines-suite-template/pipelines/_template/
-        my ($mdiDir, $suitesLabel, $pipelineFork, $suiteRepo, $pipelinesLabel, $pipelineName) = split('/', $pipelineDir);
+        my ($pipelineName, $pipelinesLabel, $suiteRepo, $pipelineFork) = reverse( split('/', $pipelineDir) );
+        $suiteRepo or next;
         $pipelineName[0] eq $pipelineName or next;
         $pipelineName[1] and ($pipelineName[1] eq $suiteRepo or next);
         $fork eq $pipelineFork or next;
@@ -37,7 +39,8 @@ $pipelineName = $$pipeline{name};
 our (%conda, %longOptions, %shortOptions, %optionArrays, %optionValues);
 
 # various paths
-our $pipelineDir = $$pipelineDir{directory};
+our $mainDir = $ENV{MDI_DIR};
+our $pipelineDir = $$pipeline{directory};
 $ENV{PIPELINE_DIR} = $pipelineDir;
 our $sharedDir = "$pipelineDir/../../shared";
 our $environmentsDir = "$sharedDir/environments";
@@ -53,7 +56,6 @@ $ENV{WORKFLOW_DIR} = $workFlowDir;
 our $workflowScript = "$workFlowDir/workflow.sh";
 $ENV{WORKFLOW_SH}  = $workflowScript;
 $ENV{SLURP} = "$ENV{FRAMEWORK_DIR}/shell/slurp";
-
 # our $configFile = "$pipelineDir/_assembly/mdi.yml";
 
 # load launcher scripts
