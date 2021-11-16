@@ -4,7 +4,7 @@ use warnings;
 # main sub for executing a pipeline action
 
 # working variables
-use vars qw($mainDir $pipelineName $pipelineDir $modulesDir
+use vars qw($pipelineName $pipelineDir $modulesDir
             @args $config $isSingleAction
             %longOptions %optionArrays $workflowScript $isNTasks);
 
@@ -128,9 +128,8 @@ sub manageActionEnvironment {
         $ENV{ACTION_TARGET} = $ENV{SCRIPT_TARGET};
         
         # add any pipeline-specific environment variables as last step
-        my $pipelineScript = "$pipelineDir/$pipelineName.pl";
-        -f $pipelineScript and require $pipelineScript;
-        exists &setDerivativeVariables and setDerivativeVariables($action);        
+        my $pipelineScript = "$pipelineDir/pipeline.pl";
+        -f $pipelineScript and require $pipelineScript;     
 }
 sub executeActionBash {
     my ($action, $isDryRun, $isSingleTask, $assembled, $taskId, $conda) = @_;

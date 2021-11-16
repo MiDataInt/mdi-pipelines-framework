@@ -15,9 +15,8 @@ my $pipeline;
 # discover the pipeline source and whether to use a developer or the definitive fork
 # if not directed to a specific repository, use the first matching pipeline name
 # developer-forks take precedence in developer mode, ignored otherwise
-my %Forks = (definitive => "definitive", developer => "developer-forks");
-my @pipelineDirs = split(/\s/, $ENV{PIPELINES_SUITES});
-
+our %Forks = (definitive => "definitive", developer => "developer-forks");
+our @pipelineDirs = split(/\s/, $ENV{PIPELINE_DIRS});
 sub getPipeline {
     my ($fork) = @_;
     foreach my $pipelineDir(@pipelineDirs){
@@ -39,7 +38,9 @@ $pipelineName = $$pipeline{name};
 our (%conda, %longOptions, %shortOptions, %optionArrays, %optionValues);
 
 # various paths
-our $mainDir = $ENV{MDI_DIR};
+our $mdiDir = $ENV{MDI_DIR};
+our $suitesDir = "$mdiDir/suites/$Forks{definitive}";
+$ENV{SUITES_DIR} = $suitesDir;
 our $pipelineDir = $$pipeline{directory};
 $ENV{PIPELINE_DIR} = $pipelineDir;
 our $sharedDir = "$pipelineDir/../../shared";

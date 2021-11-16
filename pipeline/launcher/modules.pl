@@ -4,8 +4,8 @@ use warnings;
 # subs for handling import of action modules into a pipeline's config
 
 # working variables
-use vars qw($mainDir);
-my $modulesDir = "$mainDir/modules";
+use vars qw($mdiDir);
+my $modulesDir = "$mdiDir/modules";
 
 #------------------------------------------------------------------------------
 # import a called step module
@@ -15,8 +15,7 @@ my $modulesDir = "$mainDir/modules";
 sub addActionModule {
     my ($file, $line, $prevIndent, $parentIndentLen, $lines, $indents, $addenda) = @_;
     $line =~ m/\s*module:\s+(\S+)/ or throwError("malformed module call:\n    $file:\n    $line");
-    my $module = $1;
-    my $moduleFile = "$modulesDir/$module/module.yml";
+    my $moduleFile = getSharedFile($modulesDir, "$1/module", 'module');
 
     # discover the indent length of the module file (could be different than parent)
     open my $inH, "<", $moduleFile or throwError("could not open:\n    $moduleFile:\n$!");    

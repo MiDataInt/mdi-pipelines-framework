@@ -6,7 +6,7 @@ use File::Spec;
 # subs for loading available options and their requested values
 
 # working variables
-use vars qw($mainDir $pipeline
+use vars qw($mdiDir $pipeline
             $config $isSingleAction @args
             @universalOptionFamilies %allOptionFamilies
             %longOptions %shortOptions %optionArrays
@@ -125,8 +125,8 @@ sub assembleCompositeConfig {
 
     # add further configs at increasing precedence
     my @configYmlFiles = (
-        # server admin level
-        "$mainDir/server.yml", # values set by a server admin defining its environment
+        # installation/host level
+        "$mdiDir/config/stage1-pipelines.yml", 
         
         # user level
         $dataYmlDir ? "$dataYmlDir/../../server.yml" : undef, # user's server environment around multiple pipelines

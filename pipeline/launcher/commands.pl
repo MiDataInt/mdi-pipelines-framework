@@ -5,7 +5,7 @@ use warnings;
 # most terminate execution or never return
 
 # working variables
-use vars qw($pipeline $launcherDir $mainDir
+use vars qw($pipeline $launcherDir $mdiDir
             @args $config %longOptions $workflowScript);
 
 # switch for acting on restricted commands
@@ -60,7 +60,7 @@ sub runTemplate {
 sub runConda {
     
     # see if user provided server.yml
-    my $defaultServerYml = Cwd::abs_path("$mainDir/server.yml");
+    my $defaultServerYml = Cwd::abs_path("$mdiDir/config/stage1-pipelines.yml");
     my @newArgs = ($args[0] and $args[$#args] =~ m/\.yml$/) ? (pop @args) : ();
     
     # special handling of command line option flags
