@@ -27,13 +27,13 @@ sub parseAllOptions {
     ($helpAction, $helpCmd) = ($subjectAction, $cmd);
     loadActionOptions($cmd);
     $isSingleAction and (!$args[0] or $args[0] eq '-h' or $args[0] eq '--help') and showOptionsHelp();
-    
+
     # define and load a series of config scripts in increasing order of precedence
     my $configYml = assembleCompositeConfig($cmd, $subjectAction);
     setOptionsFromConfigComposite($configYml, $subjectAction);
     
     # add options values from the command line; takes precedence over any config file
-    setOptionsFromCommandLine();
+    setOptionsFromCommandLine($subjectAction);
     
     # ensure that we have a complete and valid set of options
     validateOptionArrays($subjectAction);

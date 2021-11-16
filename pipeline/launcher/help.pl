@@ -8,7 +8,7 @@ use vars qw($config %optionValues $helpAction $helpCmd);
 my $actionTabLength = 15;
 my $optionTabLength = 20;
 our $leftPad = (" ") x 2;
-our $errorSeparator = "!" x 60;
+our $errorSeparator = "!" x 80;
 
 #------------------------------------------------------------------------------
 # show a listing of the actions available for a pipeline
@@ -59,7 +59,7 @@ sub showOptionsHelp {
     $error and print "\n".$errorSeparator."\n$error\n".$errorSeparator."\n";
     my $pName = $$config{pipeline}{name}[0];
     my $pDesc = getTemplateValue($$config{pipeline}{description});
-    print "\n$pName: $pDesc\n";
+    print "\n$pName: $pDesc\n\n";
     if ($helpAction) {
         my $cDesc = $$config{actions}{$helpAction}{description}[0];
         $cDesc =~ s/^"//;

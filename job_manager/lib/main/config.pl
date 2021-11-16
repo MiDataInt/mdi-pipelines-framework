@@ -56,7 +56,7 @@ our %optionInfo = (# [shortOption, valueString, optionGroup, groupOrder, optionH
     '_server_mode_'=>  ["NA", undef,   "NA", "NA", 0, "internalOption"], 
 #------------------------------------------------------------------------------------------------------------
     'install-packages'=>   ["p", undef,   "install", 0, "install R packages required by Stage 2 Apps"],
-    'develop'=>        ["d", undef,   "run", 0, "launch the web server in developer mode [run mode]"],
+    'develop'=>        ["v", undef,   "run", 0, "launch the web server in developer mode [run mode]"],
     'ondemand'=>       ["o", undef,   "run", 1, "launch the web server in ondemand mode [run mode]"],
     'data-dir'=>       ["D", "<str>",   "run", 2, "path to the desired data directory [./data]"],
     'host-dir'=>       ["H", "<str>",   "run", 3, "path to a shared/public MDI installation with code and resources [.]"],

@@ -1,4 +1,3 @@
-
 # workflow.sh has utility functions for managing a bash-based workflow script
 
 #--------------------------------------------------------------------
@@ -22,8 +21,8 @@ function setStatusFile { # construct a rule-based status file name
         echo "missing variable: PIPELINE_NAME"
         exit 1
     fi
-    if [ "$PIPELINE_COMMAND" = "" ]; then
-        echo "missing variable: PIPELINE_COMMAND"
+    if [ "$PIPELINE_ACTION" = "" ]; then
+        echo "missing variable: PIPELINE_ACTION"
         exit 1
     fi 
     if [ "$DATA_NAME" = "" ]; then
@@ -38,7 +37,7 @@ function setStatusFile { # construct a rule-based status file name
 }
 function getWorkflowStatus {
     setStatusFile
-    LAST_SUCCESSFUL_STEP=`awk '$1=="'$PIPELINE_COMMAND'"' $STATUS_FILE | tail -n1 | cut -f2`
+    LAST_SUCCESSFUL_STEP=`awk '$1=="'$PIPELINE_ACTION'"' $STATUS_FILE | tail -n1 | cut -f2`
     if [ "$LAST_SUCCESSFUL_STEP" = "" ]; then LAST_SUCCESSFUL_STEP=0; fi
 }
 function setWorkflowStatus {
@@ -47,13 +46,12 @@ function setWorkflowStatus {
     STEP_NAME=$2
     STEP_SCRIPT=$3
     DATE=`date`
-    echo -e "$PIPELINE_COMMAND\t$STEP_NUMBER\t$STEP_NAME\t$DATE" >> $STATUS_FILE
-    #echo -e "$PIPELINE_COMMAND\t$STEP_NUMBER\t$STEP_NAME\t$STEP_SCRIPT\t$DATE" >> $STATUS_FILE
+    echo -e "$PIPELINE_ACTION\t$STEP_NUMBER\t$STEP_NAME\t$DATE" >> $STATUS_FILE
 }
 function resetWorkflowStatus { # override any prior job outcomes and force a new status
     setStatusFile
     if [ "$LAST_SUCCESSFUL_STEP" != "" ]; then
-        awk '$1!="'$PIPELINE_COMMAND'"||$2<='$LAST_SUCCESSFUL_STEP $STATUS_FILE >> $STATUS_FILE.tmp
+        awk '$1!="'$PIPELINE_ACTION'"||$2<='$LAST_SUCCESSFUL_STEP $STATUS_FILE >> $STATUS_FILE.tmp
         mv -f $STATUS_FILE.tmp $STATUS_FILE
     fi
 }
@@ -61,8 +59,7 @@ function showWorkflowStatus {
     setStatusFile
     STATUS_LINE_LENGTH=`cat $STATUS_FILE | wc -l`
     if [[ "$STATUS_LINE_LENGTH" -gt "0" && "$QUIET" = "" ]]; then
-        #echo -e "COMMAND\tSTEP#\tSTEP\tSCRIPT\tDATE"
-        echo -e "COMMAND\tSTEP#\tSTEP\tDATE"
+        echo -e "ACTION\tSTEP#\tSTEP\tDATE"
         cat $STATUS_FILE
         echo
     fi
@@ -83,15 +80,16 @@ function runWorkflowStep {
         else
             TARGET_SCRIPT=$SCRIPT_DIR/$STEP_SCRIPT # path interpreted relative to current app step
         fi
-        source $TARGET_SCRIPT # NB: script is responsible for calling checkPipe
+        source $TARGET_SCRIPT # NB: script is responsible for calling checkPipe to validate execution success
         setWorkflowStatus $STEP_NUMBER $STEP_NAME $STEP_SCRIPT
     else
-        echo "already succeeded: $PIPELINE_COMMAND"", step $STEP_NUMBER, $STEP_NAME, $STEP_SCRIPT"
+        echo "already succeeded: $PIPELINE_ACTION"", step $STEP_NUMBER, $STEP_NAME, $STEP_SCRIPT"
         echo
     fi    
 }
 #--------------------------------------------------------------------
 # alternatively let the caller handle the execution, just communicate step state
+# e.g., to have another flow controller, like snakemake, handle a step's execution
 #--------------------------------------------------------------------
 function checkWorkflowStep {
     STEP_NUMBER=$1
@@ -101,7 +99,7 @@ function checkWorkflowStep {
     if [ "$LAST_SUCCESSFUL_STEP" -lt "$STEP_NUMBER" ]; then
         STEP_SATISFIED=""    
     else
-        echo "already succeeded: $PIPELINE_COMMAND"", step $STEP_NUMBER, $STEP_NAME"
+        echo "already succeeded: $PIPELINE_ACTION"", step $STEP_NUMBER, $STEP_NAME"
         echo
         STEP_SATISFIED="TRUE"        
     fi    
@@ -113,6 +111,7 @@ function finishWorkflowStep {
 
 #--------------------------------------------------------------------
 # ensure that all commands in a pipe had exit_status=0
+# use after a bash command or piped stream to force pipeline to fail if command fails
 #--------------------------------------------------------------------
 function checkPipe {  
     local PSS=${PIPESTATUS[*]}
@@ -174,4 +173,3 @@ function checkFileExists {  # verify non-empty file, or first of glob if called 
     fi
 }
 #--------------------------------------------------------------------
-

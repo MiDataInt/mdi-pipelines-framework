@@ -15,7 +15,7 @@ my $modulesDir = "$mdiDir/modules";
 sub addActionModule {
     my ($file, $line, $prevIndent, $parentIndentLen, $lines, $indents, $addenda) = @_;
     $line =~ m/\s*module:\s+(\S+)/ or throwError("malformed module call:\n    $file:\n    $line");
-    my $moduleFile = getSharedFile($modulesDir, "$1/module", 'module');
+    my $moduleFile = getSharedFile($modulesDir, "$1/module.yml", 'module', 1);
 
     # discover the indent length of the module file (could be different than parent)
     open my $inH, "<", $moduleFile or throwError("could not open:\n    $moduleFile:\n$!");    

@@ -8,25 +8,30 @@ use warnings;
 # working variables
 use vars qw($mdiDir $suitesDir);
 
+# return the path to a requested shared component file
 sub getSharedFile {
-    my ($suiteSharedDir, $sharedTarget, $sharedType) = @_;
-    my $sharedFile = "$suiteSharedDir/$sharedTarget.yml";
-    if(-f $sharedFile){ # simple case, shared file is in the calling pipeline
-        $sharedFile;
-    } elsif($sharedTarget =~ m|//|){ # syntax for calling an external shared file: suite//path/to/file
+    my ($suiteSharedDir, $sharedTarget, $sharedType, $throwError) = @_;
+
+    # simple case, shared file is in the calling pipeline    
+    my $sharedFile = "$suiteSharedDir/$sharedTarget"; # could be a file or a directory
+    -e $sharedFile and return $sharedFile;
+
+    # syntax for calling an external shared file: suite//path/to/file
+    if($sharedTarget =~ m|//|){ 
         my ($suite, $target) = split('//', $sharedTarget);
         $sharedFile = getExternalSharedFile($suite, $target, $sharedType);
-        !$sharedFile and throwSharedFileError($sharedTarget, $sharedType);
-        $sharedFile;
-    } else {
-        throwSharedFileError($sharedTarget, $sharedType);
+        $sharedFile and return $sharedFile;
     } 
+
+    # file not found
+    $throwError and throwSharedFileError($sharedTarget, $sharedType);
+    undef;
 }
 sub getExternalSharedFile {
     my ($suite, $sharedTarget, $sharedType) = @_;
     my $suiteSharedDir = "$suitesDir/$suite/shared/$sharedType"."s";
     my $sharedFile = "$suiteSharedDir/$sharedTarget.yml";
-    -f $sharedFile and return $sharedFile;
+    -e $sharedFile and return $sharedFile;
     undef;
 }
 sub throwSharedFileError {

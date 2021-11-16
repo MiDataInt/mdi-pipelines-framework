@@ -191,7 +191,7 @@ sub qPublish {
     publishSystemCommands();     
     parseToHtml("$qDir/lib/utilities.sh", "$libDir/utilities/utilities.sh.html", "utilities.sh");
     assembleDistribution();
-    print "done\n";
+    print "publish done\n";
 }
 #========================================================================
 

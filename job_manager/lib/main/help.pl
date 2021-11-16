@@ -7,7 +7,7 @@ my $commandTabLength = 12;
 my $optionTabLength = 20;
 our $separatorLength = 87;
 our $leftPad = (" ") x 2;
-our $errorHighlight = "!" x 60;
+our $errorHighlight = "!" x 80;
 our @optionGroups = qw(main submit status job rollback run install);  # ensure that similar options group together
 my %useOptionGroupDelimiter = (submit=>1, extend=>1, resubmit=>1);  # break long options lists into separate groups
 

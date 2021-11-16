@@ -85,14 +85,12 @@ sub runConda {
         my $usage;
         my $desc = getTemplateValue($$config{actions}{conda}{description});
         $usage .= "\n$pname conda: $desc\n";
-        $usage .=  "\nusage: $pname conda [options] [data.yml]\n";
+        $usage .=  "\nusage: $pname conda [options]\n";
         $usage .=  "\n    -l/--$list     show the yml config file for each pipeline action";
         $usage .=  "\n    -c/--$create   if needed, create the required conda environments";
         $usage .=  "\n    -f/--$force    do not prompt for permission to create environments";      
-        $usage .= "\n\nif data.yml is provided it will be used to find conda:base-directory\n";
-        $usage .= "otherwise will use the value found in $defaultServerYml\n";
         $error and throwError($error.$usage);
-        print "$usage\n";
+        print "$usage\n\n";
         exit;
     }
     

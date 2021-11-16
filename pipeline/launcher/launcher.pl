@@ -8,7 +8,7 @@ use warnings;
 # collect the requested pipeline, action, data.yml, and option arguments
 # pipelineName could be a pipeline name only, or be directed to a specific repository as suite/pipeline
 # target could be a single pipeline action, or a config file with target actions listed in the 'execute' key
-my ($pipelineName, $target, @args) = @ARGV;
+our ($pipelineName, $target, @args) = @ARGV;
 my @pipelineName = reverse(split('/', $pipelineName, 2)); # thus [name, maybe a suite]
 my $pipeline;
 

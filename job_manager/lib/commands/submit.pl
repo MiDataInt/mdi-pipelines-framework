@@ -56,7 +56,8 @@ sub getConfigFromLauncher {
 sub getJobManagerCommand {
     my ($pipelineCommand) = @_;
     $pipelineCommand or $pipelineCommand = '';
-    "$rootDir/$jobManagerName $pipelineName $pipelineCommand $dataYmlFile $pipelineOptions";
+    my $developerFlag = $ENV{DEVELOPER_MODE} ? "-d" : "";
+    "$rootDir/$jobManagerName $developerFlag $pipelineName $pipelineCommand $dataYmlFile $pipelineOptions";
 }
 sub provideFeedback {  # exit feedback
     my ($qInUse) = @_;

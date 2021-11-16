@@ -26,8 +26,8 @@ sub loadPipelineConfig {
         foreach my $optionFamily(@$optionFamilies){
             $loaded{$optionFamily} and next;
             $loaded{$optionFamily} = 1;
-            my $ymlFile = "$optionsDir/$optionFamily.yml";
-            -e $ymlFile and push @optionFamilies, loadYamlFile("$ymlFile", 1, 1);
+            my $ymlFile = getSharedFile($optionsDir, "$optionFamily.yml", 'option'); # not required since private options added later
+            $ymlFile and push @optionFamilies, loadYamlFile("$ymlFile", 1, 1);
         }
     }
     

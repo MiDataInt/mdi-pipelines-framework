@@ -55,7 +55,7 @@ sub parseAllDependencies {
 sub loadSharedConda {
     my ($family_) = @_;
     my ($family, $version) = $family_ =~ m/(.+)-(\d+\.\d+)/ ? ($1, $2) : ($family_);
-    my $dir = "$environmentsDir/$family";
+    my $dir = getSharedFile($environmentsDir, $family, 'environment'); # either shared or external
     -d $dir or return;
     my $prefix = "$dir/$family";
     if (!$version) {
@@ -81,10 +81,11 @@ sub getCondaPaths {
     my ($configYml) = @_;
     
     # check the path where environments are installed
-    my $configError = "missing config value:\n    conda: base-directory";
-    $$configYml{conda} or throwError($configError);
-    my $baseDir = applyVariablesToYamlValue($$configYml{conda}{'base-directory'}[0], \%ENV)
-        or throwError($configError);
+    # my $configError = "missing config value:\n    conda: base-directory";
+    # $$configYml{conda} or throwError($configError);
+    # my $baseDir = applyVariablesToYamlValue($$configYml{conda}{'base-directory'}[0], \%ENV)
+    #     or throwError($configError);
+    my $baseDir = "$ENV{MDI_DIR}/environments";
     -d $baseDir or throwError("conda directory does not exist:\n    $baseDir");
     
     # assemble an MD5-based name for the environment

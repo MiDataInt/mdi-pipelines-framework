@@ -15,7 +15,7 @@ sub executeAction {
     # set the actions list and working action
     my $cmd = getCmdHash($action);
     !$cmd and showActionsHelp("unknown action: $action", 1);
-    
+
     # process the options for the action and request
     my $configYml = parseAllOptions($action);
     parseAllDependencies($action);
@@ -159,7 +159,7 @@ perl $ENV{WORKFLOW_DIR}/package.pl
 
         # validate conda environment
         -d $$conda{dir} or throwError("missing conda environment for action '$action'\n".
-                                      "please run '$ENV{PIPELINE_NAME} conda --create' before running the pipeline");
+                                      "please run 'mdi $ENV{PIPELINE_NAME} conda --create' before launching the pipeline");
 
         # single actions or tasks replace this process and never return
         $isSingleAction and $isSingleTask and exec $bash;

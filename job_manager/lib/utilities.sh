@@ -1,4 +1,3 @@
-
 #--------------------------------------------------------------------
 # these functions are automatically called by every target script
 #--------------------------------------------------------------------
@@ -30,4 +29,3 @@ function getTaskID {  # $TASK_ID is not set if this is not an array job
     fi
 }
 #--------------------------------------------------------------------
-
