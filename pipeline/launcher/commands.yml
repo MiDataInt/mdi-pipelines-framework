@@ -2,10 +2,10 @@
 
 #--------------------------------------------------------------------
 # universal commands available to all pipelines
-# called as ./<pipelineName> <command> [options]
+# called as ./<pipelineName> <command> [options] (i.e., command instead of pipeline)
 #--------------------------------------------------------------------
 
-commands:
+actions:
     
     # visible user commands
     template:
@@ -50,6 +50,4 @@ commands:
             required:
                 total-ram: null
         optionFamilies: null        
-        description: "show a concise, alphabetically sorted option list for a command" 
-        
-        
+        description: "show a concise, alphabetically sorted option list for a pipeline action" 

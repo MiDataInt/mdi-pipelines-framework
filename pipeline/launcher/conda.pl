@@ -15,14 +15,14 @@ use File::Copy;
 use vars qw(@args $environmentsDir $config %conda %optionArrays);
 
 #------------------------------------------------------------------------------
-# set the dependencies list for a pipeline action command
+# set the dependencies list for a pipeline action
 #------------------------------------------------------------------------------
 sub parseAllDependencies {
-    my ($command) = @_;
+    my ($subjectAction) = @_;
     
-    # determine if command has dependencies
+    # determine if action has dependencies
     %conda = (channels => [], dependencies => []);
-    my $cmd = getCmdHash($command) or return;
+    my $cmd = getCmdHash($subjectAction) or return;
     $$cmd{condaFamilies} or return;
     $$cmd{condaFamilies}[0] or return;
     
@@ -55,7 +55,7 @@ sub parseAllDependencies {
 sub loadSharedConda {
     my ($family_) = @_;
     my ($family, $version) = $family_ =~ m/(.+)-(\d+\.\d+)/ ? ($1, $2) : ($family_);
-    my $dir = "$environmentsDir/$family";
+    my $dir = getSharedFile($environmentsDir, $family, 'environment'); # either shared or external
     -d $dir or return;
     my $prefix = "$dir/$family";
     if (!$version) {
@@ -81,10 +81,11 @@ sub getCondaPaths {
     my ($configYml) = @_;
     
     # check the path where environments are installed
-    my $configError = "missing config value:\n    conda: base-directory";
-    $$configYml{conda} or throwError($configError);
-    my $baseDir = applyVariablesToYamlValue($$configYml{conda}{'base-directory'}[0], \%ENV)
-        or throwError($configError);
+    # my $configError = "missing config value:\n    conda: base-directory";
+    # $$configYml{conda} or throwError($configError);
+    # my $baseDir = applyVariablesToYamlValue($$configYml{conda}{'base-directory'}[0], \%ENV)
+    #     or throwError($configError);
+    my $baseDir = "$ENV{MDI_DIR}/environments";
     -d $baseDir or throwError("conda directory does not exist:\n    $baseDir");
     
     # assemble an MD5-based name for the environment
@@ -128,19 +129,19 @@ sub getCondaPaths {
 #------------------------------------------------------------------------------
 sub showCreateCondaEnvironments {
     my ($create, $force) = @_;
-    my $cmds = $$config{commands}; 
-    my @orderedCommands = sort { $$cmds{$a}{order}[0] <=> $$cmds{$b}{order}[0] } keys %$cmds;
+    my $cmds = $$config{actions}; 
+    my @orderedActions = sort { $$cmds{$a}{order}[0] <=> $$cmds{$b}{order}[0] } keys %$cmds;
     my @argsBuffer = @args;
-    foreach my $subjectCommand(@orderedCommands){
-        $$cmds{$subjectCommand}{universal}[0] and next;
-        my $cmd = getCmdHash($subjectCommand);
-        loadCommandOptions($cmd);
-        my $configYml = assembleCompositeConfig($cmd, $subjectCommand);
-        setOptionsFromConfigComposite($configYml, $subjectCommand);
-        parseAllDependencies($subjectCommand);
+    foreach my $subjectAction(@orderedActions){
+        $$cmds{$subjectAction}{universal}[0] and next;
+        my $cmd = getCmdHash($subjectAction);
+        loadActionOptions($cmd);
+        my $configYml = assembleCompositeConfig($cmd, $subjectAction);
+        setOptionsFromConfigComposite($configYml, $subjectAction);
+        parseAllDependencies($subjectAction);
         my $conda = getCondaPaths($configYml);
         print "---------------------------------\n";
-        print "conda environment for: $$config{pipeline}{name}[0] $subjectCommand\n";
+        print "conda environment for: $$config{pipeline}{name}[0] $subjectAction\n";
         print "$$conda{dir}\n";
         if ($create) {
             createCondaEnvironment($conda, 1, $force);            
@@ -163,7 +164,7 @@ sub createCondaEnvironment {
     -d $$cnd{dir} and return $$cnd{dir};
     
     # get permission to create the environment
-    confirmAction("Missing conda environment, it will be created.", $force) or 
+    getPermission("Missing conda environment, it will be created.", $force) or 
         throwError("Cannot proceed without the conda environment.");
 
     # write the required environment.yml file
@@ -195,4 +196,3 @@ conda env create --prefix $$cnd{dir} --file $$cnd{initFile}
 }
 
 1;
-

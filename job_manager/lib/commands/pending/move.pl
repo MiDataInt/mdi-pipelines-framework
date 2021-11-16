@@ -26,7 +26,7 @@ sub qMove {
     qx|mv $masterFile $newMasterFile|;  # execute the move
     qx|mv $masterFile.lock $newMasterFile.lock 2>/dev/null|;
     qx|mv $qDataDir $newQDataDir|;
-    print "done\n";
+    print "move done\n";
 }
 #========================================================================
 

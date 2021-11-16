@@ -1,22 +1,21 @@
 use strict;
 use warnings;
 
-# subs for handling import of command modules into a pipeline's config
+# subs for handling import of action modules into a pipeline's config
 
 # working variables
-use vars qw($mainDir);
-my $modulesDir = "$mainDir/modules";
+use vars qw($mdiDir);
+my $modulesDir = "$mdiDir/modules";
 
 #------------------------------------------------------------------------------
 # import a called step module
-#   - imported command lines appear inline with pipeline.yml after module: key
+#   - imported action lines appear inline with pipeline.yml after module: key
 #   - imported family lines appear at the end of the file
 #------------------------------------------------------------------------------
-sub addCommandModule {
+sub addActionModule {
     my ($file, $line, $prevIndent, $parentIndentLen, $lines, $indents, $addenda) = @_;
     $line =~ m/\s*module:\s+(\S+)/ or throwError("malformed module call:\n    $file:\n    $line");
-    my $module = $1;
-    my $moduleFile = "$modulesDir/$module/module.yml";
+    my $moduleFile = getSharedFile($modulesDir, "$1/module.yml", 'module', 1);
 
     # discover the indent length of the module file (could be different than parent)
     open my $inH, "<", $moduleFile or throwError("could not open:\n    $moduleFile:\n$!");    
@@ -31,7 +30,7 @@ sub addCommandModule {
     $moduleIndentLen or throwError("malformed module file, no indented lines:\n    $moduleFile");
     
     # read module.yml lines
-    my $inCommand;
+    my $inAction;
     open $inH, "<", $moduleFile or throwError("could not open:\n    $moduleFile:\n$!");
     while (my $line = <$inH>) {
         
@@ -44,22 +43,22 @@ sub addCommandModule {
     
         # determine which block type we are in
         $line =~ s/^\s+//g;
-        if ($line eq 'command:') {
-            $inCommand = 1;
-            next; # don't need to process this line; parent sets the command name
+        if ($line eq 'action:') {
+            $inAction = 1;
+            next; # don't need to process this line; parent sets the action name
         } elsif($indent == 0){ # e.g. optionFamilies, condaFamilies
-            $inCommand = 0;
+            $inAction = 0;
         }
 
-        # print command keys with revised indentation to match parent yml
-        if ($inCommand) {
-            my $revisedIndent = ($nIndent + 1) * $parentIndentLen; # +1 accounts for missing commandName in module.yml
+        # print action keys with revised indentation to match parent yml
+        if ($inAction) {
+            my $revisedIndent = ($nIndent + 1) * $parentIndentLen; # +1 accounts for missing action name in module.yml
             push @$lines, $line;
             push @$indents, $revisedIndent;
             $$prevIndent = $revisedIndent;
             
         # store optionFamilies and condaFamilies for appending to end of parent yml file
-        # can't do immediately, or we could disrupt the parent's commands list
+        # can't do immediately, or we could disrupt the parent's actions list
         } else {
             push @$addenda, [$line, $nIndent * $parentIndentLen];
         }
@@ -68,4 +67,3 @@ sub addCommandModule {
 }
 
 1;
-

@@ -3,25 +3,26 @@ use warnings;
 use File::Copy;
 use File::Path qw(remove_tree);
 
-# called automatically by running pipeline to
-# assemble a Portal output package, if configured in pipeline.yml
-# resulting zip file contains the small(ish) output files of a stage 1 pipeline
+# Called automatically by a running pipeline to assemble a data package, 
+# if configured in pipeline.yml. The resulting zip file contains the 
+# small(ish) output files of a Stage 1 Pipeline for loading into a 
+# Stage 1 App.
 
 #---------------------------------------------------------------
 # preparative work
 #---------------------------------------------------------------
-# load the pipeline config, with portal output definition
+# load the pipeline config, which might contain the instructions for this script
 require "$ENV{JOB_MANAGER_DIR}/lib/main/yaml.pl"; # supports loading multiple YAML from same file
 my $pipeline = loadYamlFromString( slurpFile("$ENV{PIPELINE_DIR}/pipeline.yml"), 1 );
-my $portalConfig = $$pipeline{parsed}[0]{portalPackage};
+my $config = $$pipeline{parsed}[0]{package};
 
 # check for something to do
-$portalConfig or exit; # pipeline does not export data to the Portal
-$$portalConfig{packageCommand} or exit;
-$$portalConfig{packageCommand}[0] eq $ENV{PIPELINE_COMMAND} or exit; # not the command that exports data
-print "writing Portal package file\n";
+$config or exit; # pipeline does not export data to Stage 2
+$$config{packageAction} or exit;
+$$config{packageAction}[0] eq $ENV{PIPELINE_ACTION} or exit; # not the action that exports data
+print "writing Stage 2 package file\n";
 
-# load the user option values in force
+# load the user option values currently in force
 my $options = loadYamlFromString( slurpFile("$ENV{TASK_LOG_FILE}"), 1 );
 my $jobConfig  = $$options{parsed}[0];
 
@@ -31,18 +32,18 @@ my $jobConfig  = $$options{parsed}[0];
 my $taskConfig = getTaskConfig($$options{parsed}[1]);
 my @files; # filled by getOutputFiles
 my %contents = (
-    uploadType => [$$portalConfig{uploadType} ? $$portalConfig{uploadType}[0] : $ENV{PIPELINE_NAME}],
+    uploadType => [$$config{uploadType} ? $$config{uploadType}[0] : $ENV{PIPELINE_NAME}],
     pipeline   => [$ENV{PIPELINE_NAME}],
-    command    => [$ENV{PIPELINE_COMMAND}],
+    action     => [$ENV{PIPELINE_ACTION}],
     task       => $taskConfig,
     files      => getOutputFiles(),
-    entropy    => [randomString()]
+    entropy    => [randomString()] # ensure a unique MD5 hash for every package file
 );
 
 #---------------------------------------------------------------
 # write config and assembly package zip
 #---------------------------------------------------------------
-my $packagePrefix = "$ENV{DATA_FILE_PREFIX}.midata.package";
+my $packagePrefix = "$ENV{DATA_FILE_PREFIX}.mdi.package";
 my $packageFile = "$packagePrefix.zip";
 unlink $packageFile;
 print "$packageFile\n";
@@ -61,7 +62,7 @@ print "\n";
 sub getTaskConfig {
     my ($taskConfig) = @_;
     $taskConfig or return $jobConfig;
-    my $cmd = $$jobConfig{$ENV{PIPELINE_COMMAND}};
+    my $cmd = $$jobConfig{$ENV{PIPELINE_ACTION}};
     foreach my $optionFamily(keys %$cmd){
         foreach my $option(keys %{$$cmd{$optionFamily}}){
             defined $$taskConfig{task}{$option} and
@@ -76,7 +77,7 @@ sub getTaskConfig {
 #---------------------------------------------------------------
 sub getOutputFiles {
     # collect the actual file paths for pipeline-specific files
-    my $files = $$portalConfig{files};
+    my $files = $$config{files};
     foreach my $fileType(keys %$files){
         $$files{$fileType}{file} = [
             parsePackageFile( applyVariablesToYamlValue($$files{$fileType}{file}[0]) )
@@ -89,8 +90,8 @@ sub getOutputFiles {
     };
     $$files{manifestFile} = {
         type => ['manifest-file'],
-        file => [ $$taskConfig{$ENV{PIPELINE_COMMAND}}{AGC} ?
-                  parsePackageFile($$taskConfig{$ENV{PIPELINE_COMMAND}}{AGC}{'manifest-file'}[0]) :
+        file => [ $$taskConfig{$ENV{PIPELINE_ACTION}}{AGC} ?
+                  parsePackageFile($$taskConfig{$ENV{PIPELINE_ACTION}}{AGC}{'manifest-file'}[0]) :
                   'null' ]
     };
     return $files;
@@ -110,7 +111,7 @@ sub applyVariablesToYamlValue {
         ($varName, $useType) = ($1, 'braces');
     }
     $varName or return $value; # nothing more to do
-    defined $ENV{$varName} or die("\nerror packaging for portal:\nno value found for environment variable '$varName'\n\n");        
+    defined $ENV{$varName} or die("\nerror creating data package:\nno value found for environment variable '$varName'\n\n");        
     my $target;
     if ($useType eq 'braces') {
         $value =~ s/\{/__OPEN_BRACE__/g; # avoids regex confusion
@@ -166,7 +167,7 @@ sub slurpFile {
     close $inH;
     return $contents;
 }
-# generate a random string to ensure variation in package file signature
+# generate a random string to ensure variation in package file hash
 sub randomString {
     lc(join("", map { sprintf q|%X|, rand(16) } 1 .. 20))
 }
@@ -174,7 +175,7 @@ sub randomString {
 1;
 
 #sub getOutputOptions {
-#    my $options = $$pipeline{portalPackage}{options};
+#    my $options = $$pipeline{package}{options};
 #    my %options = map { $_ => getOptionValue($_) } @$options;
 #    return \%options;
 #}
@@ -193,4 +194,3 @@ sub randomString {
 #    $manifest eq 'null' and return {manifest => $manifest};
 #    # do work to parse and handle the manifest
 #}
-

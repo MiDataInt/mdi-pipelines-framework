@@ -5,7 +5,7 @@ use warnings;
 # modified by end user to simplify calls to the pipeline
 
 # working variables
-use vars qw($config $mainDir $launcherDir $pipeline
+use vars qw($config $launcherDir $pipeline
             @universalTemplateFamilies);
 my ($allOptions, $addComments);
 my $indent = " " x 4;
@@ -38,25 +38,25 @@ pipeline: $pipelineName
 #--------------------------------------------------------------
 # variables:
 #     DATA_DIR: \$HOME/data # can cascade from pre-existing environment variables
-# command:
+# action:
 #     optionFamily:
 #         files: [\$DATA_DIR/file1.txt, \${DATA_DIR}/file2.txt] # either bash-like format works
 #--------------------------------------------------------------
 variables:
 
 #--------------------------------------------------------------
-# options defined here apply to all relevant commmands
+# options defined here apply to all relevant actions
 #--------------------------------------------------------------
 shared:
 
 #--------------------------------------------------------------
-# options defined here apply to the individual named commmands
+# options defined here apply to the individual named actions
 #--------------------------------------------------------------\n";
 }
 
 my $executeComments =
 "#--------------------------------------------------------------
-# the ordered list of commands to execute (comment out commands you do not wish to run)
+# the ordered list of actions to execute (comment out actions you do not wish to run)
 #--------------------------------------------------------------\n";
 
 #---------------------------------------------------------
@@ -65,41 +65,41 @@ my $executeComments =
 sub writeDataFileTemplate {
     ($allOptions, $addComments) = @_;
     
-    # get the list of pipeline-specific commands (universal commands are for monitoring, not running)
-    my $cmds = $$config{commands};
-    my @commands = sort { $$cmds{$a}{order}[0] <=> $$cmds{$b}{order}[0] }
+    # get the list of pipeline-specific actions (universal commands are for monitoring, not running)
+    my $cmds = $$config{actions};
+    my @actions = sort { $$cmds{$a}{order}[0] <=> $$cmds{$b}{order}[0] }
                    map { $$cmds{$_}{universal}[0] ? () : $_ }
                    keys %$cmds;
                    
-    # pull the option families, keeping track of how many commands invoked each family
+    # pull the option families, keeping track of how many actions invoked each family
     # this list does not include universal option families
     my %optFams;
-    foreach my $command(@commands){
-        !$$cmds{$command}{optionFamilies} and next;
-        map { push @{$optFams{$_}}, $command } @{$$cmds{$command}{optionFamilies}};
+    foreach my $action(@actions){
+        !$$cmds{$action}{optionFamilies} and next;
+        map { push @{$optFams{$_}}, $action } @{$$cmds{$action}{optionFamilies}};
     }
 
     # print the file leader
     print getLeader($$config{pipeline}{name}[0], $addComments);                     
 
-    # print the options families invoked by only one command, in command order
-    foreach my $command(@commands){
-        my $desc = getTemplateValue($$cmds{$command}{description});
+    # print the options families invoked by only one action, in action order
+    foreach my $action(@actions){
+        my $desc = getTemplateValue($$cmds{$action}{description});
         $addComments and print "# $desc\n"; 
-        print "$command:\n";
-        my $cmd = $$cmds{$command};
+        print "$action:\n";
+        my $cmd = $$cmds{$action};
         my @pipelineOptionFamilies = $$cmd{optionFamilies} ? @{$$cmd{optionFamilies}}: ();
         foreach my $family(@pipelineOptionFamilies, @universalTemplateFamilies){
-            writeOptionFamily($command, $family);
+            writeOptionFamily($action, $family);
         }
         print "\n";
     }
     
-    # print the command execution sequence
+    # print the action execution sequence
     print $addComments ? $executeComments : "";
     print "execute:\n";
-    foreach my $command(@commands){
-        print "$indent- $command\n"
+    foreach my $action(@actions){
+        print "$indent- $action\n"
     }
     print "\n";
 }
@@ -108,10 +108,10 @@ sub writeDataFileTemplate {
 # write one family set of options
 #---------------------------------------------------------
 sub writeOptionFamily {
-    my ($command, $family) = @_;
+    my ($action, $family) = @_;
     
     # get any developer recommendations beyond universal options
-    my $cmd = $$config{commands}{$command};
+    my $cmd = $$config{actions}{$action};
     my %recs;
     if ($cmd and $$cmd{$family} and $$cmd{$family}{recommended}) {
         my $recs = $$cmd{$family}{recommended};
@@ -154,4 +154,3 @@ sub getTemplateValue {
 }
 
 1;
-

@@ -1,28 +1,28 @@
 use strict;
 use warnings;
 
-# main sub for executing a command
+# main sub for executing a pipeline action
 
 # working variables
-use vars qw($mainDir $pipelineName $pipelineDir $modulesDir
-            @args $config $isSingleCommand
+use vars qw($pipelineName $pipelineDir $modulesDir
+            @args $config $isSingleAction
             %longOptions %optionArrays $workflowScript $isNTasks);
 
-# parse the options and construct a call to a single command
-sub executeCommand {
-    my ($actionCommand) = @_;
+# parse the options and construct a call to a single pipeline action
+sub executeAction {
+    my ($action) = @_;
     
-    # set the commands list and working command
-    my $cmd = getCmdHash($actionCommand);
-    !$cmd and showCommandsHelp("unknown command: $actionCommand", 1);
-    
-    # process the options for the command and request
-    my $configYml = parseAllOptions($actionCommand);
-    parseAllDependencies($actionCommand);
+    # set the actions list and working action
+    my $cmd = getCmdHash($action);
+    !$cmd and showActionsHelp("unknown action: $action", 1);
+
+    # process the options for the action and request
+    my $configYml = parseAllOptions($action);
+    parseAllDependencies($action);
     my $conda = getCondaPaths($configYml);
 
     # collect options and dependency feeback, for log files and streams
-    my $assembled = reportAssembledConfig($actionCommand, $conda);
+    my $assembled = reportAssembledConfig($action, $conda);
     
     # get the list of task id(s) we are being asked to run (or check)
     my $requestedTaskId = $$assembled{taskOptions}[0]{'task-id'};
@@ -42,7 +42,7 @@ sub executeCommand {
         if($totalRamInt < $requiredRamInt){
             my $taskId = $i + 1;
             showOptionsHelp("insufficent net RAM for task #$taskId\n".
-                            "'$ENV{PIPELINE_NAME} $actionCommand' requires $requiredRamStr");
+                            "'$ENV{PIPELINE_NAME} $action' requires $requiredRamStr");
         }        
     }
 
@@ -50,16 +50,16 @@ sub executeCommand {
     $optionArrays{quiet}[0] or print $$assembled{report};
     my $isDryRun = $$assembled{taskOptions}[0]{'dry-run'};
     foreach my $i(@workingTaskIs){    
-        my ($taskId, $taskReport) = processCommandTask($assembled, $i, $requestedTaskId, @workingTaskIds);
-        manageCommandEnvironment($actionCommand, $cmd, $isDryRun, $assembled, $taskReport);
-        executeBashCommand($actionCommand, $isDryRun, $isSingleTask, $assembled, $taskId, $conda);
+        my ($taskId, $taskReport) = processActionTask($assembled, $i, $requestedTaskId, @workingTaskIds);
+        manageActionEnvironment($action, $cmd, $isDryRun, $assembled, $taskReport);
+        executeActionBash($action, $isDryRun, $isSingleTask, $assembled, $taskId, $conda);
     } 
 }
 sub getCmdHash {
     my $name = $_[0] or return;
-    $$config{commands}{$name};
+    $$config{actions}{$name};
 } 
-sub processCommandTask {
+sub processActionTask {
     my ($assembled, $i, $requestedTaskId, @workingTaskIds) = @_;
     
     # get and set this task
@@ -87,8 +87,8 @@ sub processCommandTask {
     }
     ($taskId, \$taskReport);
 }
-sub manageCommandEnvironment {
-    my ($actionCommand, $cmd, $isDryRun, $assembled, $taskReport) = @_;
+sub manageActionEnvironment {
+    my ($action, $cmd, $isDryRun, $assembled, $taskReport) = @_;
     
         # parse and create universal derivative paths
         $ENV{DATA_NAME_DIR}    = "$ENV{OUTPUT_DIR}/$ENV{DATA_NAME}"; # guaranteed unique per task by validateOptionArrays
@@ -96,14 +96,14 @@ sub manageCommandEnvironment {
         $ENV{DATA_GENOME_PREFIX} = $ENV{GENOME} ? "$ENV{DATA_FILE_PREFIX}.$ENV{GENOME}" : "";
         $ENV{LOGS_DIR}         = "$ENV{DATA_NAME_DIR}/$ENV{PIPELINE_NAME}_logs";
         $ENV{LOG_FILE_PREFIX}  = "$ENV{LOGS_DIR}/$ENV{DATA_NAME}";
-        $ENV{TASK_LOG_FILE}    = "$ENV{LOG_FILE_PREFIX}.$actionCommand.task.log";
+        $ENV{TASK_LOG_FILE}    = "$ENV{LOG_FILE_PREFIX}.$action.task.log";
         $ENV{PLOTS_DIR}        = "$ENV{DATA_NAME_DIR}/plots";
         $ENV{PLOT_PREFIX}      = $ENV{GENOME} ? "$ENV{PLOTS_DIR}/$ENV{DATA_NAME}.$ENV{GENOME}" : "$ENV{PLOTS_DIR}/$ENV{DATA_NAME}";
         if (!$isDryRun) {
             -d $ENV{DATA_NAME_DIR} or mkdir $ENV{DATA_NAME_DIR};
             -d $ENV{LOGS_DIR} or mkdir $ENV{LOGS_DIR};
             
-            # (re)initialize the log file for this command task (always carries just the most recent execution)
+            # (re)initialize the log file for this task (always carries just the most recent execution)
             open my $outH, ">", $ENV{TASK_LOG_FILE} or throwError("could not open:\n    $ENV{TASK_LOG_FILE}\n$!");
             print $outH "$$assembled{report}$$taskReport";
             close $outH;
@@ -119,19 +119,20 @@ sub manageCommandEnvironment {
         $ENV{SN_FORCEALL} = $ENV{SN_FORCEALL} ? '--forceall' : "";
 
         # parse our script target
-        $ENV{SCRIPT_DIR} = $$cmd{module} ? "$modulesDir/$$cmd{module}[0]" : "$pipelineDir/$actionCommand";
+        $ENV{SCRIPT_DIR} = $$cmd{module} ? "$modulesDir/$$cmd{module}[0]" : "$pipelineDir/$action";
         $ENV{SCRIPT_TARGET} = $$cmd{script} || "Workflow.sh";
         $ENV{SCRIPT_TARGET} = "$ENV{SCRIPT_DIR}/$ENV{SCRIPT_TARGET}";
         -e $ENV{SCRIPT_TARGET} or throwError("pipeline configuration error\n".
                                              "missing script target:\n    $ENV{SCRIPT_TARGET}");
-        $ENV{COMMAND_DIR} = $ENV{SCRIPT_DIR};
-        $ENV{COMMAND_TARGET} = $ENV{SCRIPT_TARGET};
+        $ENV{ACTION_DIR} = $ENV{SCRIPT_DIR};
+        $ENV{ACTION_TARGET} = $ENV{SCRIPT_TARGET};
         
         # add any pipeline-specific environment variables as last step
-        exists &setDerivativeVariables and setDerivativeVariables($actionCommand);        
+        my $pipelineScript = "$pipelineDir/pipeline.pl";
+        -f $pipelineScript and require $pipelineScript;     
 }
-sub executeBashCommand {
-    my ($actionCommand, $isDryRun, $isSingleTask, $assembled, $taskId, $conda) = @_;
+sub executeActionBash {
+    my ($action, $isDryRun, $isSingleTask, $assembled, $taskId, $conda) = @_;
 
     # parse our bash command that sets up the conda evironment
     my $rollback = $$assembled{taskOptions}[0]{rollback};
@@ -157,17 +158,16 @@ perl $ENV{WORKFLOW_DIR}/package.pl
     if (!$isDryRun) {
 
         # validate conda environment
-        -d $$conda{dir} or throwError("missing conda environment for command '$actionCommand'\n".
-                                      "please run '$ENV{PIPELINE_NAME} conda --create' before running the pipeline");
+        -d $$conda{dir} or throwError("missing conda environment for action '$action'\n".
+                                      "please run 'mdi $ENV{PIPELINE_NAME} conda --create' before launching the pipeline");
 
-        # single commands or tasks replace this process and never return
-        $isSingleCommand and $isSingleTask and exec $bash;
+        # single actions or tasks replace this process and never return
+        $isSingleAction and $isSingleTask and exec $bash;
         
-        # multiple commands or tasks require that we stay alive to run the next one 
-        system($bash) and throwError("command '$actionCommand' task #$taskId had non-zero exit status\n".
-                                     "no more commands or tasks will be executed");
+        # multiple actions or tasks require that we stay alive to run the next one 
+        system($bash) and throwError("action '$action' task #$taskId had non-zero exit status\n".
+                                     "no more actions or tasks will be executed");
     }   
 }
 
 1;
-
