@@ -33,7 +33,7 @@ sub jobManagerMain {
     @dataYmlFiles == 0 and throwError("'$jobManagerName $command' requires a <data.yml> configuration file");
     
     # if multiple config files, recall the job manager once for each file, with the same options
-    if (@dataYmlFiles > 1){ # re-run q for every masterFile provided    
+    if (@dataYmlFiles > 1){ 
         my $jobManagerOptions = join(" ", @options); # option values provided to guide job queuing
         foreach $dataYmlFile (@dataYmlFiles){
             my $perl = "perl $0 $command $jobManagerOptions $dataYmlFile $pipelineOptions";
