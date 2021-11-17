@@ -42,7 +42,7 @@ sub runTemplate {
         my $desc = getTemplateValue($$config{actions}{template}{description});
         my $pname = $$config{pipeline}{name}[0];
         print "\n$pname template: $desc\n";
-        print  "\nusage: $pname template [-a/--$allOptions] [-c/--$addComments] [-h/--help]\n";
+        print  "\nusage: mdi $pname template [-a/--$allOptions] [-c/--$addComments] [-h/--help]\n";
         print  "\n    -a/--$allOptions    include all possible options [only include options needing values]";
         print  "\n    -c/--$addComments   add instructional comments for new users [comments omitted]";
         print "\n\n";
@@ -85,7 +85,7 @@ sub runConda {
         my $usage;
         my $desc = getTemplateValue($$config{actions}{conda}{description});
         $usage .= "\n$pname conda: $desc\n";
-        $usage .=  "\nusage: $pname conda [options]\n";
+        $usage .=  "\nusage: mdi $pname conda [options]\n";
         $usage .=  "\n    -l/--$list     show the yml config file for each pipeline action";
         $usage .=  "\n    -c/--$create   if needed, create the required conda environments";
         $usage .=  "\n    -f/--$force    do not prompt for permission to create environments";      
@@ -114,7 +114,7 @@ sub runStatus {
         $subjectAction and $error .= "unkown action: $subjectAction\n";
         throwError(
             $error.
-            "usage: $$config{pipeline}{name}[0] status <action> [data.yml] [OPTIONS]"
+            "usage: mdi $$config{pipeline}{name}[0] status <action> [data.yml] [OPTIONS]"
         )
     }
     
@@ -142,7 +142,7 @@ sub runRollback {
         $statusLevel or $error .= "missing status level\n";
         throwError(
             $error.
-            "usage: $$config{pipeline}{name}[0] rollback <action> <last_successful_step> [data.yml] [OPTIONS]"
+            "usage: mdi $$config{pipeline}{name}[0] rollback <action> <last_successful_step> [data.yml] [OPTIONS]"
         )   
     }
     
@@ -179,7 +179,7 @@ sub runOptions {
         $targetAction and $error .= "unkown action: $targetAction\n";
         throwError(
             $error.
-            "usage: $$config{pipeline}{name}[0] options <action> [required]"
+            "usage: mdi $$config{pipeline}{name}[0] options <action> [required]"
         );
     }
     
