@@ -41,7 +41,7 @@ sub loadPipelineConfig {
 # expand options get the set of option values for each required task
 #------------------------------------------------------------------------------
 sub reportAssembledConfig {
-    my ($action, $condaPaths) = @_;
+    my ($action, $condaPaths, $showMissingConda) = @_;
     my $cmd = getCmdHash($action);
     my $indent = "    ";
     
@@ -93,7 +93,8 @@ sub reportAssembledConfig {
     
     # print the dependencies
     $report .= $indent."conda:\n";
-    $report .= "$indent$indent"."prefix: $$condaPaths{dir}\n";
+    my $condaPathSuffix = $showMissingConda ? (-d $$condaPaths{dir} ? "" : "*** NOT CREATED YET ***") : "";
+    $report .= "$indent$indent"."prefix: $$condaPaths{dir} $condaPathSuffix\n";
     foreach my $key(qw(channels dependencies)){
         $report .= "$indent$indent$key:\n";
         $report .= join("\n", map { "$indent$indent$indent- $_" } @{$conda{$key}})."\n";

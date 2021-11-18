@@ -22,7 +22,7 @@ sub executeAction {
     my $conda = getCondaPaths($configYml);
 
     # collect options and dependency feeback, for log files and streams
-    my $assembled = reportAssembledConfig($action, $conda);
+    my $assembled = reportAssembledConfig($action, $conda, 1);
     
     # get the list of task id(s) we are being asked to run (or check)
     my $requestedTaskId = $$assembled{taskOptions}[0]{'task-id'};

@@ -295,7 +295,7 @@ sub applyVariablesToYamlValue {
     
     # discover the values to subsitute
     my $sub;
-    if(defined $$vars{$varName}){
+    if($vars and defined $$vars{$varName}){
         $sub = $$vars{$varName};
     } elsif(defined $ENV{$varName}){
         $sub = $ENV{$varName};
@@ -442,7 +442,7 @@ sub validateOptionValues {
             if($$option{required}[0]){
                 $valueExists or showOptionsHelp("option '$longOption' is required for action '$action'");
             } elsif(!$valueExists and defined $$option{default}[0]){ # options can carry 0 or zero-length strings
-                $optionArrays{$longOption} = [ $$option{default}[0] ];
+                $optionArrays{$longOption} = [ applyVariablesToYamlValue($$option{default}[0]) ];
             }
             
             # check data types of provided values
