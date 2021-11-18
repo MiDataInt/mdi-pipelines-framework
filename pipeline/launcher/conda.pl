@@ -56,6 +56,7 @@ sub loadSharedConda {
     my ($family_) = @_;
     my ($family, $version) = $family_ =~ m/(.+)-(\d+\.\d+)/ ? ($1, $2) : ($family_);
     my $dir = getSharedFile($environmentsDir, $family, 'environment'); # either shared or external
+    $dir or return;
     -d $dir or return;
     my $prefix = "$dir/$family";
     if (!$version) {

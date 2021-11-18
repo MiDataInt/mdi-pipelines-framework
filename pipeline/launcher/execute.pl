@@ -22,7 +22,7 @@ sub executeAction {
     my $conda = getCondaPaths($configYml);
 
     # collect options and dependency feeback, for log files and streams
-    my $assembled = reportAssembledConfig($action, $conda);
+    my $assembled = reportAssembledConfig($action, $conda, 1);
     
     # get the list of task id(s) we are being asked to run (or check)
     my $requestedTaskId = $$assembled{taskOptions}[0]{'task-id'};
@@ -93,12 +93,11 @@ sub manageActionEnvironment {
         # parse and create universal derivative paths
         $ENV{DATA_NAME_DIR}    = "$ENV{OUTPUT_DIR}/$ENV{DATA_NAME}"; # guaranteed unique per task by validateOptionArrays
         $ENV{DATA_FILE_PREFIX} = "$ENV{DATA_NAME_DIR}/$ENV{DATA_NAME}";
-        $ENV{DATA_GENOME_PREFIX} = $ENV{GENOME} ? "$ENV{DATA_FILE_PREFIX}.$ENV{GENOME}" : "";
         $ENV{LOGS_DIR}         = "$ENV{DATA_NAME_DIR}/$ENV{PIPELINE_NAME}_logs";
         $ENV{LOG_FILE_PREFIX}  = "$ENV{LOGS_DIR}/$ENV{DATA_NAME}";
         $ENV{TASK_LOG_FILE}    = "$ENV{LOG_FILE_PREFIX}.$action.task.log";
         $ENV{PLOTS_DIR}        = "$ENV{DATA_NAME_DIR}/plots";
-        $ENV{PLOT_PREFIX}      = $ENV{GENOME} ? "$ENV{PLOTS_DIR}/$ENV{DATA_NAME}.$ENV{GENOME}" : "$ENV{PLOTS_DIR}/$ENV{DATA_NAME}";
+        $ENV{PLOT_PREFIX}      = "$ENV{PLOTS_DIR}/$ENV{DATA_NAME}";
         if (!$isDryRun) {
             -d $ENV{DATA_NAME_DIR} or mkdir $ENV{DATA_NAME_DIR};
             -d $ENV{LOGS_DIR} or mkdir $ENV{LOGS_DIR};
