@@ -76,6 +76,7 @@ sub getTaskConfig {
 # parse the automatic and pipeline-specific files to be packaged
 #---------------------------------------------------------------
 sub getOutputFiles {
+
     # collect the actual file paths for pipeline-specific files
     my $files = $$config{files};
     foreach my $fileType(keys %$files){
@@ -83,16 +84,11 @@ sub getOutputFiles {
             parsePackageFile( applyVariablesToYamlValue($$files{$fileType}{file}[0]) )
         ];
     }
+
     # add automatic files
     $$files{statusFile} = {
         type => ['status-file'],
         file => [ parsePackageFile("$ENV{LOG_FILE_PREFIX}.$ENV{PIPELINE_NAME}.status") ]
-    };
-    $$files{manifestFile} = {
-        type => ['manifest-file'],
-        file => [ $$taskConfig{$ENV{PIPELINE_ACTION}}{AGC} ?
-                  parsePackageFile($$taskConfig{$ENV{PIPELINE_ACTION}}{AGC}{'manifest-file'}[0]) :
-                  'null' ]
     };
     return $files;
 }
@@ -173,24 +169,3 @@ sub randomString {
 }
 
 1;
-
-#sub getOutputOptions {
-#    my $options = $$pipeline{package}{options};
-#    my %options = map { $_ => getOptionValue($_) } @$options;
-#    return \%options;
-#}
-#sub fillEnvVars {
-#    my ($value) = @_;
-#    $value =~ m/\$()   (.*)\{(.+?)\}(.*)/ or return $value;
-#    fillEnvVars($1.getOptionValue($2).$3);
-#}
-#sub getOptionValue {
-#    my ($option) = @_;
-#    $option =~ s/-/_/g;
-#    $ENV{uc($option)} || 'null';
-#}
-#sub getManifest {
-#    my $manifest = getOptionValue('manifest-file');
-#    $manifest eq 'null' and return {manifest => $manifest};
-#    # do work to parse and handle the manifest
-#}
