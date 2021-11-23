@@ -51,7 +51,7 @@ optionFamilies:
                 required: false
                 default: /tmp
                 directory:
-                    must-exist: true
+                    must-exist: false # cluster node may have tmp directories not present on login host
                 description: "directory used for small temporary files (recommend SSD)"
             tmp-dir-large:
                 order: 4
@@ -60,7 +60,7 @@ optionFamilies:
                 required: false
                 default: /tmp
                 directory:
-                    must-exist: true
+                    must-exist: false # cluster node may have tmp directories not present on login host
                 description: "directory used for large temporary files (generally >10GB)"
     job-manager: # only required when queuing jobs with jobManager (in contrast to family 'resources')
         order: 103
