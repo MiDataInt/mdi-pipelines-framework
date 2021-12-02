@@ -139,7 +139,7 @@ sub runRollback {
     my $cmd = getCmdHash($subjectAction); 
     if(!$cmd or !defined $statusLevel){
         !$cmd and $subjectAction and $error .= "unkown action: $subjectAction\n";
-        $statusLevel or $error .= "missing status level\n";
+        defined $statusLevel or $error .= "missing status level\n";
         throwError(
             $error.
             "usage: mdi $$config{pipeline}{name}[0] rollback <action> <last_successful_step> [data.yml] [OPTIONS]"
