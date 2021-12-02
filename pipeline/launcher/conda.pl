@@ -178,13 +178,24 @@ sub createCondaEnvironment {
     }
     print "\n";
     close $outH;
+
+    # make sure mamba is available, install on first use
+    my $mambaDir = checkForMamba($cnd);
     
     # create the environment
+#     my $bash =
+# "bash -c '
+# $$cnd{loadCommand}
+# source $$cnd{profileScript}
+# conda env create --prefix $$cnd{dir} --file $$cnd{initFile}
+# '";
     my $bash =
 "bash -c '
 $$cnd{loadCommand}
 source $$cnd{profileScript}
-conda env create --prefix $$cnd{dir} --file $$cnd{initFile}
+conda activate $mambaDir
+mamba env create --prefix $$cnd{dir} --file $$cnd{initFile}
+conda deactivate
 '";
     print "create command: $bash\n";
     if(system($bash)){
@@ -194,6 +205,33 @@ conda env create --prefix $$cnd{dir} --file $$cnd{initFile}
     }
     move($$cnd{initFile}, $$cnd{showFile});
     $cnd;
+}
+
+#------------------------------------------------------------------------------
+# if missing, install mamba (which is then used as a drop-in replacement to conda)
+# this function creates a conda environmental containing only mamba, used as:
+#   conda create --prefix /path/to/mdi/environments/mamba mamba
+#   conda activate /path/to/mdi/environments/mamba
+#   mamba create --prefix /path/to/mdi/environments/envName --file xxxx
+#   conda deactivate
+#   conda activate /path/to/mdi/environments/envName
+#------------------------------------------------------------------------------
+sub checkForMamba { 
+    my ($cnd) = @_;
+    my $mambaDir = "$ENV{MDI_DIR}/environments/mamba";
+    -e $mambaDir and return $mambaDir;
+    my $bash =
+"bash -c '
+$$cnd{loadCommand}
+source $$cnd{profileScript}
+conda env create --prefix $mambaDir mamba
+'";
+    print "installing mamba\n";
+    if(system($bash)){
+        remove_tree $mambaDir;
+        throwError("mamba installation failed");
+    }
+    $mambaDir;
 }
 
 1;
