@@ -5,6 +5,7 @@ use File::Path qw(remove_tree);
 use File::Copy;
 
 # subs for loading available conda dependency families
+# for speed and efficiency, use mamba to create conda environments
 
 # TODO: at present, does not yet handle pip installations, i.e.
 # dependencies:
@@ -52,7 +53,7 @@ sub parseAllDependencies {
         @{$conda{$key}} = @out;
     }
 }
-sub loadSharedConda {
+sub loadSharedConda { # first load environment configs from shared files
     my ($family_) = @_;
     my ($family, $version) = $family_ =~ m/(.+)-(\d+\.\d+)/ ? ($1, $2) : ($family_);
     my $dir = getSharedFile($environmentsDir, $family, 'environment'); # either shared or external
@@ -68,7 +69,7 @@ sub loadSharedConda {
     -e $file or return;
     loadYamlFile($file);
 }
-sub loadPipelineConda {
+sub loadPipelineConda { # then load environment configs from pipeline config (overrides shared)
     my ($family) = @_;
     $$config{condaFamilies} or return;
     $$config{condaFamilies}{$family};
@@ -76,20 +77,16 @@ sub loadPipelineConda {
 
 #------------------------------------------------------------------------------
 # get the path to a proper environment directory
-# based on an identifying signature for the composite environment
+# based on an identifying hash for the composite environment
 #------------------------------------------------------------------------------
 sub getCondaPaths {
     my ($configYml) = @_;
     
     # check the path where environments are installed
-    # my $configError = "missing config value:\n    conda: base-directory";
-    # $$configYml{conda} or throwError($configError);
-    # my $baseDir = applyVariablesToYamlValue($$configYml{conda}{'base-directory'}[0], \%ENV)
-    #     or throwError($configError);
     my $baseDir = "$ENV{MDI_DIR}/environments";
     -d $baseDir or throwError("conda directory does not exist:\n    $baseDir");
     
-    # assemble an MD5-based name for the environment
+    # assemble an MD5 hash for the environment
     my @conda;
     push @conda, ('channels:', @{$conda{channels}}); # channel order is important, do not reorder
     push @conda, ('dependencies:', sort @{$conda{dependencies}});
@@ -123,6 +120,38 @@ sub getCondaPaths {
         profileScript => $profileScript,
         loadCommand   => $loadCommand
     }
+}
+
+#------------------------------------------------------------------------------
+# if missing, install mamba (which is then used as a drop-in replacement for conda)
+# https://github.com/mamba-org/mamba
+#------------------------------------------------------------------------------
+# 'checkForMamba' creates a conda environment containing only mamba (only run once per server)
+#     conda create --prefix $MDI_DIR/environments/mamba --channel conda-forge --yes mamba
+# 'createCondaEnvironment' then uses mamba to create conda environments for pipelines
+#     conda activate $MDI_DIR/environments/mamba
+#     mamba create --prefix $MDI_DIR/environments/xxxx --file xxxx
+#     conda deactivate
+# finally, conda (not mamba) is used to activate the environment for a pipeline job
+#     conda activate $MDI_DIR/xxxx
+#------------------------------------------------------------------------------
+sub checkForMamba { 
+    my ($cnd) = @_;
+    my $mambaDir = "$ENV{MDI_DIR}/environments/mamba";
+    -e $mambaDir and return $mambaDir;
+    my $bash =
+"bash -c '
+$$cnd{loadCommand}
+source $$cnd{profileScript}
+conda create --prefix $mambaDir --channel conda-forge --yes mamba
+'";
+    print "installing mamba\n";
+    print "\n$bash\n";
+    if(system($bash)){
+        remove_tree $mambaDir;
+        throwError("mamba installation failed");
+    }
+    $mambaDir;
 }
 
 #------------------------------------------------------------------------------
@@ -183,12 +212,6 @@ sub createCondaEnvironment {
     my $mambaDir = checkForMamba($cnd);
     
     # create the environment
-#     my $bash =
-# "bash -c '
-# $$cnd{loadCommand}
-# source $$cnd{profileScript}
-# conda env create --prefix $$cnd{dir} --file $$cnd{initFile}
-# '";
     my $bash =
 "bash -c '
 $$cnd{loadCommand}
@@ -205,33 +228,6 @@ conda deactivate
     }
     move($$cnd{initFile}, $$cnd{showFile});
     $cnd;
-}
-
-#------------------------------------------------------------------------------
-# if missing, install mamba (which is then used as a drop-in replacement to conda)
-# this function creates a conda environmental containing only mamba, used as:
-#   conda create --prefix /path/to/mdi/environments/mamba mamba
-#   conda activate /path/to/mdi/environments/mamba
-#   mamba create --prefix /path/to/mdi/environments/envName --file xxxx
-#   conda deactivate
-#   conda activate /path/to/mdi/environments/envName
-#------------------------------------------------------------------------------
-sub checkForMamba { 
-    my ($cnd) = @_;
-    my $mambaDir = "$ENV{MDI_DIR}/environments/mamba";
-    -e $mambaDir and return $mambaDir;
-    my $bash =
-"bash -c '
-$$cnd{loadCommand}
-source $$cnd{profileScript}
-conda env create --prefix $mambaDir mamba
-'";
-    print "installing mamba\n";
-    if(system($bash)){
-        remove_tree $mambaDir;
-        throwError("mamba installation failed");
-    }
-    $mambaDir;
 }
 
 1;
