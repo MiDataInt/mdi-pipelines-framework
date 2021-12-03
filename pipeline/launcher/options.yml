@@ -24,7 +24,7 @@ optionFamilies:
                 type: string
                 required: true
                 default: null
-                description: "simple name for the data (e.g. sample) being analyzed (no spaces or periods)"
+                description: "simple name for the data (e.g., sample) being analyzed (no spaces or periods)"
     resources: # always required, even when running pipeline as a simple inline command
         order: 102
         universal: true
@@ -43,7 +43,7 @@ optionFamilies:
                 type: string
                 required: false
                 default: 4G
-                description: "RAM allocated per CPU (e.g. 500M, 4G)"
+                description: "RAM allocated per CPU (e.g., 500M, 4G)"
             tmp-dir:
                 order: 3
                 short: t
@@ -86,14 +86,14 @@ optionFamilies:
                 type: string
                 required: false
                 default: 10:00
-                description: "time limit for the running job (e.g. slurm #SBATCH --time, dd-hh:mm:ss)"
+                description: "time limit for the running job (e.g., dd-hh:mm:ss for slurm --time)"
             partition: 
                 order: 4
                 short: null
                 type: string
                 required: false
                 default: standard
-                description: "slurm #SBATCH --partition (standard, gpu, largemem, viz, standard-oc)" 
+                description: "slurm --partition (standard, gpu, largemem, viz, standard-oc)" 
     workflow:
         order: 104
         universal: true
