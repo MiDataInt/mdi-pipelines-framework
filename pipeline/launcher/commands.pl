@@ -5,7 +5,7 @@ use warnings;
 # most terminate execution or never return
 
 # working variables
-use vars qw($pipeline $launcherDir $mdiDir
+use vars qw($pipeline $pipelineName $launcherDir $mdiDir
             @args $config %longOptions $workflowScript);
 
 # switch for acting on restricted commands
@@ -16,7 +16,8 @@ sub doRestrictedCommand {
         conda    => \&runConda,
         status   => \&runStatus,
         rollback => \&runRollback,
-        options  => \&runOptions
+        options  => \&runOptions, 
+        optionsTable => \&runOptionsTable
     );
     $restricted{$target} and &{$restricted{$target}}();
 }
@@ -195,6 +196,30 @@ sub runOptions {
             $shortOut = (!$shortOut or $shortOut eq 'null') ? "" : "-$$option{short}[0]";
             print join("\t", $shortOut, "--$$option{long}[0]", $required), "\n";
         }   
+    }
+    exit;
+}
+
+#------------------------------------------------------------------------------
+# print a tab-delimited table of all pipeline actions and options (mostly for Pipeline Runner)
+#------------------------------------------------------------------------------
+sub runOptionsTable { # takes no arguments
+    my $launcher = loadYamlFile("$launcherDir/commands.yml", 0, 1);
+    my %suppressedFamilies = map { $_ => 1 } ("job-manager", "workflow", "help");
+    foreach my $action(keys %{$$config{actions}}){
+        $$launcher{actions}{$action} and next;
+        my $cmd = getCmdHash($action); 
+        loadActionOptions($cmd); # need options but no values, resets on each call
+        my @optionsOut = sort { $$a{family}   cmp    $$b{family} } values %longOptions;
+        print join("\t", qw(pipelineName action optionFamily optionName required universal order)), "\n";
+        foreach my $option(@optionsOut){
+            my $family = $$option{family};
+            $suppressedFamilies{$family} and next;
+            my $required = $$option{required}[0] ? "REQUIRED" : "";
+            my $universal = $$config{optionFamilies}{$family}{universal}[0] ? "UNIVERSAL" : "";
+            my $order = $$option{order}[0] ? $$option{order}[0] : 9999;
+            print join("\t", $pipelineName, $action, $$option{family}, $$option{long}[0], $required, $universal, $order), "\n";
+        }    
     }
     exit;
 }

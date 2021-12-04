@@ -51,3 +51,12 @@ actions:
                 total-ram: null
         optionFamilies: null        
         description: "show a concise, alphabetically sorted option list for a pipeline action" 
+    optionsTable:
+        order: 6
+        universal: true
+        hidden: true
+        resources:
+            required:
+                total-ram: null
+        optionFamilies: null
+        description: "return a tab-delimited table of all pipeline actions and options"
