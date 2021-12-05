@@ -5,17 +5,37 @@ use warnings;
 # called by the 'mdi' command line function
 # configures the environment and launches pipeline worker script(s)
 
+# various framework paths
+our %Forks = (definitive => "definitive", developer => "developer-forks");
+our $mdiDir = $ENV{MDI_DIR};
+our $suitesDir = "$mdiDir/suites/$Forks{definitive}";
+$ENV{SUITES_DIR} = $suitesDir;
+our $launcherDir    = "$ENV{FRAMEWORK_DIR}/pipeline/launcher";
+$ENV{LAUNCHER_DIR} = $launcherDir;
+our $workFlowDir    = "$ENV{FRAMEWORK_DIR}/pipeline/workflow";
+$ENV{WORKFLOW_DIR} = $workFlowDir;
+our $workflowScript = "$workFlowDir/workflow.sh";
+$ENV{WORKFLOW_SH}  = $workflowScript;
+$ENV{SLURP} = "$ENV{FRAMEWORK_DIR}/shell/slurp";
+
 # collect the requested pipeline, action, data.yml, and option arguments
+our ($pipelineName, $target, @args) = @ARGV;
+
+# handle special case in Pipeline Runner where pipelineName is extracted from data.yml
+if($pipelineName eq "valuesTable"){
+    require "$launcherDir/yaml.pl";
+    my $yml = loadYamlFile($args[0], undef, undef, undef, 1); # suppress null entries
+    $pipelineName = $$yml{pipeline}[0];
+}
+
 # pipelineName could be a pipeline name only, or be directed to a specific repository as suite/pipeline
 # target could be a single pipeline action, or a config file with target actions listed in the 'execute' key
-our ($pipelineName, $target, @args) = @ARGV;
 my @pipelineName = reverse(split('/', $pipelineName, 2)); # thus [name, maybe a suite]
 my $pipeline;
 
 # discover the pipeline source and whether to use a developer or the definitive fork
 # if not directed to a specific repository, use the first matching pipeline name
 # developer-forks take precedence in developer mode, ignored otherwise
-our %Forks = (definitive => "definitive", developer => "developer-forks");
 our @pipelineDirs = split(/\s/, $ENV{PIPELINE_DIRS});
 sub getPipeline {
     my ($fork) = @_;
@@ -37,10 +57,7 @@ $pipelineName = $$pipeline{name};
 # working variables
 our (%conda, %longOptions, %shortOptions, %optionArrays, %optionValues);
 
-# various paths
-our $mdiDir = $ENV{MDI_DIR};
-our $suitesDir = "$mdiDir/suites/$Forks{definitive}";
-$ENV{SUITES_DIR} = $suitesDir;
+# various pipeline-dependent paths
 our $pipelineDir = $$pipeline{directory};
 $ENV{PIPELINE_DIR} = $pipelineDir;
 our $sharedDir = "$pipelineDir/../../shared";
@@ -48,16 +65,6 @@ our $environmentsDir = "$sharedDir/environments";
 our $optionsDir      = "$sharedDir/options";
 our $modulesDir      = "$sharedDir/modules";
 $ENV{MODULES_DIR}  = $modulesDir;
-# our $_sharedDir = "$pipelineDir/../_shared";
-# $ENV{SHARED_DIR}   = $_sharedDir;
-our $launcherDir    = "$ENV{FRAMEWORK_DIR}/pipeline/launcher";
-$ENV{LAUNCHER_DIR} = $launcherDir;
-our $workFlowDir    = "$ENV{FRAMEWORK_DIR}/pipeline/workflow";
-$ENV{WORKFLOW_DIR} = $workFlowDir;
-our $workflowScript = "$workFlowDir/workflow.sh";
-$ENV{WORKFLOW_SH}  = $workflowScript;
-$ENV{SLURP} = "$ENV{FRAMEWORK_DIR}/shell/slurp";
-# our $configFile = "$pipelineDir/_assembly/mdi.yml";
 
 # load launcher scripts
 map { $_ =~ m/launcher\.pl$/ or require $_ } glob("$launcherDir/*.pl");
@@ -88,7 +95,7 @@ doRestrictedCommand($target);
 # act on potentially multiple actions taken from a data config file
 our $isSingleAction;
 if ($target =~ m/\.yml$/) { 
-    my $yaml = loadYamlFile($target);
+    my $yaml = loadYamlFile($target, undef, undef, undef, 1);
     my %requestedActions = map { $_ => 1 } $$yaml{execute} ? @{$$yaml{execute}} : ();
     my $cmds = $$config{actions}; # execute all requested actions in their proper order
     my @orderedActions = sort { $$cmds{$a}{order}[0] <=> $$cmds{$b}{order}[0] } keys %$cmds;

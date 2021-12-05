@@ -17,7 +17,8 @@ sub doRestrictedCommand {
         status   => \&runStatus,
         rollback => \&runRollback,
         options  => \&runOptions, 
-        optionsTable => \&runOptionsTable
+        optionsTable => \&runOptionsTable,
+        valuesTable  => \&runValuesTable
     );
     $restricted{$target} and &{$restricted{$target}}();
 }
@@ -204,23 +205,44 @@ sub runOptions {
 # print a tab-delimited table of all pipeline actions and options (mostly for Pipeline Runner)
 #------------------------------------------------------------------------------
 sub runOptionsTable { # takes no arguments
-    my $launcher = loadYamlFile("$launcherDir/commands.yml", 0, 1);
+    my $launcher = loadYamlFile("$launcherDir/commands.yml", 0, 1, undef, 1);
     my %suppressedFamilies = map { $_ => 1 } ("job-manager", "workflow", "help");
+    print join("\t", qw(pipelineName action optionFamily optionName 
+                        type required universal order 
+                        default description)), "\n";    
     foreach my $action(keys %{$$config{actions}}){
         $$launcher{actions}{$action} and next;
         my $cmd = getCmdHash($action); 
         loadActionOptions($cmd); # need options but no values, resets on each call
         my @optionsOut = sort { $$a{family}   cmp    $$b{family} } values %longOptions;
-        print join("\t", qw(pipelineName action optionFamily optionName required universal order)), "\n";
         foreach my $option(@optionsOut){
             my $family = $$option{family};
             $suppressedFamilies{$family} and next;
-            my $required = $$option{required}[0] ? "REQUIRED" : "";
             my $universal = $$config{optionFamilies}{$family}{universal}[0] ? "UNIVERSAL" : "";
             my $order = $$option{order}[0] ? $$option{order}[0] : 9999;
-            print join("\t", $pipelineName, $action, $$option{family}, $$option{long}[0], $required, $universal, $order), "\n";
+            my $default = $$option{default}[0] eq 'null' ? "" : $$option{default}[0];
+            $default eq "NA" and $default = "_NA_";
+            my $required = $$option{required}[0] ? "TRUE" : "FALSE";
+            print join("\t", $pipelineName, $action, $$option{family}, $$option{long}[0], 
+                             $$option{type}[0], $required, $universal, $order,
+                             $default, $$option{description}[0]), "\n";
         }    
     }
+    exit;
+}
+
+#------------------------------------------------------------------------------
+# print a tab-delimited table of parsed option values for <data>.yml (mostly for Pipeline Runner)
+#------------------------------------------------------------------------------
+sub runValuesTable { # takes no arguments
+    my $yml = loadYamlFile($args[0], undef, undef, undef, 1); # suppress null entries
+    my @requestedActions = $$yml{execute} ? @{$$yml{execute}} : ();
+    my %yml;
+    foreach my $action(@requestedActions){
+        my $yml = parseAllOptions($action, undef, 1);
+        $yml{$action} = $$yml{$action};
+    }
+    printYAML(\%yml, undef, undef, 1);
     exit;
 }
 

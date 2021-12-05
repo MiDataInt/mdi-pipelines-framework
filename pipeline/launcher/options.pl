@@ -18,7 +18,7 @@ our (%nTasks);
 # top-level function that discovers and checks all expected and requested option values
 #------------------------------------------------------------------------------
 sub parseAllOptions {
-    my ($actionCommand, $subjectAction) = @_;
+    my ($actionCommand, $subjectAction, $skipValidation) = @_;
     $subjectAction or $subjectAction = $actionCommand;
     $ENV{PIPELINE_ACTION} = $subjectAction;    
     
@@ -39,7 +39,7 @@ sub parseAllOptions {
     validateOptionArrays($subjectAction);
     $cmd = getCmdHash($actionCommand);
     ($helpAction, $helpCmd) = ($actionCommand, $cmd);
-    validateOptionValues($cmd, $actionCommand);
+    $skipValidation or validateOptionValues($cmd, $actionCommand);
     $configYml;
 }
 # extend parseAllOptions with a check that options specify a specific task
@@ -180,7 +180,7 @@ sub loadOptionsConfigFile {
     my $nullConfig = {parsed_ => []};
     $configFile or return $nullConfig; 
     -e $configFile or return $nullConfig; 
-    my $yaml = loadYamlFile($configFile, $priority, 1);
+    my $yaml = loadYamlFile($configFile, $priority, 1, undef, 1);
     
     # check that we are reading a file intended for us
     if (defined $$yaml{pipeline}) { # server level config files do not declare a single pipeline; others should

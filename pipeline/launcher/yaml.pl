@@ -23,11 +23,11 @@ use constant {
     PRIORITY => 3,
     LINE_NUMBER => 4
 };
-use vars qw($errorSeparator);
+my $errorSeparator = "!" x 80; # since this script may be called separately from others
 
 # read a single simplified YAML file
 sub loadYamlFile {
-    my ($file, $priority, $returnParsed, $fillModules) = @_;
+    my ($file, $priority, $returnParsed, $fillModules, $suppressNull) = @_;
 
     # first pass: read simplified lines from files
     open my $inH, "<", $file or throwError("could not open:\n    $file:\n$!");    
@@ -62,7 +62,18 @@ sub loadYamlFile {
     }
 
     # record the indent levels of all lines
-    my @levels = map { $_ / $indentLen } @indents;    
+    my @levels = map { $_ / $indentLen } @indents;  
+
+    # adjust non-indented yaml array format to indented (i.e., expect indent of "-" items under a dictionary)
+    my $lastDictionaryI = 0;
+    foreach my $i(0..$#lines){
+        if($lines[$i] =~ m/^-/){
+            $levels[$i] == $levels[$lastDictionaryI] or next;
+            $levels[$i]++;
+        } else {
+            $lastDictionaryI = $i;
+        }
+    }
     
     # second pass: parse simplified YAML lines
     my @hashes = (\my %yaml);
@@ -76,7 +87,7 @@ sub loadYamlFile {
         if ($line =~ m/^-/) {
             $line =~ s/^-//;
             $line =~ s/\s+/ /g;
-            $value = getYamlValue($line); # always returns an array reference
+            $value = getYamlValue($line, $suppressNull); # always returns an array reference
             defined $value or next; # discard items without any value
             push @$array, $$value[0];
             $returnParsed and push @parsed, [ 
@@ -91,7 +102,7 @@ sub loadYamlFile {
         } elsif($i == $#lines or $levels[$i+1] <= $level){
             $line =~ s/\s+/ /g;
             ($key, $value) = $line =~ m/(.+):$/ ? ($1) : split(': ', $line, 2);
-            $value = getYamlValue($value); # always returns an array reference
+            $value = getYamlValue($value, $suppressNull); # always returns an array reference
             defined $value or next; # discard keys without any value
             $hashes[$level]{$key} = $value;
             if ($returnParsed) {
@@ -142,14 +153,14 @@ sub trimYamlLine {
 
 # convert special YAML value labels into Perl-compatibles
 sub getYamlValue {
-    my ($value) = @_;
+    my ($value, $suppressNull) = @_;
     defined($value) or return;
     $value =~ s/^\s+//g;  # trim leading whitespace    
     $value eq '' and return;
     if ($value eq '~' or
         lc($value) eq 'null' or
         $value eq '_REQUIRED_') {
-        []
+        $suppressNull ? undef : []
     } elsif(lc($value) eq "true") { # boolean true/false t- perl 1/0
         [1]   
     } elsif(lc($value) eq "false") {
@@ -207,8 +218,13 @@ sub mergeYAML {
 
 # print YAML hash to a bare bones .yml file
 sub printYAML {
-    my ($yaml, $ymlFile, $comment) = @_;
-    open our $outH, ">", $ymlFile or throwError("could not open for writing:\n    $ymlFile\n$!");
+    my ($yaml, $ymlFile, $comment, $stdout) = @_;
+    our $outH;
+    if($stdout){
+        $outH = *STDOUT;
+    } else {
+        open $outH, ">", $ymlFile or throwError("could not open for writing:\n    $ymlFile\n$!");
+    }
     sub printYAML_ {
         my ($x, $indentLevel) = @_;
         my $indent = " " x ($indentLevel * 4);
