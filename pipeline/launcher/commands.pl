@@ -235,14 +235,13 @@ sub runOptionsTable { # takes no arguments
 # print a tab-delimited table of parsed option values for <data>.yml (mostly for Pipeline Runner)
 #------------------------------------------------------------------------------
 sub runValuesTable { # takes no arguments
-    my $yml = loadYamlFile($args[0], undef, undef, undef, 1); # suppress null entries
-    my @requestedActions = $$yml{execute} ? @{$$yml{execute}} : ();
-    my %yml;
+    my $yaml = loadYamlFile($args[0], undef, undef, undef, 1); # suppress null entries
+    my @requestedActions = $$yaml{execute} ? @{$$yaml{execute}} : ();
     foreach my $action(@requestedActions){
         my $yml = parseAllOptions($action, undef, 1);
-        $yml{$action} = $$yml{$action};
+        $$yaml{$action} = $$yml{$action};
     }
-    printYAML(\%yml, undef, undef, 1);
+    printYAML($yaml, undef, undef, 1);
     exit;
 }
 

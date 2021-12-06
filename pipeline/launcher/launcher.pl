@@ -53,6 +53,7 @@ $ENV{DEVELOPER_MODE} and $pipeline = getPipeline($Forks{developer});
 !$pipeline and $pipeline = getPipeline($Forks{definitive});
 !$pipeline and die "\nmdi error: not a known mdi command or pipeline: $pipelineName\n\n"; 
 $pipelineName = $$pipeline{name};
+our $pipelineSuite = $$pipeline{suite};
 
 # working variables
 our (%conda, %longOptions, %shortOptions, %optionArrays, %optionValues);
