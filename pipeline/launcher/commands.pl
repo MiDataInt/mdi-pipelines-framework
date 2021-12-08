@@ -18,7 +18,7 @@ sub doRestrictedCommand {
         rollback => \&runRollback,
         options  => \&runOptions, 
         optionsTable => \&runOptionsTable,
-        valuesTable  => \&runValuesTable
+        valuesYaml  => \&runValuesYaml
     );
     $restricted{$target} and &{$restricted{$target}}();
 }
@@ -234,21 +234,37 @@ sub runOptionsTable { # takes no arguments
 #------------------------------------------------------------------------------
 # print a yaml-formatted string of parsed option values for <data>.yml (mostly for Pipeline Runner)
 #------------------------------------------------------------------------------
-sub runValuesTable { # takes no arguments
+sub runValuesYaml { # takes no arguments
     my $yaml = loadYamlFile($args[0], undef, undef, undef, 1); # suppress null entries
-    my @requestedActions = $$yaml{execute} ? @{$$yaml{execute}} : ();
-    my $yml = "---\n";
+
+    # parse actions lists
+    my %requestedActions = map { $_ => 1} ($$yaml{execute} ? @{$$yaml{execute}} : ());
+    my $allActions = $$config{actions};
+    foreach my $action (keys %$allActions){
+        defined $$allActions{$action}{order} or $$allActions{$action}{order} = [999];
+    }
+    my @allActions = sort { 
+        $$allActions{$a}{order}[0] <=> $$allActions{$b}{order}[0]
+    } keys %$allActions;
+
+    # initiate yaml
+    my $yml = "---\n"; # will include values for _all_ actions
     $yml .= "pipeline: $pipelineName\n";
-    my $actionsYml = "execute:\n";
+    my $actionsYml = "execute:\n"; # will include only the requested actions in <data>.yml
     my $indent = "    ";
-    foreach my $action(@requestedActions){
+
+    # parse options for all pipeline-specific actions
+    foreach my $action(@allActions){
+        $$allActions{$action}{universal}[0] and next;
+        $requestedActions{$action} and $actionsYml .= "$indent- $action\n";        
         $yml .= "$action".":\n";
         my $cmd = getCmdHash($action);         
         parseAllOptions($action, undef, 1);
         parseAllDependencies($action);
         assembleActionYaml($action, $cmd, $indent, \my @taskOptions, \$yml);
-        $actionsYml .= "$indent- $action\n";
     }
+
+    # print the final yaml results
     print $yml.$actionsYml;
     exit;
 }

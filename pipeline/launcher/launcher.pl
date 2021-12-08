@@ -22,7 +22,7 @@ $ENV{SLURP} = "$ENV{FRAMEWORK_DIR}/shell/slurp";
 our ($pipelineName, $target, @args) = @ARGV;
 
 # handle special case in Pipeline Runner where pipelineName is extracted from data.yml
-if($pipelineName eq "valuesTable"){
+if($pipelineName eq "valuesYaml"){
     require "$launcherDir/yaml.pl";
     my $yml = loadYamlFile($args[0], undef, undef, undef, 1); # suppress null entries
     $pipelineName = $$yml{pipeline}[0];

@@ -62,6 +62,7 @@ sub loadYamlFile {
     }
 
     # record the indent levels of all lines
+    $indentLen or $indentLen = 4; # for files that have no indented elements
     my @levels = map { $_ / $indentLen } @indents;  
 
     # adjust non-indented yaml array format to indented (i.e., expect indent of "-" items under a dictionary)

@@ -88,7 +88,7 @@ sub assembleActionYaml {
                                      keys %$options){
             my $option = $$options{$longOption};
             my $values = $optionArrays{$longOption};
-            if(!defined $values){ # used by valuesTable
+            if(!defined $values){ # used by valuesYaml
                 my $value = applyVariablesToYamlValue($$option{default}[0]);
                 !defined $value and $value = "__REQUIRED__";
                 $$report .= "$indent$indent$longOption: $value\n";
