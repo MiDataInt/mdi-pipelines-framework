@@ -286,7 +286,7 @@ sub mergeYamlVariables { # first, collect the values of variables, obeying confi
 sub applyVariablesToYamlValue {
     my ($value, $vars) = @_;
     defined $value or return $value;
-    
+
     # discover any environment variables needing substitution
     my ($varName, $useType);
     if($value =~ m/\$(\w+)/){

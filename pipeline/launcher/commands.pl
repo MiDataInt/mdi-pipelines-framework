@@ -232,16 +232,24 @@ sub runOptionsTable { # takes no arguments
 }
 
 #------------------------------------------------------------------------------
-# print a tab-delimited table of parsed option values for <data>.yml (mostly for Pipeline Runner)
+# print a yaml-formatted string of parsed option values for <data>.yml (mostly for Pipeline Runner)
 #------------------------------------------------------------------------------
 sub runValuesTable { # takes no arguments
     my $yaml = loadYamlFile($args[0], undef, undef, undef, 1); # suppress null entries
     my @requestedActions = $$yaml{execute} ? @{$$yaml{execute}} : ();
+    my $yml = "---\n";
+    $yml .= "pipeline: $pipelineName\n";
+    my $actionsYml = "execute:\n";
+    my $indent = "    ";
     foreach my $action(@requestedActions){
-        my $yml = parseAllOptions($action, undef, 1);
-        $$yaml{$action} = $$yml{$action};
+        $yml .= "$action".":\n";
+        my $cmd = getCmdHash($action);         
+        parseAllOptions($action, undef, 1);
+        parseAllDependencies($action);
+        assembleActionYaml($action, $cmd, $indent, \my @taskOptions, \$yml);
+        $actionsYml .= "$indent- $action\n";
     }
-    printYAML($yaml, undef, undef, 1);
+    print $yml.$actionsYml;
     exit;
 }
 
