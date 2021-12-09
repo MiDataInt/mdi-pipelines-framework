@@ -10,7 +10,8 @@ use warnings;
 #------------------------------------------------------------------------
 use vars qw(%options %exists %extendable $separatorLength);
 my $queryMessage = "At least one job command already exists in either the queued, running or completed state.\n".
-                   "Continuing with 'q submit' will result in one or more duplicate identical jobs.";
+                   "Continuing with 'submit' will result in one or more duplicate identical jobs.\n".
+                   "Use 'extend' to only submit previously unsatisfied jobs.";
 #========================================================================
 
 #========================================================================
@@ -44,9 +45,9 @@ sub checkExtendability { # don't resubmit jobs that were previosly satisfied = q
     my ($command) = @_;
     $exists{$command} or return 1;      # unknown jobs are always submittable
     $extendable{$command} and return 1; # extendable jobs are always submittable
-    $options{_extending_} and return 0; # if 'q extend', known non-extendable jobs are ignored
-    getPermission($queryMessage) and return 1;  # if 'q submit', ensure permission to requeue known non-extendable jobs
-    print "'q submit' exiting.\nUse 'q extend' to submit only previously unsatisfied jobs.\n";
+    $options{_extending_} and return 0; # if 'extend', known non-extendable jobs are ignored
+    getPermission($queryMessage) and return 1;  # if 'submit', ensure permission to requeue known non-extendable jobs
+    print "'submit' exiting.\nUse 'extend' to submit only previously unsatisfied jobs.\n";
     exit;
 }
 #========================================================================
