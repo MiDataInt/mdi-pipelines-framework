@@ -18,7 +18,7 @@ our (%nTasks);
 # top-level function that discovers and checks all expected and requested option values
 #------------------------------------------------------------------------------
 sub parseAllOptions {
-    my ($actionCommand, $subjectAction) = @_;
+    my ($actionCommand, $subjectAction, $skipValidation) = @_;
     $subjectAction or $subjectAction = $actionCommand;
     $ENV{PIPELINE_ACTION} = $subjectAction;    
     
@@ -39,7 +39,7 @@ sub parseAllOptions {
     validateOptionArrays($subjectAction);
     $cmd = getCmdHash($actionCommand);
     ($helpAction, $helpCmd) = ($actionCommand, $cmd);
-    validateOptionValues($cmd, $actionCommand);
+    $skipValidation or validateOptionValues($cmd, $actionCommand);
     $configYml;
 }
 # extend parseAllOptions with a check that options specify a specific task
@@ -180,12 +180,16 @@ sub loadOptionsConfigFile {
     my $nullConfig = {parsed_ => []};
     $configFile or return $nullConfig; 
     -e $configFile or return $nullConfig; 
-    my $yaml = loadYamlFile($configFile, $priority, 1);
+    my $yaml = loadYamlFile($configFile, $priority, 1, undef, 1);
     
     # check that we are reading a file intended for us
     if (defined $$yaml{pipeline}) { # server level config files do not declare a single pipeline; others should
         my $yamlPipeline = ref($$yaml{pipeline}) eq 'HASH' ? $$yaml{pipeline}{name}[0] : $$yaml{pipeline}[0];
         $yamlPipeline or $yamlPipeline = '';
+        if($yamlPipeline =~ m|/|){
+            my @x = split('/', $yamlPipeline);
+            $yamlPipeline = $x[$#x];
+        }
         $yamlPipeline eq $$config{pipeline}{name}[0] or
             throwError("$configFile is not a configuration file for pipeline '$$config{pipeline}{name}[0]'");
     }
@@ -282,7 +286,7 @@ sub mergeYamlVariables { # first, collect the values of variables, obeying confi
 sub applyVariablesToYamlValue {
     my ($value, $vars) = @_;
     defined $value or return $value;
-    
+
     # discover any environment variables needing substitution
     my ($varName, $useType);
     if($value =~ m/\$(\w+)/){

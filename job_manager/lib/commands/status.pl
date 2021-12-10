@@ -2,7 +2,7 @@ use strict;
 use warnings;
 
 #========================================================================
-# 'status.pl' updates and shows q status files
+# 'status.pl' updates and shows status files
 #========================================================================
 
 #========================================================================
@@ -514,7 +514,7 @@ sub getLogFileInfo { # job is completed but log file information not yet capture
         parseLogFile($jobInfo, $logFile, undef, $startTimeOnly);
     }
 }
-sub parseLogFile { # extract and format the job information as reported by the q wrapper to the user script
+sub parseLogFile { # extract and format the job information as reported by the wrapper to the user script
     my ($jobInfo, $logFile, $isContents, $startTimeOnly) = @_;
     # read the yaml-formatted job metadata as printed by jobManager utilities
     my $yamls = loadYamlFromString( $isContents ? $logFile : slurpFile($logFile) );

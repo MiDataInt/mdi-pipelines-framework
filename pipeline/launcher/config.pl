@@ -60,36 +60,8 @@ sub reportAssembledConfig {
     $report .= "$action:\n";
     
     # print the options
-    my %familySeen;
     my @taskOptions;
-    foreach my $family(sort { getFamilyOrder($a) <=> getFamilyOrder($b) } getAllOptionFamilies($cmd)){
-        $familySeen{$family} and next;
-        $familySeen{$family}++;
-        my $options = getFamilyOptions($family);        
-        %$options and $report .= "$indent$family:\n";
-        foreach my $longOption(sort { getOptionOrder($a, $options) <=> getOptionOrder($b, $options) }
-                                     keys %$options){
-            my $option = $$options{$longOption};
-            my $values = $optionArrays{$longOption};
-            if (@$values > 1) {
-                $$option{hidden}[0] or $report .= "$indent$indent$longOption:\n";
-                foreach my $i(0..$#$values){
-                    my $value = getReportOptionValue($option, $$values[$i]);
-                    $$option{hidden}[0] or $report .= "$indent$indent$indent- $value\n";
-                    $taskOptions[$i]{$longOption} = $$values[$i];
-                }
-            } else {
-                my $leftLength = length($longOption);
-                my $nSpaces = 15 - $leftLength;
-                my $spaces = (" ") x ($nSpaces > 1 ? $nSpaces : 1);
-                my $value = getReportOptionValue($option, $$values[0]);
-                $$option{hidden}[0] or $report .= "$indent$indent$longOption:$spaces$value\n";
-                foreach my $i(1..$nTasks{$action}){
-                    $taskOptions[$i-1]{$longOption} = $$values[0];
-                }
-            }
-        }
-    }
+    assembleActionYaml($action, $cmd, $indent, \@taskOptions, \$report);
     
     # print the dependencies
     $report .= $indent."conda:\n";
@@ -103,6 +75,42 @@ sub reportAssembledConfig {
     # finish up
     $report .= "...\n";
     {taskOptions => \@taskOptions, report => $report};
+}
+sub assembleActionYaml {
+    my ($action, $cmd, $indent, $taskOptions, $report) = @_;
+    my %familySeen;
+    foreach my $family(sort { getFamilyOrder($a) <=> getFamilyOrder($b) } getAllOptionFamilies($cmd)){
+        $familySeen{$family} and next;
+        $familySeen{$family}++;
+        my $options = getFamilyOptions($family);        
+        %$options and $$report .= "$indent$family:\n";
+        foreach my $longOption(sort { getOptionOrder($a, $options) <=> getOptionOrder($b, $options) }
+                                     keys %$options){
+            my $option = $$options{$longOption};
+            my $values = $optionArrays{$longOption};
+            if(!defined $values){ # used by valuesYaml
+                my $value = applyVariablesToYamlValue($$option{default}[0]);
+                !defined $value and $value = "__REQUIRED__";
+                $$report .= "$indent$indent$longOption: $value\n";
+            } elsif (@$values > 1) {
+                $$option{hidden}[0] or $$report .= "$indent$indent$longOption:\n";
+                foreach my $i(0..$#$values){
+                    my $value = getReportOptionValue($option, $$values[$i]);
+                    $$option{hidden}[0] or $$report .= "$indent$indent$indent- $value\n";
+                    $$taskOptions[$i]{$longOption} = $$values[$i];
+                }
+            } else {
+                my $leftLength = length($longOption);
+                my $nSpaces = 15 - $leftLength;
+                my $spaces = (" ") x ($nSpaces > 1 ? $nSpaces : 1);
+                my $value = getReportOptionValue($option, $$values[0]);
+                $$option{hidden}[0] or $$report .= "$indent$indent$longOption:$spaces$value\n";
+                foreach my $i(1..$nTasks{$action}){
+                    $$taskOptions[$i-1]{$longOption} = $$values[0];
+                }
+            }
+        }
+    }
 }
 sub getReportOptionValue {
     my ($option, $value) = @_;

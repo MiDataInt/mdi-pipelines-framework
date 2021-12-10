@@ -14,7 +14,7 @@ use vars qw(%options $masterDir $masterFileName  %extendable %allJobs %targetJob
             $directives $qInUse $logDir %currentInstrsFile $currentScriptFile);
 my (%newJobs, %newJobIDs);
 my $queryMessage = "At least one job already exists in either the queued, running or completed state.\n".
-                   "Continuing with 'q resubmit' will result in one or more duplicate identical jobs.";
+                   "Continuing with 'resubmit' will result in one or more duplicate identical jobs.";
 #========================================================================
 
 #========================================================================

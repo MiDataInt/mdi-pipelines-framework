@@ -39,7 +39,7 @@ sub parseMoveTo {  # learn from move-to option where the user wants masterFile t
     if(-d $moveTo){  # request is to move masterFile as is to a new directory
         $newMasterDir = abs_path($moveTo);
         $newMasterFileName = $masterFileName;
-    } elsif(-e $moveTo){  # q move won't overwrite a file
+    } elsif(-e $moveTo){  # move won't overwrite a file
         die "$moveTo already exists but is not a directory\n$usage";
     } elsif($moveTo =~ m|(.+)/(.+)$|) {  # request includes a path to a new file
         ($newMasterDir, $newMasterFileName) = ($1, $2);

@@ -142,7 +142,9 @@ sub assembleTargetScript {
         $pbsArrayConfig = "\n#PBS -t 1-".$nTasks;
         $slurmArrayConfig = "\n#SBATCH --array=1-".$nTasks;
     }
-    my $jobName = "$pipelineName\_$pipelineCommand$dataName";
+    my $pipelineShort = $pipelineName;
+    $pipelineShort =~ m|.\S+/(\S+)| and $pipelineShort = $1; # strip suite name prefix in jobName
+    my $jobName = "$pipelineShort\_$pipelineCommand$dataName";
     $jobName =~ s/\s+/_/g;
     $qInUse eq 'PBS' and $jobName = substr($jobName, 0, 15);
     my $logDir = getLogDir($qInUse);
@@ -366,7 +368,7 @@ sub submitQueue { # submit to cluster scheduler
 #========================================================================
 # generate status file
 #------------------------------------------------------------------------
-sub generateStatusFile { # create the file that is used by subsequent q commands such as delete, etc.
+sub generateStatusFile { # create the file that is used by subsequent commands such as delete, etc.
     my ($qInUse) = @_;
     my $time = getTime();
     my $createdArchive = archiveStatusFiles();  # attempt to create an archive copy of a pre-existing status file 

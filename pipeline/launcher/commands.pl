@@ -5,7 +5,7 @@ use warnings;
 # most terminate execution or never return
 
 # working variables
-use vars qw($pipeline $launcherDir $mdiDir
+use vars qw($pipeline $pipelineName $launcherDir $mdiDir
             @args $config %longOptions $workflowScript);
 
 # switch for acting on restricted commands
@@ -16,7 +16,9 @@ sub doRestrictedCommand {
         conda    => \&runConda,
         status   => \&runStatus,
         rollback => \&runRollback,
-        options  => \&runOptions
+        options  => \&runOptions, 
+        optionsTable => \&runOptionsTable,
+        valuesYaml  => \&runValuesYaml
     );
     $restricted{$target} and &{$restricted{$target}}();
 }
@@ -196,6 +198,74 @@ sub runOptions {
             print join("\t", $shortOut, "--$$option{long}[0]", $required), "\n";
         }   
     }
+    exit;
+}
+
+#------------------------------------------------------------------------------
+# print a tab-delimited table of all pipeline actions and options (mostly for Pipeline Runner)
+#------------------------------------------------------------------------------
+sub runOptionsTable { # takes no arguments
+    my $launcher = loadYamlFile("$launcherDir/commands.yml", 0, 1, undef, 1);
+    my %suppressedFamilies = map { $_ => 1 } ("job-manager", "workflow", "help");
+    print join("\t", qw(pipelineName action optionFamily optionName 
+                        type required universal order 
+                        default description)), "\n";    
+    foreach my $action(keys %{$$config{actions}}){
+        $$launcher{actions}{$action} and next;
+        my $cmd = getCmdHash($action); 
+        loadActionOptions($cmd); # need options but no values, resets on each call
+        my @optionsOut = sort { $$a{family}   cmp    $$b{family} } values %longOptions;
+        foreach my $option(@optionsOut){
+            my $family = $$option{family};
+            $suppressedFamilies{$family} and next;
+            my $universal = $$config{optionFamilies}{$family}{universal}[0] ? "UNIVERSAL" : "";
+            my $order = $$option{order}[0] ? $$option{order}[0] : 9999;
+            my $default = $$option{default}[0] eq 'null' ? "" : $$option{default}[0];
+            $default eq "NA" and $default = "_NA_";
+            my $required = $$option{required}[0] ? "TRUE" : "FALSE";
+            print join("\t", $pipelineName, $action, $$option{family}, $$option{long}[0], 
+                             $$option{type}[0], $required, $universal, $order,
+                             $default, $$option{description}[0]), "\n";
+        }    
+    }
+    exit;
+}
+
+#------------------------------------------------------------------------------
+# print a yaml-formatted string of parsed option values for <data>.yml (mostly for Pipeline Runner)
+#------------------------------------------------------------------------------
+sub runValuesYaml { # takes no arguments
+    my $yaml = loadYamlFile($args[0], undef, undef, undef, 1); # suppress null entries
+
+    # parse actions lists
+    my %requestedActions = map { $_ => 1} ($$yaml{execute} ? @{$$yaml{execute}} : ());
+    my $allActions = $$config{actions};
+    foreach my $action (keys %$allActions){
+        defined $$allActions{$action}{order} or $$allActions{$action}{order} = [999];
+    }
+    my @allActions = sort { 
+        $$allActions{$a}{order}[0] <=> $$allActions{$b}{order}[0]
+    } keys %$allActions;
+
+    # initiate yaml
+    my $yml = "---\n"; # will include values for _all_ actions
+    $yml .= "pipeline: $pipelineName\n";
+    my $actionsYml = "execute:\n"; # will include only the requested actions in <data>.yml
+    my $indent = "    ";
+
+    # parse options for all pipeline-specific actions
+    foreach my $action(@allActions){
+        $$allActions{$action}{universal}[0] and next;
+        $requestedActions{$action} and $actionsYml .= "$indent- $action\n";        
+        $yml .= "$action".":\n";
+        my $cmd = getCmdHash($action);         
+        parseAllOptions($action, undef, 1);
+        parseAllDependencies($action);
+        assembleActionYaml($action, $cmd, $indent, \my @taskOptions, \$yml);
+    }
+
+    # print the final yaml results
+    print $yml.$actionsYml;
     exit;
 }
 

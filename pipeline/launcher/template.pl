@@ -5,7 +5,7 @@ use warnings;
 # modified by end user to simplify calls to the pipeline
 
 # working variables
-use vars qw($config $launcherDir $pipeline
+use vars qw($config $launcherDir $pipeline $pipelineSuite
             @universalTemplateFamilies);
 my ($allOptions, $addComments);
 my $indent = " " x 4;
@@ -18,7 +18,7 @@ sub getLeader {
     my ($pipelineName, $addComments) = @_;
     !$addComments ?
 "---
-pipeline: $pipelineName
+pipeline: $pipelineSuite/$pipelineName
 
 variables:
 
@@ -30,7 +30,7 @@ shared:
 # copy/modify this file as needed to identify specific $pipelineName
 # data/sample(s) to be analyzed and to override default option values
 #--------------------------------------------------------------
-pipeline: $pipelineName
+pipeline: $pipelineSuite/$pipelineName
 
 #--------------------------------------------------------------
 # you may define and use variables to help avoid repetition and typing errors 

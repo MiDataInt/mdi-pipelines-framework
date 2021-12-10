@@ -25,7 +25,7 @@ sub checkConfigFile { # make sure data targets file was specified and exists
     $statusFile = "$qDataDir/$dataYmlName.status";  # status file lives in top-level hidden directory
     $archiveStem = "$archiveDir/$dataYmlName.status";
     my $yml = slurpFile($dataYmlFile);
-    $yml =~ m/pipeline:\s*(\w+)/ or throwError("missing pipeline declaration:\n    $dataYmlFile");
+    $yml =~ m/pipeline:\s*(\S+)/ or throwError("missing pipeline declaration:\n    $dataYmlFile");
     $pipelineName = $1; 
 }
 sub getQSubDir { # subdirectories hold specific q-generated files
@@ -41,10 +41,10 @@ sub getQSubDir { # subdirectories hold specific q-generated files
     return $dir;
 }
 #-----------------------------------------------------------------------
-sub executeCommand { # load q scripts and execute command
+sub executeCommand { # load scripts and execute command
     map { require $_ } glob("$jobManagerDir/lib/commands/*.pl");
     $options{'_suppress-echo_'} or print "~" x $separatorLength, "\n";
-    &{${$commands{$command}}[0]}(@args); # add remaining @args since other subs recall q with additional arguments
+    &{${$commands{$command}}[0]}(@args); # add remaining @args since other subs recall utility with additional arguments
     print "~" x $separatorLength, "\n";
 }
 #========================================================================

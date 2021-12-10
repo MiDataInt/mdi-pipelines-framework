@@ -26,7 +26,8 @@ sub getTime { # status update times
 sub getPermission {  # get permission for jobs that will duplicate a job or delete/overwrite a file
     my ($queryMessage, $noForceUpdate) = @_;
     $options{'force'} and return 1;  # user has already given permission at command line
-    print "\nWARNING!\n"."$queryMessage\n";
+    print "\nWARNING!\n"."$queryMessage\n\n";
+    $ENV{IS_PIPELINE_RUNNER} and return 1;
     print "continue? <yes or no>:  ";
     my $permission = <STDIN>;
     chomp $permission;
