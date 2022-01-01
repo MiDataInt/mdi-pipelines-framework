@@ -21,9 +21,9 @@ our %commands = (  # [executionSub, commandHelp, mdiStage2]
     #move        =>  [\&qMove,        "move/rename <data.yml> and its associated script and status files"],
 #------------------------------------------------------------------------------------------------------------
     initialize  =>  [undef,           "refresh the 'mdi' command to establish its program targets", 1], # 'mdi' handles this call
-    install     =>  [\&mdiInstall,    "re-run the MDI installation process to add new suites, etc.", 1],
-    run         =>  [\&mdiRun,        "launch the MDI web server to use interactive Stage 2 apps",   1],
-
+    install     =>  [\&mdiInstall,    "re-run the MDI installation process to update suites, etc.", 1], # install and add assume a Stage 2 installation
+    add         =>  [\&mdiAdd,        "add one tool suite repository to config.yml and re-install", 1],
+    run         =>  [\&mdiRun,        "launch the MDI web server to use interactive Stage 2 apps",  1],
 ); 
 #------------------------------------------------------------------------
 # options
@@ -56,10 +56,11 @@ our %optionInfo = (# [shortOption, valueString, optionGroup, groupOrder, optionH
     '_server_mode_'=>  ["NA", undef,   "NA", "NA", 0, "internalOption"], 
 #------------------------------------------------------------------------------------------------------------
     'install-packages'=>   ["p", undef,   "install", 0, "install R packages required by Stage 2 Apps"],
+    'suite'=>              ["s", "<str>", "install", 1, "a single suite to install, in form GIT_USER/SUITE_NAME"],
     'develop'=>        ["v", undef,   "run", 0, "launch the web server in developer mode [run mode]"],
     'ondemand'=>       ["o", undef,   "run", 1, "launch the web server in ondemand mode [run mode]"],
-    'data-dir'=>       ["D", "<str>",   "run", 2, "path to the desired data directory [./data]"],
-    'host-dir'=>       ["H", "<str>",   "run", 3, "path to a shared/public MDI installation with code and resources [.]"],
+    'data-dir'=>       ["D", "<str>", "run", 2, "path to the desired data directory [./data]"],
+    'host-dir'=>       ["H", "<str>", "run", 3, "path to a shared/public MDI installation with code and resources [.]"],
 );
 our %longOptions = map { ${$optionInfo{$_}}[0] => $_ } keys %optionInfo; # for converting short options to long; long options are used internally
 #------------------------------------------------------------------------
@@ -82,6 +83,7 @@ our %commandOptions =  ( # 0=allowed, 1=required
 #------------------------------------------------------------------------------------------------------------
     initialize =>  {},
     install    =>  {'install-packages'=>0},
+    add        =>  {'install-packages'=>0, 'suite'=>1},
     run        =>  {'develop'=>0,'ondemand'=>0,'data-dir'=>0,'host-dir'=>0}, 
 );  
 #========================================================================
