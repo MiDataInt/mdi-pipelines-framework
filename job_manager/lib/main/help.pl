@@ -48,7 +48,7 @@ sub reportCommandsHelp { # help on the set of available commands, organized by t
     reportCommandChunk("status and result reporting", qw(status report script));   
     reportCommandChunk("error handling",              qw(delete));           
     reportCommandChunk("pipeline management",         qw(rollback purge));  
-    reportCommandChunk("server management",           qw(initialize install add run));  
+    reportCommandChunk("server management",           qw(initialize install add list run));  
 }
 sub reportOptionHelp { 
     my ($command) = @_;

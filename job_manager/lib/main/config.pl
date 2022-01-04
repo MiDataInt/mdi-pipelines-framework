@@ -23,6 +23,7 @@ our %commands = (  # [executionSub, commandHelp, mdiStage2]
     initialize  =>  [undef,           "refresh the 'mdi' command to establish its program targets", 1], # 'mdi' handles this call
     install     =>  [\&mdiInstall,    "re-run the MDI installation process to update suites, etc.", 1], # install and add assume a Stage 2 installation
     add         =>  [\&mdiAdd,        "add one tool suite repository to config.yml and re-install", 1],
+    list        =>  [\&mdiList,       "list all pipelines and apps available in this MDI installation", 1],
     run         =>  [\&mdiRun,        "launch the MDI web server to use interactive Stage 2 apps",  1],
 ); 
 #------------------------------------------------------------------------
@@ -84,6 +85,7 @@ our %commandOptions =  ( # 0=allowed, 1=required
     initialize =>  {},
     install    =>  {'install-packages'=>0},
     add        =>  {'install-packages'=>0, 'suite'=>1},
+    list       =>  {},
     run        =>  {'develop'=>0,'ondemand'=>0,'data-dir'=>0,'host-dir'=>0}, 
 );  
 #========================================================================
