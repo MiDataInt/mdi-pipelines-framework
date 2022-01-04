@@ -50,11 +50,12 @@ sub listInstalledTools {
         $length > $maxLength and $maxLength = $length;
     }
     print "\n$label\n";
-    foreach my $tool(keys %tools){
+    my $space = " " x 4;
+    foreach my $tool(sort {$a cmp $b} keys %tools){
         my $def = $tools{$tool}{$definitive} ? $definitive : (" " x length($definitive));
         my $dev = $tools{$tool}{$developer}  ? $developer  : (" " x length($developer));
         my $padding = " " x ($maxLength - length($tool));
-        print "  $tool$padding\t$def\t$dev\n";
+        print "  $tool$padding$space$def$space$dev\n";
     }
     print "\n";
 }
