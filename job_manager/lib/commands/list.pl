@@ -22,6 +22,7 @@ sub mdiList {
     print "\n$ENV{MDI_DIR}\n";
     listInstalledTools($pipelinesLabel, "pipelines",  3);
     listInstalledTools($appsLabel,      "shiny/apps", 4);
+    exit;
 }
 sub listInstalledTools {
     my ($label, $searchPath,, $offset) = @_; 
