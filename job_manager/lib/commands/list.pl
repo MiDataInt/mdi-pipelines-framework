@@ -9,9 +9,11 @@ use warnings;
 #========================================================================
 # define variables
 #------------------------------------------------------------------------
-use vars qw(%options);
+use vars qw(%options $separatorLength);
 my $pipelinesLabel = "Stage 1 Pipelines";
 my $appsLabel      = "Stage 2 Apps";
+my $definitive = "definitive";
+my $developer  = "developer-forks";
 #========================================================================
 
 #========================================================================
@@ -22,6 +24,7 @@ sub mdiList {
     print "\n$ENV{MDI_DIR}\n";
     listInstalledTools($pipelinesLabel, "pipelines",  3);
     listInstalledTools($appsLabel,      "shiny/apps", 4);
+    print "~" x $separatorLength, "\n";
     exit;
 }
 sub listInstalledTools {
@@ -37,14 +40,21 @@ sub listInstalledTools {
         $tool =~ m/^_/ and next; 
         my $fork  = $path[$#path - $offset];
         my $suite = $path[$#path - $offset + 1];
-        push @{$tools{"$suite//$tool"}}, $fork;
+        $tools{"$suite//$tool"}{$fork}++;
     }
 
     # print a tabular report of the tools
+    my $maxLength = 0;
+    foreach my $tool(keys %tools){
+        my $length = length($tool);
+        $length > $maxLength and $maxLength = $length;
+    }
     print "\n$label\n";
     foreach my $tool(keys %tools){
-        my $forks = join("\t", @{$tools{$tool}});
-        print "  $tool\t$forks\n";
+        my $def = $tools{$tool}{$definitive} ? $definitive : (" " x length($definitive));
+        my $dev = $tools{$tool}{$developer}  ? $developer  : (" " x length($developer));
+        my $padding = " " x ($maxLength - length($tool));
+        print "  $tool$padding\t$def\t$dev\n";
     }
     print "\n";
 }
