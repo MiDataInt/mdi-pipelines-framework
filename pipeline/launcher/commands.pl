@@ -18,7 +18,8 @@ sub doRestrictedCommand {
         rollback => \&runRollback,
         options  => \&runOptions, 
         optionsTable => \&runOptionsTable,
-        valuesYaml  => \&runValuesYaml
+        valuesYaml  => \&runValuesYaml,
+        build    => \&runBuild
     );
     $restricted{$target} and &{$restricted{$target}}();
 }
@@ -266,6 +267,38 @@ sub runValuesYaml { # takes no arguments
 
     # print the final yaml results
     print $yml.$actionsYml;
+    exit;
+}
+
+#------------------------------------------------------------------------------
+# build a Singularity image and post to a registry (for suite developers)
+#------------------------------------------------------------------------------
+sub runBuild { 
+
+    # command has limited options, collect them now
+    my $help    = "help";
+    my $version = "version";
+    my %options;    
+    ($args[0] eq '-h' or $args[0] eq "--$help")    and $options{$help}    = 1;      
+    ($args[0] eq '-v' or $args[0] eq "--$version") and $options{$version} = $args[1];   
+    my $error = ($options{$help} and $options{$version}) ?
+        "\noptions '--$help' and '--$version' are mutually exclusive\n" : "";    
+                
+    # if requested, show custom action help
+    my $pname = $$config{pipeline}{name}[0];
+    if($options{$help} or $error){
+        my $usage;
+        my $desc = getTemplateValue($$config{actions}{build}{description});
+        $usage .= "\n$pname build: $desc\n";
+        $usage .=  "\nusage: mdi $pname build [options]\n";   
+        $usage .=  "\n    -v/--$version  the suite version to build from, as a git release tag [latest]";    
+        $error and throwError($error.$usage);
+        print "$usage\n\n";
+        exit;
+    }
+    
+    # call Singularity build action
+    buildSingularity($options{$version} or "latest");
     exit;
 }
 
