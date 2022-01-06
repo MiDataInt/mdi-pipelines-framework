@@ -278,7 +278,8 @@ sub runBuild {
     # command has limited options, collect them now
     my $help    = "help";
     my $version = "version";
-    my %options;    
+    my %options;   
+    $args[0] or $args[0] = ""; 
     ($args[0] eq '-h' or $args[0] eq "--$help")    and $options{$help}    = 1;      
     ($args[0] eq '-v' or $args[0] eq "--$version") and $options{$version} = $args[1];   
     my $error = ($options{$help} and $options{$version}) ?
