@@ -70,6 +70,11 @@ $ENV{MODULES_DIR}  = $modulesDir;
 # load launcher scripts
 map { $_ =~ m/launcher\.pl$/ or require $_ } glob("$launcherDir/*.pl");
 
+# TODO
+#   check @args for -v/version flag; default to latest
+#   adjust target suite version with git
+#   adjust external suite versions during call to loadPipelineConfig, next
+
 # load the composite pipeline configuration from files
 # NB: this is not the user's data configuration, it defines the pipeline itself
 our $config = loadPipelineConfig();

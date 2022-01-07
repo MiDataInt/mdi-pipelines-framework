@@ -40,7 +40,7 @@ sub listInstalledTools {
         $tool =~ m/^_/ and next; 
         my $fork  = $path[$#path - $offset];
         my $suite = $path[$#path - $offset + 1];
-        $tools{"$suite//$tool"}{$fork}++;
+        $tools{"$suite/$tool"}{$fork}++;
     }
 
     # print a tabular report of the tools

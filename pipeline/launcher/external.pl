@@ -4,6 +4,7 @@ use warnings;
 # helper functions to locate environment, module, or option files that are
 # external to a pipeline suite, i.e., to be read from a different suite 
 # (which must therefore also be installed into the working MDI path)
+# external suite version requirements can be specified in pipeline.yml
 
 # working variables
 use vars qw($mdiDir $suitesDir);

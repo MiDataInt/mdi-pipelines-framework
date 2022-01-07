@@ -5,7 +5,7 @@
 #--------------------------------------------------------------------
 optionFamilies:
     output: 
-        order: 101
+        order: 100
         universal: true
         template: true
         options:        
@@ -25,6 +25,18 @@ optionFamilies:
                 required: true
                 default: null
                 description: "simple name for the data (e.g., sample) being analyzed (no spaces or periods)"
+    version:
+        order: 101
+        universal: true
+        template: true
+        options:
+            version:
+                order: 1
+                short: v
+                type: string
+                required: false
+                default: latest
+                description: "the version to use of the tool suite that provides the requested pipeline"
     resources: # always required, even when running pipeline as a simple inline command
         order: 102
         universal: true
@@ -105,7 +117,7 @@ optionFamilies:
                 type: integer
                 required: false
                 default: 0
-                description: "the arrayed options task number to run, from 1 to N (used programatically)"
+                description: "the arrayed options task number to run, from 1 to N (used programmatically)"
             force:
                 order: 1
                 short: f
