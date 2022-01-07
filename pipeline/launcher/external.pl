@@ -30,6 +30,7 @@ sub getSharedFile {
 }
 sub getExternalSharedFile {
     my ($suite, $sharedTarget, $sharedType) = @_;
+    setExternalSuiteVersion($suite);
     my $suiteSharedDir = "$suitesDir/$suite/shared/$sharedType"."s";
     my $sharedFile = "$suiteSharedDir/$sharedTarget.yml";
     -e $sharedFile and return $sharedFile;

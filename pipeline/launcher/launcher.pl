@@ -71,7 +71,7 @@ $ENV{MODULES_DIR}  = $modulesDir;
 map { $_ =~ m/launcher\.pl$/ or require $_ } glob("$launcherDir/*.pl");
 
 # do a first read of requested options to set the pipeline's suite version as needed
-# external suite dependencies are set during call to loadPipelineConfig
+# external suite dependencies are set during the subsequent call to loadPipelineConfig
 setPipelineSuiteVersion();
 
 # load the composite pipeline configuration from files

@@ -18,16 +18,17 @@ our (%nTasks);
 # preliminary read of command line arguments to pull any pipeline-level version request
 #------------------------------------------------------------------------------
 sub getCommandLineVersionRequest {
+    @args or return;  
     my $version;
-    @args or return $version;
     foreach my $i(0..$#args){
         $args[$i] eq '-v' or $args[$i] eq '--version' or next;
         $version = $args[$i + 1];
-        defined $version or throwError("command line error: missing value for --version");
-        checkValidSuiteVersion($version, 'command line');
+        $version or throwError("command line error: missing value for option --version");
+        # checkValidSuiteVersion($version, 'command line');
         splice(@args, $i, 2); # prevent --version from being read as an action option
+        return $version;
     }
-    $version; # could be undef, or a valid version request
+    undef;
 }
 
 #------------------------------------------------------------------------------

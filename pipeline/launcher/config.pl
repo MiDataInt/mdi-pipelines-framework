@@ -6,7 +6,8 @@ use warnings;
 # working variables
 use vars qw($launcherDir $pipelineDir $optionsDir
             $configFile $config
-            %optionArrays %nTasks %conda);
+            %optionArrays %nTasks %conda
+            $versions);
 
 #------------------------------------------------------------------------------
 # load a composite, i.e. assembled version of a pipeline's configuration
@@ -14,8 +15,10 @@ use vars qw($launcherDir $pipelineDir $optionsDir
 sub loadPipelineConfig {
     
     # load the pipeline-specific and universal configs
-    my $launcher = loadYamlFile("$launcherDir/commands.yml", 0, 1);
-    my $pipeline = loadYamlFile("$pipelineDir/pipeline.yml", 2, 1, 1); # highest priority, allows modules
+    my $launcher  = loadYamlFile("$launcherDir/commands.yml", 0, 1);
+    my $pipelineX = loadYamlFile("$pipelineDir/pipeline.yml"); # first quick read to obtain version declarations
+    $versions = $$pipelineX{versions};
+    my $pipeline  = loadYamlFile("$pipelineDir/pipeline.yml", 2, 1, 1); # highest priority, allows modules
     my @optionFamilies = (loadYamlFile("$launcherDir/options.yml", 1, 1));
     my %loaded = (universal => 1);
 
