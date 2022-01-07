@@ -70,15 +70,14 @@ $ENV{MODULES_DIR}  = $modulesDir;
 # load launcher scripts
 map { $_ =~ m/launcher\.pl$/ or require $_ } glob("$launcherDir/*.pl");
 
-# TODO
-#   check @args for -v/version flag; default to latest
-#   adjust target suite version with git
-#   adjust external suite versions during call to loadPipelineConfig, next
+# do a first read of requested options to set the pipeline's suite version as needed
+# external suite dependencies are set during call to loadPipelineConfig
+setPipelineSuiteVersion();
 
 # load the composite pipeline configuration from files
 # NB: this is not the user's data configuration, it defines the pipeline itself
 our $config = loadPipelineConfig();
-$ENV{PIPELINE_NAME} = $$config{pipeline}{name}[0] or throwError("missing pipeline name\n");
+$ENV{PIPELINE_NAME} = $$config{pipeline}{name}[0] or throwError("pipeline config error: missing pipeline name\n");
 
 # establish lists of the universal options
 our @universalOptionFamilies = sort {

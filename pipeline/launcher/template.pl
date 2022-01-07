@@ -16,9 +16,18 @@ our $requiredLabel = '_REQUIRED_';
 #---------------------------------------------------------
 sub getLeader {
     my ($pipelineName, $addComments) = @_;
+
+    # parse the pipeline section
+    my $pipelineDictionary = $allOptions ?
+"pipeline: 
+    name: $pipelineSuite/$pipelineName
+    version: latest" :
+"pipeline: $pipelineSuite/$pipelineName";
+
+    # parse and return the template
     !$addComments ?
 "---
-pipeline: $pipelineSuite/$pipelineName
+$pipelineDictionary
 
 variables:
 
@@ -30,7 +39,7 @@ shared:
 # copy/modify this file as needed to identify specific $pipelineName
 # data/sample(s) to be analyzed and to override default option values
 #--------------------------------------------------------------
-pipeline: $pipelineSuite/$pipelineName
+$pipelineDictionary
 
 #--------------------------------------------------------------
 # you may define and use variables to help avoid repetition and typing errors 

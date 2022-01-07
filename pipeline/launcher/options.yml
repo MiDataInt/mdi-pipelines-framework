@@ -28,8 +28,8 @@ optionFamilies:
     version:
         order: 101
         universal: true
-        template: true
-        options:
+        template: false # pipeline version is set at top of data.yml, in pipeline dictionary, not per action
+        options:        # template.pl handles its proper inclusion and placement in job config templates
             version:
                 order: 1
                 short: v
@@ -37,8 +37,21 @@ optionFamilies:
                 required: false
                 default: latest
                 description: "the version to use of the tool suite that provides the requested pipeline"
-    resources: # always required, even when running pipeline as a simple inline command
+    container:
         order: 102
+        universal: true
+        template: true
+        options:
+            container:
+                order: 1
+                short: c
+                type: boolean
+                required: false
+                default: false
+                description: "when set, the pipeline will run within a Singularity container when available"
+
+    resources: # always required, even when running pipeline as a simple inline command
+        order: 103
         universal: true
         template: true
         options:      
@@ -75,7 +88,7 @@ optionFamilies:
                     must-exist: false # cluster node may have tmp directories not present on login host
                 description: "directory used for large temporary files (generally >10GB)"
     job-manager: # only required when queuing jobs with jobManager (in contrast to family 'resources')
-        order: 103
+        order: 104
         universal: true
         options:
             email:
@@ -107,7 +120,7 @@ optionFamilies:
                 default: standard
                 description: "slurm --partition (standard, gpu, largemem, viz, standard-oc)" 
     workflow:
-        order: 104
+        order: 105
         universal: true
         options:
             task-id:
@@ -140,7 +153,7 @@ optionFamilies:
                 default: false
                 description: "suppress the configuration feedback in the output log stream"  
     help: 
-        order: 105
+        order: 106
         universal: true
         options:
             help:
