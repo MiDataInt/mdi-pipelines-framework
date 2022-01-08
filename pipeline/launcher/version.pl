@@ -5,34 +5,31 @@ use warnings;
 # through calls to git tag and git checkout
 
 # working variables
-use vars qw($target @args $pipelineDir $pipelineSuite);
+use vars qw($target @args $pipelineDir $pipelineSuite $pipelineSuiteDir);
 my $silently = "> /dev/null 2>&1"; # bash suffix to suppress git messages
 my $main       = 'main';
 my $latest     = "latest";
 my $preRelease = "pre-release";
-my %versionDirectives = ($main => $main, $preRelease => $main, $latest => ''); # key = option value, value = git tag/branch
-my %encounteredSuites; # a record of all suites whose version has already been adjusted
-our $versions; # hash ref, filled by config.pl from pipeline.yml; can be undefined
+my %versionDirectives = ($preRelease => $main, $latest => ''); # key = option value, value = git tag/branch
+our $pipelineSuiteVersions; # hash ref, filled by config.pl from pipeline.yml; can be undefined
+our %workingSuiteVersions;  # the working version of all suites that have already been adjusted
 
 # examine user options and set the primary pipeline suite version accordingly
-sub setPipelineSuiteVersion {
-    my $suiteDir = "$pipelineDir/../..";    
+sub setPipelineSuiteVersion { 
     my $version = getRequestedSuiteVersion();
-    $encounteredSuites{$suiteDir}++;
-    $version = convertSuiteVersion($suiteDir, $version);
-    setSuiteVersion($suiteDir, $version, $pipelineSuite);
+    $version = convertSuiteVersion($pipelineSuiteDir, $version);
+    setSuiteVersion($pipelineSuiteDir, $version, $pipelineSuite);
 }
 
 # parse and set the version for each newly encountered external suite that is invoked in pipeline.yml
 sub setExternalSuiteVersion {
     my ($suiteDir, $suite) = @_;
-    $encounteredSuites{$suiteDir} and return; # this suite was already handled on prior encounter
-    $encounteredSuites{$suiteDir}++;
+    $workingSuiteVersions{$suiteDir} and return; # this suite was already handled on prior encounter
     my $version;
-    if(!$versions or !$$versions{suites} or !$$versions{suites}{$suite}){
+    if(!$pipelineSuiteVersions or !$$pipelineSuiteVersions{$suite}){
         $version = $latest; # apply the default directive when pipeline does not enforce external suite version
     } else {
-        $version = $$versions{suites}{$suite};
+        $version = $$pipelineSuiteVersions{$suite};
     }
     $version = convertSuiteVersion($suiteDir, $version);
     setSuiteVersion($suiteDir, $version, $suite);
@@ -45,20 +42,14 @@ sub getRequestedSuiteVersion {
     $version; # otherwise, will default to latest
 }
 sub getJobFileVersionRequest {
-    my ($version, $ymlFile);
+    my $ymlFile;
                   $target  and $target  =~ m/\.yml$/ and $ymlFile = $target;  # call format: pipeline <data.yml> ...
     !$ymlFile and $args[0] and $args[0] =~ m/\.yml$/ and $ymlFile = $args[0]; # call format: pipeline action <data.yml> ...
     $ymlFile or return;
     my $yaml = loadYamlFile($ymlFile, undef, undef, undef, 1);
     $$yaml{pipeline} or throwError("malformed data.yml: missing pipeline declaration\n    $ymlFile\n");
-    if(ref($$yaml{pipeline}) eq "HASH"){
-        $$yaml{pipeline}{version} or return;
-        $version = $$yaml{pipeline}{version}[0];
-    } else { # yaml format: pipeline: name[=version]
-        $$yaml{pipeline}[0] =~ m/.+=(.+)/ or return;
-        $version = $1;
-    }
-    $version;
+    $$yaml{pipeline}[0] =~ m/.+=(.+)/ or return; # format \[pipelineSuite/\]pipelineName\[=suiteVersion\]
+    $1;
 }
 
 # change version requests to git tags or branches
@@ -72,6 +63,7 @@ sub convertSuiteVersion {
         $version = $versionDirectives{$version};
     } # else request is a branch or non-semvar tag name (so could be ~anything) 
     $version =~ m/^\d+\.\d+\.\d+$/ and $version = "v$version"; # help user out if they specific 0.0.0 instead of v0.0.0
+    $workingSuiteVersions{$suiteDir} = $version;
     $version; 
 }
 
@@ -100,7 +92,7 @@ sub setSuiteVersion {
     system("cd $suiteDir; git checkout $version $silently") and 
         throwError(
             "unknown version directive for suite $suite: '$version'\n".
-            "expected v#.#.#, a valid branch or tag, or one of ".join(", ", keys %versionDirectives)
+            "expected v#.#.#, a tag or branch, pre-release or latest (the default)"
         );
 }
 

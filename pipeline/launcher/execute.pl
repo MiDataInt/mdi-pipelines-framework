@@ -170,3 +170,25 @@ perl $ENV{WORKFLOW_DIR}/package.pl
 }
 
 1;
+
+# TASK OUTPUT DIRECTORIES
+
+# | **TASK_DIR**          | $OUTPUT_DIR/$DATA_NAME           | where output files should be placed |
+# | **TASK_PIPELINE_DIR** | $TASK_DIR/$PIPELINE_NAME            | status, code and log files specific to the running pipeline and task |
+# | **TASK_ACTION_DIR**   | $TASK_PIPELINE_DIR/$PIPELINE_ACTION | code and log files specific to the running action and task |
+
+# CODE DIRECTORIES, i.e. from mdi/suites
+
+# ALL SUITES
+# | **SUITES_DIR**        | $TASK_ACTION_DIR/suites                | the directory where working versions of accessible MDI code suites are found |
+
+# FROM THE RUNNING PIPELINES SUITE
+# | **SUITE_DIR**         | $SUITES_DIR/$SUITE_NAME                | the working root directory of tool suite $SUITE_NAME |
+# | **PIPELINE_DIR**      | $SUITE_DIR/pipelines/$PIPELINE_NAME    | the root directory of pipeline $PIPELINE_NAME, which contains 'pipeline.yml' |
+# | **ACTION_DIR**        | $PIPELINE_DIR/$PIPELINE_ACTION         | the directory that contains the scripts for action $PIPELINE_ACTION, including 'Workflow.sh' |
+# | **MODULES_DIR**       | $SUITE_DIR/shared/modules              | the directory that contains all shared code modules in suite $SUITE_NAME |
+
+# thus, when not --container, need to 
+#   reset SUITES_DIR to $workingSuitesDir = $TASK_ACTION_DIR/suites (since user could call actions in different ways, etc.)
+#   cp from keys %workingSuiteVersions into $workingSuitesDir (purge git repo, i.e. these are now fixed, historical code)
+#   set all of the cascading code target paths (and any others not listed here?)

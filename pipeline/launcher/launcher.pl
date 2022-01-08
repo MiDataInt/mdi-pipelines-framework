@@ -54,6 +54,7 @@ $ENV{DEVELOPER_MODE} and $pipeline = getPipeline($Forks{developer});
 !$pipeline and die "\nmdi error: not a known mdi command or pipeline: $pipelineName\n\n"; 
 $pipelineName = $$pipeline{name};
 our $pipelineSuite = $$pipeline{suite};
+our $pipelineSuiteDir = "$mdiDir/suites/$$pipeline{fork}/$$pipeline{suite}"; 
 
 # working variables
 our (%conda, %longOptions, %shortOptions, %optionArrays, %optionValues);
@@ -108,7 +109,7 @@ if ($target =~ m/\.yml$/) {
     my @argsCache = @args;
     foreach my $actionCommand(@orderedActions){
         $$cmds{$actionCommand}{universal}[0] and next; # only execute pipeline actions
-        $requestedActions{$actionCommand} or next;    # only execute actions requested in data.yml
+        $requestedActions{$actionCommand} or next;     # only execute actions requested in data.yml
         executeAction($actionCommand);
         @args = @argsCache; # reset args for next action
     }

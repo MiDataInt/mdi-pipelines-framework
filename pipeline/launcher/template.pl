@@ -16,18 +16,9 @@ our $requiredLabel = '_REQUIRED_';
 #---------------------------------------------------------
 sub getLeader {
     my ($pipelineName, $addComments) = @_;
-
-    # parse the pipeline section
-    my $pipelineDictionary = $allOptions ?
-"pipeline: 
-    name: $pipelineSuite/$pipelineName
-    version: latest" :
-"pipeline: $pipelineSuite/$pipelineName";
-
-    # parse and return the template
     !$addComments ?
 "---
-$pipelineDictionary
+pipeline: $pipelineSuite/$pipelineName=latest
 
 variables:
 
@@ -36,20 +27,20 @@ shared:
 
 "---
 #--------------------------------------------------------------
-# copy/modify this file as needed to identify specific $pipelineName
-# data/sample(s) to be analyzed and to override default option values
+# identify the pipeline in format \[pipelineSuite/\]pipelineName\[=suiteVersion\]
+# suiteVersion is v#.#.#, a tag or branch, pre-release or latest (the default)
 #--------------------------------------------------------------
-$pipelineDictionary
+pipeline: $pipelineSuite/$pipelineName=latest
 
 #--------------------------------------------------------------
-# you may define and use variables to help avoid repetition and typing errors 
+# you can use variables to avoid repetition and typing errors 
 # by convention, variable names are ALL_UPPER_CASE
 #--------------------------------------------------------------
 # variables:
-#     DATA_DIR: \$HOME/data # can cascade from pre-existing environment variables
+#     DATA_DIR: \${HOME}/data # can cascade from other environment variables
 # action:
 #     optionFamily:
-#         files: [\$DATA_DIR/file1.txt, \${DATA_DIR}/file2.txt] # either bash-like format works
+#         files: [\$DATA_DIR/file1.txt, \${DATA_DIR}/file2.txt] # either format works, \${} recommended
 #--------------------------------------------------------------
 variables:
 
@@ -65,7 +56,7 @@ shared:
 
 my $executeComments =
 "#--------------------------------------------------------------
-# the ordered list of actions to execute (comment out actions you do not wish to run)
+# ordered list of actions to execute (comment out actions you do not wish to run)
 #--------------------------------------------------------------\n";
 
 #---------------------------------------------------------
