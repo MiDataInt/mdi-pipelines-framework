@@ -8,7 +8,7 @@ use warnings;
 # various framework paths
 our %Forks = (definitive => "definitive", developer => "developer-forks");
 our $mdiDir = $ENV{MDI_DIR};
-our $suitesDir = "$mdiDir/suites/$Forks{definitive}";
+our $suitesDir = "$mdiDir/suites/$Forks{definitive}"; # for external suites, which never come from developer forks
 $ENV{SUITES_DIR} = $suitesDir;
 our $launcherDir    = "$ENV{FRAMEWORK_DIR}/pipeline/launcher";
 $ENV{LAUNCHER_DIR} = $launcherDir;
@@ -70,7 +70,7 @@ $ENV{MODULES_DIR}  = $modulesDir;
 # load launcher scripts
 map { $_ =~ m/launcher\.pl$/ or require $_ } glob("$launcherDir/*.pl");
 
-# do a first read of requested options to set the pipeline's suite version as needed
+# do a first read of requested options to set the pipeline's suite version, as needed
 # external suite dependencies are set during the subsequent call to loadPipelineConfig
 setPipelineSuiteVersion();
 

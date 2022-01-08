@@ -16,7 +16,7 @@ sub loadPipelineConfig {
     
     # load the pipeline-specific and universal configs
     my $launcher  = loadYamlFile("$launcherDir/commands.yml", 0, 1);
-    my $pipelineX = loadYamlFile("$pipelineDir/pipeline.yml"); # first quick read to obtain version declarations
+    my $pipelineX = loadYamlFile("$pipelineDir/pipeline.yml"); # first partial read to obtain version declarations
     $versions = $$pipelineX{versions};
     my $pipeline  = loadYamlFile("$pipelineDir/pipeline.yml", 2, 1, 1); # highest priority, allows modules
     my @optionFamilies = (loadYamlFile("$launcherDir/options.yml", 1, 1));

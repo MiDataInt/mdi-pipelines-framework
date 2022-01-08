@@ -37,7 +37,7 @@ optionFamilies:
                 required: false
                 default: latest
                 description: "the version to use of the tool suite that provides the requested pipeline"
-    container:
+    Singularity:
         order: 102
         universal: true
         template: true
@@ -49,7 +49,6 @@ optionFamilies:
                 required: false
                 default: false
                 description: "when set, the pipeline will run within a Singularity container when available"
-
     resources: # always required, even when running pipeline as a simple inline command
         order: 103
         universal: true

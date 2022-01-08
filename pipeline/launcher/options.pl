@@ -19,13 +19,11 @@ our (%nTasks);
 #------------------------------------------------------------------------------
 sub getCommandLineVersionRequest {
     @args or return;  
-    my $version;
     foreach my $i(0..$#args){
         $args[$i] eq '-v' or $args[$i] eq '--version' or next;
-        $version = $args[$i + 1];
+        my $version = $args[$i + 1];
         $version or throwError("command line error: missing value for option --version");
-        # checkValidSuiteVersion($version, 'command line');
-        splice(@args, $i, 2); # prevent --version from being read as an action option
+        splice(@args, $i, 2); # prevent --version from being read as an action option later on
         return $version;
     }
     undef;
