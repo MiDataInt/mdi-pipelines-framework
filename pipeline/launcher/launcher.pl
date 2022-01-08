@@ -7,11 +7,10 @@ use warnings;
 
 # various framework paths
 our %Forks = (definitive => "definitive", developer => "developer-forks");
-our $mdiDir = $ENV{MDI_DIR};
+our $mdiDir = $ENV{MDI_DIR}; # the installation from which the pipeline was launched
 our $suitesDir = "$mdiDir/suites/$Forks{definitive}"; # for external suites, which never come from developer forks
-$ENV{SUITES_DIR} = $suitesDir;
 our $launcherDir    = "$ENV{FRAMEWORK_DIR}/pipeline/launcher";
-$ENV{LAUNCHER_DIR} = $launcherDir;
+$ENV{LAUNCHER_DIR} = $launcherDir; # framework directories are _not_ copied into TASK_DIR
 our $workFlowDir    = "$ENV{FRAMEWORK_DIR}/pipeline/workflow";
 $ENV{WORKFLOW_DIR} = $workFlowDir;
 our $workflowScript = "$workFlowDir/workflow.sh";
@@ -59,14 +58,13 @@ our $pipelineSuiteDir = "$mdiDir/suites/$$pipeline{fork}/$$pipeline{suite}";
 # working variables
 our (%conda, %longOptions, %shortOptions, %optionArrays, %optionValues);
 
-# various pipeline-dependent paths
+# various pipeline-dependent paths; these are used by the framework to find code
+# they are not the values used by running pipelines, which are modified to account for code copying
 our $pipelineDir = $$pipeline{directory};
-$ENV{PIPELINE_DIR} = $pipelineDir;
 our $sharedDir = "$pipelineDir/../../shared";
 our $environmentsDir = "$sharedDir/environments";
 our $optionsDir      = "$sharedDir/options";
 our $modulesDir      = "$sharedDir/modules";
-$ENV{MODULES_DIR}  = $modulesDir;
 
 # load launcher scripts
 map { $_ =~ m/launcher\.pl$/ or require $_ } glob("$launcherDir/*.pl");

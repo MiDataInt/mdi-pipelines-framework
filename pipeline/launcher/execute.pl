@@ -89,6 +89,13 @@ sub processActionTask {
 }
 sub manageActionEnvironment {
     my ($action, $cmd, $isDryRun, $assembled, $taskReport) = @_;
+
+
+        # TODO: WORKING HERE
+        # add code to copy suites with set versions
+        # revise env vars to match the new pattern
+        # suite directories must change to now be under TASK_DIR
+
     
         # parse and create universal derivative paths
         $ENV{DATA_NAME_DIR}    = "$ENV{OUTPUT_DIR}/$ENV{DATA_NAME}"; # guaranteed unique per task by validateOptionArrays
@@ -149,7 +156,7 @@ conda activate $$conda{dir}
 source $workflowScript
 $rollback
 showWorkflowStatus
-source $ENV{SCRIPT_TARGET}
+source $ENV{ACTION_SCRIPT}
 perl $ENV{WORKFLOW_DIR}/package.pl
 '";
     
