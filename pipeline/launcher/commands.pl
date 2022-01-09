@@ -68,15 +68,17 @@ sub runConda {
     
     # special handling of command line option flags
     my %options;
-    my $help   = "help";
-    my $list   = "list";
-    my $create = "create";
-    my $force  = "force";
+    my $help    = "help";
+    my $list    = "list";
+    my $create  = "create";
+    my $force   = "force";
+    my $noMamba = "no-mamba";
     foreach my $arg(@args){
-        ($arg eq '-h' or $arg eq "--$help")   and $options{$help}  = 1;        
-        ($arg eq '-l' or $arg eq "--$list")   and $options{$list}  = 1;        
-        ($arg eq '-c' or $arg eq "--$create") and $options{$create} = 1;
-        ($arg eq '-f' or $arg eq "--$force")  and $options{$force} = 1;
+        ($arg eq '-h' or $arg eq "--$help")    and $options{$help}    = 1;        
+        ($arg eq '-l' or $arg eq "--$list")    and $options{$list}    = 1;        
+        ($arg eq '-c' or $arg eq "--$create")  and $options{$create}  = 1;
+        ($arg eq '-f' or $arg eq "--$force")   and $options{$force}   = 1;
+        ($arg eq '-M' or $arg eq "--$noMamba") and $options{$noMamba} = 1;
     }
     (!$options{$list} and !$options{$create}) and $options{$help}  = 1;     
     my $error = ($options{$list} and $options{$create}) ?
@@ -89,9 +91,10 @@ sub runConda {
         my $desc = getTemplateValue($$config{actions}{conda}{description});
         $usage .= "\n$pname conda: $desc\n";
         $usage .=  "\nusage: mdi $pname conda [options]\n";
-        $usage .=  "\n    -l/--$list     show the yml config file for each pipeline action";
-        $usage .=  "\n    -c/--$create   if needed, create the required conda environments";
-        $usage .=  "\n    -f/--$force    do not prompt for permission to create environments";      
+        $usage .=  "\n    -l/--$list      show the yml config file for each pipeline action";
+        $usage .=  "\n    -c/--$create    if needed, create the required conda environments";
+        $usage .=  "\n    -f/--$force     do not prompt for permission to create environments"; 
+        $usage .=  "\n    -M/--$noMamba  do not use Mamba, only use Conda to create environments";   
         $error and throwError($error.$usage);
         print "$usage\n\n";
         exit;
@@ -99,7 +102,7 @@ sub runConda {
     
     # list or create conda environments in action order
     @args = @newArgs;
-    showCreateCondaEnvironments($options{$create}, $options{$force});
+    showCreateCondaEnvironments($options{$create}, $options{$force}, $options{$noMamba});
     exit;
 }
 
