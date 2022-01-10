@@ -7,6 +7,7 @@ use warnings;
 use vars qw($launcherDir $pipelineDir $optionsDir
             $configFile $config
             %optionArrays %nTasks %conda
+            $pipelineSuite $pipelineSuiteDir $pipelineName 
             $pipelineSuiteVersions %workingSuiteVersions);
 
 #------------------------------------------------------------------------------
@@ -49,20 +50,19 @@ sub reportAssembledConfig {
     my $indent = "    ";
     
     # print the config header, top-level metadata
-    my $pName = $$config{pipeline}{name}[0];
     my $desc = getTemplateValue($$config{pipeline}{description});
-    my $pVersion = $$config{pipeline}{version} ? $$config{pipeline}{version}[0] : "unspecified";
+    my @externalSuiteDirs = map { $_ eq $pipelineSuiteDir ? () : $_ } keys %workingSuiteVersions;
     my $thread = $$cmd{thread}[0] || "default";
     my $report = "";
     $report .= "---\n";
-    $report .= "pipeline:\n";
-    $report .= $indent."name: $pName\n";
-    $report .= $indent."description: \"$desc\"\n";
-    $report .= $indent."version: $pVersion\n";
-    $report .= "suiteVersions:\n";
-    foreach my $suiteDir(keys %workingSuiteVersions){
-        my @parts = split("/", $suiteDir); 
-        $report .= $indent."$parts[$#parts]: $suiteDir=$workingSuiteVersions{$suiteDir}\n";
+    $report .= "pipeline: $pipelineSuite/$pipelineName=$workingSuiteVersions{$pipelineSuiteDir}\n";
+    $report .= "description: \"$desc\"\n";  
+    if(@externalSuiteDirs){
+        $report .= "suiteVersions:\n";
+        foreach my $suiteDir(@externalSuiteDirs){
+            my @parts = split("/", $suiteDir); 
+            $report .= $indent."$parts[$#parts]: $workingSuiteVersions{$suiteDir}\n";
+        }
     }
     $report .= "execute: $action\n";
     $report .= "thread: $thread\n";
