@@ -69,3 +69,13 @@ actions:
                 total-ram: null
         optionFamilies: null
         description: "return yaml-formatted parsed option values for <data>.yml"
+    
+    # suite developer commands
+    build:
+        order: 8
+        universal: true      
+        resources:
+            required:
+                total-ram: null
+        optionFamilies: null        
+        description: "build pipeline Singularity image and post to registry (for suite developers)" 

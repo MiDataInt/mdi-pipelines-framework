@@ -7,11 +7,10 @@ use warnings;
 
 # various framework paths
 our %Forks = (definitive => "definitive", developer => "developer-forks");
-our $mdiDir = $ENV{MDI_DIR};
-our $suitesDir = "$mdiDir/suites/$Forks{definitive}";
-$ENV{SUITES_DIR} = $suitesDir;
+our $mdiDir = $ENV{MDI_DIR}; # the installation from which the pipeline was launched
+our $suitesDir = "$mdiDir/suites/$Forks{definitive}"; # for external suites, which never come from developer forks
 our $launcherDir    = "$ENV{FRAMEWORK_DIR}/pipeline/launcher";
-$ENV{LAUNCHER_DIR} = $launcherDir;
+$ENV{LAUNCHER_DIR} = $launcherDir; # framework directories are _not_ copied into TASK_DIR
 our $workFlowDir    = "$ENV{FRAMEWORK_DIR}/pipeline/workflow";
 $ENV{WORKFLOW_DIR} = $workFlowDir;
 our $workflowScript = "$workFlowDir/workflow.sh";
@@ -54,26 +53,30 @@ $ENV{DEVELOPER_MODE} and $pipeline = getPipeline($Forks{developer});
 !$pipeline and die "\nmdi error: not a known mdi command or pipeline: $pipelineName\n\n"; 
 $pipelineName = $$pipeline{name};
 our $pipelineSuite = $$pipeline{suite};
+our $pipelineSuiteDir = "$mdiDir/suites/$$pipeline{fork}/$$pipeline{suite}"; 
 
 # working variables
 our (%conda, %longOptions, %shortOptions, %optionArrays, %optionValues);
 
-# various pipeline-dependent paths
+# various pipeline-dependent paths; these are used by the framework to find code
+# they are not the values used by running pipelines, which are modified to account for code copying
 our $pipelineDir = $$pipeline{directory};
-$ENV{PIPELINE_DIR} = $pipelineDir;
 our $sharedDir = "$pipelineDir/../../shared";
 our $environmentsDir = "$sharedDir/environments";
 our $optionsDir      = "$sharedDir/options";
 our $modulesDir      = "$sharedDir/modules";
-$ENV{MODULES_DIR}  = $modulesDir;
 
 # load launcher scripts
 map { $_ =~ m/launcher\.pl$/ or require $_ } glob("$launcherDir/*.pl");
 
+# do a first read of requested options to set the pipeline's suite version, as needed
+# external suite dependencies are set during the subsequent call to loadPipelineConfig
+setPipelineSuiteVersion();
+
 # load the composite pipeline configuration from files
 # NB: this is not the user's data configuration, it defines the pipeline itself
 our $config = loadPipelineConfig();
-$ENV{PIPELINE_NAME} = $$config{pipeline}{name}[0] or throwError("missing pipeline name\n");
+$ENV{PIPELINE_NAME} = $$config{pipeline}{name}[0] or throwError("pipeline config error: missing pipeline name\n");
 
 # establish lists of the universal options
 our @universalOptionFamilies = sort {
@@ -104,7 +107,7 @@ if ($target =~ m/\.yml$/) {
     my @argsCache = @args;
     foreach my $actionCommand(@orderedActions){
         $$cmds{$actionCommand}{universal}[0] and next; # only execute pipeline actions
-        $requestedActions{$actionCommand} or next;    # only execute actions requested in data.yml
+        $requestedActions{$actionCommand} or next;     # only execute actions requested in data.yml
         executeAction($actionCommand);
         @args = @argsCache; # reset args for next action
     }

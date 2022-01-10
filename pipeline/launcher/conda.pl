@@ -158,7 +158,7 @@ conda create --prefix $mambaDir --channel conda-forge --yes mamba
 # if missing, create conda environment(s)
 #------------------------------------------------------------------------------
 sub showCreateCondaEnvironments {
-    my ($create, $force) = @_;
+    my ($create, $force, $noMamba) = @_;
     my $cmds = $$config{actions}; 
     my @orderedActions = sort { $$cmds{$a}{order}[0] <=> $$cmds{$b}{order}[0] } keys %$cmds;
     my @argsBuffer = @args;
@@ -174,7 +174,7 @@ sub showCreateCondaEnvironments {
         print "conda environment for: $$config{pipeline}{name}[0] $subjectAction\n";
         print "$$conda{dir}\n";
         if ($create) {
-            createCondaEnvironment($conda, 1, $force);            
+            createCondaEnvironment($conda, 1, $force, $noMamba);            
         } else {
             if (-e $$conda{showFile}) {
                 print "$$conda{showFile}\n";
@@ -188,7 +188,7 @@ sub showCreateCondaEnvironments {
     }
 }
 sub createCondaEnvironment {
-    my ($cnd, $showExists, $force) = @_;
+    my ($cnd, $showExists, $force, $noMamba) = @_;
     $cnd or $cnd = getCondaPath();
     -d $$cnd{dir} and $showExists and print "already exists\n";
     -d $$cnd{dir} and return $$cnd{dir};
@@ -208,11 +208,23 @@ sub createCondaEnvironment {
     print "\n";
     close $outH;
 
-    # make sure mamba is available, install on first use
-    my $mambaDir = checkForMamba($cnd);
+    # allow use of conda-only, i.e., bypass mamba, on systems where mamba is problematic
+    my $bash;
+    if($noMamba){
+        $bash =
+"bash -c '
+$$cnd{loadCommand}
+source $$cnd{profileScript}
+conda env create --prefix $$cnd{dir} --file $$cnd{initFile}
+'";
     
-    # create the environment
-    my $bash =
+    # default is to use Mamba to speed subsequent environment creation
+    } else {
+        # make sure mamba is available, install on first use
+        my $mambaDir = checkForMamba($cnd);
+        
+        # create the environment
+        $bash =
 "bash -c '
 $$cnd{loadCommand}
 source $$cnd{profileScript}
@@ -220,6 +232,9 @@ conda activate $mambaDir
 mamba env create --prefix $$cnd{dir} --file $$cnd{initFile}
 conda deactivate
 '";
+    }
+
+    # execute the conda/mamba environment creation script
     print "create command: $bash\n";
     if(system($bash)){
         remove_tree $$cnd{dir};

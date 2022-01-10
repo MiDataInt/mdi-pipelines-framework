@@ -6,7 +6,8 @@ use warnings;
 # working variables
 use vars qw($launcherDir $pipelineDir $optionsDir
             $configFile $config
-            %optionArrays %nTasks %conda);
+            %optionArrays %nTasks %conda
+            $pipelineSuiteVersions %workingSuiteVersions);
 
 #------------------------------------------------------------------------------
 # load a composite, i.e. assembled version of a pipeline's configuration
@@ -15,7 +16,9 @@ sub loadPipelineConfig {
     
     # load the pipeline-specific and universal configs
     my $launcher = loadYamlFile("$launcherDir/commands.yml", 0, 1);
-    my $pipeline = loadYamlFile("$pipelineDir/pipeline.yml", 2, 1, 1); # highest priority, allows modules
+    my $pipeline = loadYamlFile("$pipelineDir/pipeline.yml"); # first partial read to obtain suite version declarations
+    $pipelineSuiteVersions = $$pipeline{suiteVersions};
+       $pipeline = loadYamlFile("$pipelineDir/pipeline.yml", 2, 1, 1); # highest priority, allows modules
     my @optionFamilies = (loadYamlFile("$launcherDir/options.yml", 1, 1));
     my %loaded = (universal => 1);
 
@@ -48,12 +51,19 @@ sub reportAssembledConfig {
     # print the config header, top-level metadata
     my $pName = $$config{pipeline}{name}[0];
     my $desc = getTemplateValue($$config{pipeline}{description});
+    my $pVersion = $$config{pipeline}{version} ? $$config{pipeline}{version}[0] : "unspecified";
     my $thread = $$cmd{thread}[0] || "default";
     my $report = "";
     $report .= "---\n";
     $report .= "pipeline:\n";
     $report .= $indent."name: $pName\n";
     $report .= $indent."description: \"$desc\"\n";
+    $report .= $indent."version: $pVersion\n";
+    $report .= "suiteVersions:\n";
+    foreach my $suiteDir(keys %workingSuiteVersions){
+        my @parts = split("/", $suiteDir); 
+        $report .= $indent."$parts[$#parts]: $suiteDir=$workingSuiteVersions{$suiteDir}\n";
+    }
     $report .= "execute: $action\n";
     $report .= "thread: $thread\n";
     $report .= "nTasks: $nTasks{$action}\n";

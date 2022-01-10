@@ -88,7 +88,7 @@ sub getOutputFiles {
     # add automatic files
     $$files{statusFile} = {
         type => ['status-file'],
-        file => [ parsePackageFile("$ENV{LOG_FILE_PREFIX}.$ENV{PIPELINE_NAME}.status") ]
+        file => [ parsePackageFile("$ENV{TASK_PIPELINE_DIR}/$ENV{DATA_NAME}.$ENV{PIPELINE_NAME}.status") ] # to match workflow.sh
     };
     return $files;
 }
