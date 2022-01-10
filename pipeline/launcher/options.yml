@@ -37,7 +37,7 @@ optionFamilies:
                 required: false
                 default: latest
                 description: "the version to use of the tool suite that provides the requested pipeline"
-    Singularity:
+    singularity:
         order: 102
         universal: true
         template: true

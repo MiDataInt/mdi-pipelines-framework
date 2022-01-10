@@ -1,11 +1,12 @@
 #------------------------------------------------------------------------------
-# these sections are appended last to all assembled singularity definition files
+# These sections are appended to all assembled singularity.def files,
+# after replacing __VAR_NAME__ with ${VAR_NAME}.
 #------------------------------------------------------------------------------
 # https://sylabs.io/guides/latest/user-guide/definition_files.html
 #------------------------------------------------------------------------------
 
 # copy the pipelines-relevant mdi installation into the container
-# container MDI_DIR is always /srv/mdi
+# MDI_DIR is always /srv/mdi in a pipeline container
 %setup
     mkdir -p ${SINGULARITY_ROOTFS}/srv/mdi/environments
     cp -r ./config      ${SINGULARITY_ROOTFS}/srv/mdi/config
@@ -13,38 +14,42 @@
     cp -r ./suites      ${SINGULARITY_ROOTFS}/srv/mdi/suites
     cp    ./mdi         ${SINGULARITY_ROOTFS}/srv/mdi/mdi
 
-# install the software required by all pipeline actions as conda environments
+# install the software required by supported pipeline actions as conda environments
 %post
-    # install git and conda
-    if [ "__INSTALLER__" = "apt-get" ]; then
-        apt-get update && apt-get install -y git
-    else 
-        echo "unknown installer: __INSTALLER__"
-        exit 1
-    fi
 
-    # set variables from call to mdi build
-    SUITE_NAME=__SUITE_NAME__
+    # variables set by mdi build
     SUITE_VERSION=__SUITE_VERSION__
     PIPELINE_NAME=__PIPELINE_NAME__
-    PIPELINE_VERSION=__PIPELINE_VERSION__
+    INSTALLER=__INSTALLER__
 
-    # checkout target version of suite
-    MDI_DIR=/srv/mdi
-    cd ${MDI_DIR}/suites/definitive/${SUITE_NAME}
-    git checkout ${SUITE_VERSION}
+    # install git and conda as used by the MDI
+    if [ "$INSTALLER" = "apt-get" ] || \
+       [ "$INSTALLER" = "yum" ]; then
+        $INSTALLER update && $INSTALLER install -y git wget 
+    else 
+        echo "unknown installer: $INSTALLER"
+        exit 1
+    fi
+    wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh -O ~/miniconda.sh
+    bash ~/miniconda.sh -b -p ${HOME}/miniconda  
 
-    # creata conda environments of software required by the pipeline
-    ${MDI_DIR}/mdi ${PIPELINE_NAME} conda --list
-    # --create --force --no-mamba
+    # creata conda environments of the software required by the pipeline
+    MDI_DIR=/srv/mdi    
+    export IS_CONTAINER_BUILD=TRUE
+    export PATH=${HOME}/miniconda/bin:${PATH}
+    ${MDI_DIR}/mdi ${PIPELINE_NAME} conda --create --force --no-mamba --version ${SUITE_VERSION} 
 
 # the scriplet that is called by execute.pl to launch the pipeline
+# path overrides include all ways that running pipelines use files from mdi-pipelines-framework
 %runscript
-    echo "Container was created $NOW"
-    echo "Arguments received: $*"
-    exec echo "$@"
-    # symbolically link /srv/mdi to $MDI_DIR
-    # what exactly should the container run? probably source Workflow.sh
+    export MDI_DIR=/srv/mdi  
+    export FRAMEWORK_DIR=${MDI_DIR}/frameworks/definitive/mdi-pipelines-framework
+    export JOB_MANAGER_DIR=${FRAMEWORK_DIR}/job_manager
+    export LAUNCHER_DIR=${FRAMEWORK_DIR}/pipeline/launcher
+    export WORKFLOW_DIR=${FRAMEWORK_DIR}/pipeline/workflow
+    export WORKFLOW_SH=${WORKFLOW_DIR}/workflow.sh
+    export SLURP=${FRAMEWORK_DIR}/shell/slurp
+    exec bash $@
 
 # useful labels for the container image
 %labels
@@ -53,9 +58,12 @@
     SuiteVersion __SUITE_VERSION__
     PipelineName __PIPELINE_NAME__
     PipelineVersion __PIPELINE_VERSION__
+    LinuxDistribution __LINUX_DISTRIBUTION__
+    LinuxVersion __LINUX_VERSION__
 
-# text displayed on a call to 'singularity run-help my_container.sif'
+# text displayed by 'singularity run-help my_container.sif'
 %help
     Source:    Michigan Data Interface
     Suite:     __SUITE_NAME__=__SUITE_VERSION__
     Pipeline:  __PIPELINE_NAME__=__PIPELINE_VERSION__
+    Distro:    __LINUX_DISTRIBUTION__=__LINUX_VERSION__

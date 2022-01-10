@@ -173,7 +173,11 @@ sub showCreateCondaEnvironments {
         print "---------------------------------\n";
         print "conda environment for: $$config{pipeline}{name}[0] $subjectAction\n";
         print "$$conda{dir}\n";
-        if ($create) {
+        my $allow = (
+            !$ENV{IS_CONTAINER_BUILD} or             # build all environments for direct execution
+            actionSupportsContainers($subjectAction) # only build supported action environments in containers
+        );
+        if ($create and $allow) {
             createCondaEnvironment($conda, 1, $force, $noMamba);            
         } else {
             if (-e $$conda{showFile}) {
@@ -208,14 +212,20 @@ sub createCondaEnvironment {
     print "\n";
     close $outH;
 
-    # allow use of conda-only, i.e., bypass mamba, on systems where mamba is problematic
+    # Singularity container build always uses conda, not mamba
     my $bash;
-    if($noMamba){
-        $bash =
+    my $createCommand = "env create --prefix $$cnd{dir} --file $$cnd{initFile}";
+    if($ENV{IS_CONTAINER_BUILD}){
+        $bash = 
+"bash -c 'conda $createCommand'";
+
+    # allow use of conda-only, i.e., bypass mamba, on systems where mamba is problematic
+    } elsif($noMamba){
+        $bash = 
 "bash -c '
 $$cnd{loadCommand}
 source $$cnd{profileScript}
-conda env create --prefix $$cnd{dir} --file $$cnd{initFile}
+conda $createCommand
 '";
     
     # default is to use Mamba to speed subsequent environment creation
@@ -229,7 +239,7 @@ conda env create --prefix $$cnd{dir} --file $$cnd{initFile}
 $$cnd{loadCommand}
 source $$cnd{profileScript}
 conda activate $mambaDir
-mamba env create --prefix $$cnd{dir} --file $$cnd{initFile}
+mamba $createCommand
 conda deactivate
 '";
     }

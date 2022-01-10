@@ -1,4 +1,4 @@
-# workflow.sh has utility functions for managing a bash-based workflow script
+# utility functions for managing a bash-based workflow script
 
 #--------------------------------------------------------------------
 # place some internal utilities into PATH

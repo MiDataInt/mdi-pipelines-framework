@@ -89,11 +89,15 @@ sub getSuiteLatestVersion {
 # use git to check out the proper version of a pipelines suite
 sub setSuiteVersion {
     my ($suiteDir, $version, $suite) = @_; # version might be a branch name or any valid tag
-    system("cd $suiteDir; git checkout $version $silently") and 
+    my $gitCommand = "cd $suiteDir; git checkout $version"; # normally, we don't need to report git comments to user
+    if(system("$gitCommand $silently")){
+        print "\n";
+        system($gitCommand); # repeat non-silently so user can see exactly what error git is reporting
         throwError(
-            "unknown version directive for suite $suite: '$version'\n".
+            "unknown or unusable version directive for suite $suite: '$version'\n".
             "expected v#.#.#, a tag or branch, pre-release or latest (the default)"
-        );
+        );        
+    }
 }
 
 1;

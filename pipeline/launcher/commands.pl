@@ -279,30 +279,31 @@ sub runValuesYaml { # takes no arguments
 sub runBuild { 
 
     # command has limited options, collect them now
+    # NOTE: as always, --version was already handled by launcher.pl: setPipelineSuiteVersion()
     my $help    = "help";
     my $version = "version";
+    my $sandbox = "sandbox";
     my %options;   
     $args[0] or $args[0] = ""; 
-    ($args[0] eq '-h' or $args[0] eq "--$help")    and $options{$help}    = 1;      
-    ($args[0] eq '-v' or $args[0] eq "--$version") and $options{$version} = $args[1];   
-    my $error = ($options{$help} and $options{$version}) ?
-        "\noptions '--$help' and '--$version' are mutually exclusive\n" : "";    
+    ($args[0] eq '-h' or $args[0] eq "--$help")    and $options{$help}    = 1;
+    ($args[0] eq '-s' or $args[0] eq "--$sandbox") and $options{$sandbox} = 1;        
                 
     # if requested, show custom action help
     my $pname = $$config{pipeline}{name}[0];
-    if($options{$help} or $error){
+    if($options{$help}){
         my $usage;
         my $desc = getTemplateValue($$config{actions}{build}{description});
         $usage .= "\n$pname build: $desc\n";
-        $usage .=  "\nusage: mdi $pname build [options]\n";   
+        $usage .=  "\nusage: mdi $pname build [options]\n";  
+        $usage .=  "\n    -h/--$help     show this help";    
         $usage .=  "\n    -v/--$version  the suite version to build from, as a git release tag or branch [latest]";    
-        $error and throwError($error.$usage);
+        $usage .=  "\n    -s/--$sandbox  run singularity with the --sandbox option set"; 
         print "$usage\n\n";
         exit;
     }
     
     # call Singularity build action
-    buildSingularity($options{$version} or "latest");
+    buildSingularity($options{$sandbox} ? "--sandbox" : "");
     exit;
 }
 

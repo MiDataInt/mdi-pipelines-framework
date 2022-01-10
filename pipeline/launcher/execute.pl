@@ -54,8 +54,8 @@ sub executeAction {
     foreach my $i(@workingTaskIs){    
         my ($taskId, $taskReport) = processActionTask($assembled, $i, $requestedTaskId, @workingTaskIds);
         manageTaskEnvironment($action, $cmd, $isDryRun, $assembled, $taskReport);
-        copyTaskCodeSuites();
-        executeTaskBash($action, $isDryRun, $isSingleTask, $assembled, $taskId, $conda);
+        copyTaskCodeSuites($isDryRun);
+        executeTask($action, $isDryRun, $isSingleTask, $assembled, $taskId, $conda);
     } 
 }
 sub getCmdHash {                # the name of this function, 'cmd', and the varnames it populates
@@ -63,7 +63,7 @@ sub getCmdHash {                # the name of this function, 'cmd', and the varn
     $$config{actions}{$name};
 } 
 
-# parse the options and construct a call to a single pipeline task
+# parse the options and prepare to execute a single pipeline task
 # a task is a pipeline action applied to a given data set, with a single output folder
 sub processActionTask {
     my ($assembled, $i, $requestedTaskId, @workingTaskIds) = @_;
@@ -95,6 +95,16 @@ sub processActionTask {
 }
 sub manageTaskEnvironment { # set all task environment variables (listed in tool suite pipeline README.md)
     my ($action, $cmd, $isDryRun, $assembled, $taskReport) = @_;
+
+    # check the validity/necessity of a container to run the task
+    if(actionRequiresContainers($action)){
+        $ENV{CONTAINER} = 1;
+    } elsif($ENV{CONTAINER}) {
+        actionSupportsContainers($action) or throwError(
+            "action '$action' does not support containers\n".
+            "please omit option --container for this action"
+        )
+    }
 
     # parse and create derivative paths and prefixes for this task
     $ENV{TASK_DIR}          = "$ENV{OUTPUT_DIR}/$ENV{DATA_NAME}"; # guaranteed unique per task by validateOptionArrays
@@ -144,31 +154,38 @@ sub manageTaskEnvironment { # set all task environment variables (listed in tool
     -f $pipelineScript and require $pipelineScript;     
 }
 sub copyTaskCodeSuites { # create a permanent, fixed working copy of all tool suite code required by this task
+    my ($isDryRun) = @_;
     sub copyCodeDir {
-        my ($srcDir, $destDir) = @_;
+        my ($srcDir, $destDir, $isDryRun) = @_;
+        -d $srcDir or throwError("does not exist or is not a directory: \n    $srcDir");
+        $isDryRun and return;
         make_path($destDir);
-        system("cp -fr $srcDir/* $destDir") and die "suite code copy failed: $!\n    $srcDir\n    $destDir\n";
+        system("cp -fr $srcDir/* $destDir") and throwError("suite code copy failed: $!\n    $srcDir\n    $destDir");
     }
     foreach my $suiteDir(keys %workingSuiteVersions){
         my @parts = split("/", $suiteDir); 
         my $suiteName = $parts[$#parts];
         if($suiteName eq $pipelineSuite){ # this pipeline's suite copies the pipeline itself (all actions) and all shared modules
-            copyCodeDir($pipelineDir, $ENV{PIPELINE_DIR});
-            copyCodeDir($modulesDir,  $ENV{MODULES_DIR});
+            copyCodeDir($pipelineDir, $ENV{PIPELINE_DIR}, $isDryRun);
+            copyCodeDir($modulesDir,  $ENV{MODULES_DIR}, $isDryRun);
         } else { # external modules always come from definitive code suites
             my $modulesPath = "$suiteName/shared/modules";
             my $modulesDirSrc  = "$suitesDir/$modulesPath";
             my $modulesDirDest = "$ENV{SUITES_DIR}/$modulesPath";
-            copyCodeDir($modulesDirSrc,  $ENV{modulesDirDest});
+            copyCodeDir($modulesDirSrc,  $ENV{modulesDirDest}, $isDryRun);
         }
     }
-    -e $ENV{ACTION_SCRIPT} or throwError("pipeline configuration error\n". # from a pipeline action or shared module folder
-                                         "missing script target:\n    $ENV{ACTION_SCRIPT}"); 
+    $isDryRun or -e $ENV{ACTION_SCRIPT} or throwError(
+        "pipeline configuration error\n". # from a pipeline action or shared module folder
+        "missing script target:\n    $ENV{ACTION_SCRIPT}"
+    ); 
 }
-sub executeTaskBash {
+
+# finally, execute the task ...
+sub executeTask {
     my ($action, $isDryRun, $isSingleTask, $assembled, $taskId, $conda) = @_;
 
-    # parse our bash command that sets up the conda evironment
+    # set up a status rollback if requested
     my $rollback = $$assembled{taskOptions}[0]{rollback};
     $rollback = $rollback eq 'null' ? "" :
 "echo
@@ -176,7 +193,34 @@ echo \"rolling back to pipeline step $rollback\"
 echo
 export LAST_SUCCESSFUL_STEP=$rollback
 resetWorkflowStatus";
-    my $bash =
+
+    # get the bash command to execute depending on container status
+    my $bash = $ENV{CONTAINER} ? 
+        getTaskBashContainer($conda, $rollback, $isDryRun) : 
+        getTaskBashDirect($conda, $rollback);
+    
+    # do nothing if --dry-run
+    $isDryRun and return;
+
+    # validate conda environment
+    $ENV{CONTAINER} or -d $$conda{dir} or throwError(
+        "missing conda environment for action '$action'\n".
+        "please run 'mdi $ENV{PIPELINE_NAME} conda --create' before launching the pipeline"
+    );
+
+    # single actions or tasks replace this process and never return
+    $isSingleAction and $isSingleTask and exec $bash;
+    
+    # multiple actions or tasks require that we stay alive to run the next one 
+    system($bash) and throwError(
+        "action '$action' task #$taskId had non-zero exit status\n".
+        "no more actions or tasks will be executed"
+    );  
+}
+
+# ... directly on the OS where the call is being made ...
+sub getTaskBashDirect {
+    my ($conda, $rollback) = @_;
 "bash -c '
 $$conda{loadCommand}
 source $$conda{profileScript}
@@ -187,21 +231,38 @@ showWorkflowStatus
 source $ENV{ACTION_SCRIPT}
 perl $ENV{WORKFLOW_DIR}/package.pl
 '";
+}
+
+# ... or within a container running on that OS
+sub getTaskBashContainer {
+    my ($conda, $rollback, $isDryRun) = @_; 
     
-    # do the work
-    if (!$isDryRun) {
+    # in this bash, escaped path variables are interpreted relative to the container, to access mdi-pipelines-framework
+    # unescaped path variables point to the bind-mounted TASK_DIR (and thus are the same inside and outside the container)
+    my $singularityRunCommand =
 
-        # validate conda environment
-        -d $$conda{dir} or throwError("missing conda environment for action '$action'\n".
-                                      "please run 'mdi $ENV{PIPELINE_NAME} conda --create' before launching the pipeline");
+"source $$conda{profileScript}
 
-        # single actions or tasks replace this process and never return
-        $isSingleAction and $isSingleTask and exec $bash;
-        
-        # multiple actions or tasks require that we stay alive to run the next one 
-        system($bash) and throwError("action '$action' task #$taskId had non-zero exit status\n".
-                                     "no more actions or tasks will be executed");
-    }   
+conda activate \${MDI_DIR}/environments/$$conda{name}
+source \${WORKFLOW_SH}
+$rollback
+showWorkflowStatus
+source $ENV{ACTION_SCRIPT}
+perl \$ENV{WORKFLOW_DIR}/package.pl
+";
+
+    # write the command sequence to a bind-mounted script
+    my $singularityRunScript = "$ENV{TASK_ACTION_DIR}/singularity-run.sh";
+    my $singularityContainerFile = "${MDI_DIR}/containers/.../TODO_NEED_CONTAINER_HERE.sif";
+    if(!isDryRun){
+        open my $outH, ">", $singularityRunScript or throwError("could not open:\n    $singularityRunScript\n$!");
+        print $outH $singularityRunCommand;
+        close $outH;
+        # TODO: download the sif container file
+    }
+
+    # return the command to run the job inside the singularity container
+    "singularity run --bind $ENV{TASK_DIR} $singularityContainerFile $singularityRunScript"
 }
 
 1;
