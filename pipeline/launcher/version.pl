@@ -62,7 +62,7 @@ sub convertSuiteVersion {
     } elsif($versionDirectives{$version}) {
         $version = $versionDirectives{$version};
     } # else request is a branch or non-semvar tag name (so could be ~anything) 
-    $version =~ m/^\d+\.\d+\.\d+$/ and $version = "v$version"; # help user out if they specific 0.0.0 instead of v0.0.0
+    $version =~ m/^\d+\.\d+\.\d+$/ and $version = "v$version"; # help user out if they specified 0.0.0 instead of v0.0.0
     $workingSuiteVersions{$suiteDir} = $version;
     $version; 
 }

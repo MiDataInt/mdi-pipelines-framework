@@ -3,21 +3,25 @@ use warnings;
 
 # subs for building and posting a Singularity container image of a pipeline
 
-use vars qw($pipelineSuite $pipelineName);
+use vars qw($pipelineSuite $pipelineName $pipelineDir $pipelineSuiteDir $launcherDir);
+our %installers = (
+    ubuntu => 'apt-get'
+);
 
-#------------------------------------------------------------------------------
-# set the dependencies list for a pipeline action
-#------------------------------------------------------------------------------
 sub buildSingularity {
-    my ($version) = @_;
+    my ($suiteVersion) = @_; # is never undef as called by runBuild
 
-    # TODO: get latest tagged version of suite
-    if($version eq "latest"){
-        
-    }
+    # get permission to create and post the Singularity image
+    getPermission("\n'build' will create and post a Singularity container image for $pipelineSuite/$pipelineName=$suiteVersion") or exit;
 
-    # get permission to create the and post the Singularity image
-    getPermission("\nBuild action will create and post a Singularity container image for $pipelineSuite//$pipelineName=$version") or exit;
+    # parse the suite and pipeline versions to build
+    $suiteVersion = convertSuiteVersion($pipelineSuiteDir, $suiteVersion);
+    setSuiteVersion($pipelineSuiteDir, $suiteVersion, $pipelineSuite);
+
+    # TODO: working here, need to load pipeline.yml to read the declared version
+    # abort if no version found
+    # NB: do NOT use suite version to label the container, as suite versions might change even when this pipeline hasn't!
+    my $pipelineVersion = ;
 
     # create containers/pipelineName directory if missing
     my $containersDir = "$ENV{MDI_DIR}/containers";
@@ -25,31 +29,40 @@ sub buildSingularity {
     my $containerDir = "$containersDir/$pipelineName";
     -d $containerDir or mkdir $containerDir;
 
-    # pass container build parameters to def file
-    # no, Singularity does not seem to have a mechanism for this
-    sub printDefVar{
-        my $tmpFile = "$ENV{MDI_DIR}/$_[0].tmp";
-        open my $outH, ">", $tmpFile or die "$!\n";
-        print $outH "$_[1]";
-        close $outH;        
+    # concatenate the complete Singularity container definition file
+    my $pipelineDef = slurpContainerDef("$pipelineDir/singularity.def");
+    $pipelineDef =~ m/From:\s+(\S+):.+/ or throwError("missing or malformed 'From:' declaration in singularity.def");
+    my $linuxDistro = $1;
+    my $commonDef = slurpContainerDef("$launcherDir/build-common.def");
+    my $containerDef = "$pipelineDef\n\n$commonDef";
+
+    # replace placeholders with pipeline-specific values (Singularity does not offer def file variables)
+    my %vars = (
+        SUITE_NAME          => $pipelineSuite,
+        SUITE_VERSION       => $suiteVersion,
+        PIPELINE_NAME       => $pipelineName,
+        PIPELINE_VERSION    => $pipelineVersion,
+        LINUX_DISTRIBUTION  => $linuxDistro,
+        INSTALLER           => $installers{$linuxDistro} || 'apt-get'
+    );
+    foreach my $varName(keys %vars){
+        $containerDef =~ s/__$varName__/$vars{$varName}/;
     }
-    printDefVar('SUITE_NAME',       $pipelineSuite);
-    printDefVar('PIPELINE_NAME',    $pipelineName);
-    printDefVar('VERSION',         $version);
+
+    # commit the complete Singularity container definition file to mdi/containers
+    my $imagePrefix = "$containerDir/$pipelineName-$pipelineVersion";
+    my $defFile   = "$imagePrefix.def";
+    my $imageFile = "$imagePrefix.sif";
 
     # run singularity build
-    my $defFile = "$ENV{MDI_DIR}/suites/definitive/$pipelineSuite/pipelines/$pipelineName/singularity.def";
-    -e $defFile or throwError("missing container definition file: $defFile");
-    my $imageFile = "$containerDir/xxx.sif";
     system("cd $ENV{MDI_DIR}; singularity build --fakeroot --sandbox $imageFile $defFile");
+}
 
-
-
-    # assembled concatenated singularity.def
-    # singularity build into mdi/containers
-    # post to oras url
-
-
+# slurp the contents of a container definition file
+slurpContainerDef {
+    my ($defFile) = @_;
+    -e $defFile or throwError("missing container definition file: $defFile");
+    slurpFile($defFile);
 }
 
 1;

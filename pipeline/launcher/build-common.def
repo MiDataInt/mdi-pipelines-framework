@@ -1,0 +1,61 @@
+#------------------------------------------------------------------------------
+# these sections are appended last to all assembled singularity definition files
+#------------------------------------------------------------------------------
+# https://sylabs.io/guides/latest/user-guide/definition_files.html
+#------------------------------------------------------------------------------
+
+# copy the pipelines-relevant mdi installation into the container
+# container MDI_DIR is always /srv/mdi
+%setup
+    mkdir -p ${SINGULARITY_ROOTFS}/srv/mdi/environments
+    cp -r ./config      ${SINGULARITY_ROOTFS}/srv/mdi/config
+    cp -r ./frameworks  ${SINGULARITY_ROOTFS}/srv/mdi/frameworks
+    cp -r ./suites      ${SINGULARITY_ROOTFS}/srv/mdi/suites
+    cp    ./mdi         ${SINGULARITY_ROOTFS}/srv/mdi/mdi
+
+# install the software required by all pipeline actions as conda environments
+%post
+    # install git and conda
+    if [ "__INSTALLER__" = "apt-get" ]; then
+        apt-get update && apt-get install -y git
+    else 
+        echo "unknown installer: __INSTALLER__"
+        exit 1
+    fi
+
+    # set variables from call to mdi build
+    SUITE_NAME=__SUITE_NAME__
+    SUITE_VERSION=__SUITE_VERSION__
+    PIPELINE_NAME=__PIPELINE_NAME__
+    PIPELINE_VERSION=__PIPELINE_VERSION__
+
+    # checkout target version of suite
+    MDI_DIR=/srv/mdi
+    cd ${MDI_DIR}/suites/definitive/${SUITE_NAME}
+    git checkout ${SUITE_VERSION}
+
+    # creata conda environments of software required by the pipeline
+    ${MDI_DIR}/mdi ${PIPELINE_NAME} conda --list
+    # --create --force --no-mamba
+
+# the scriplet that is called by execute.pl to launch the pipeline
+%runscript
+    echo "Container was created $NOW"
+    echo "Arguments received: $*"
+    exec echo "$@"
+    # symbolically link /srv/mdi to $MDI_DIR
+    # what exactly should the container run? probably source Workflow.sh
+
+# useful labels for the container image
+%labels
+    Source Michigan Data Interface
+    SuiteName __SUITE_NAME__
+    SuiteVersion __SUITE_VERSION__
+    PipelineName __PIPELINE_NAME__
+    PipelineVersion __PIPELINE_VERSION__
+
+# text displayed on a call to 'singularity run-help my_container.sif'
+%help
+    Source:    Michigan Data Interface
+    Suite:     __SUITE_NAME__=__SUITE_VERSION__
+    Pipeline:  __PIPELINE_NAME__=__PIPELINE_VERSION__

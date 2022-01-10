@@ -295,7 +295,7 @@ sub runBuild {
         my $desc = getTemplateValue($$config{actions}{build}{description});
         $usage .= "\n$pname build: $desc\n";
         $usage .=  "\nusage: mdi $pname build [options]\n";   
-        $usage .=  "\n    -v/--$version  the suite version to build from, as a git release tag [latest]";    
+        $usage .=  "\n    -v/--$version  the suite version to build from, as a git release tag or branch [latest]";    
         $error and throwError($error.$usage);
         print "$usage\n\n";
         exit;
