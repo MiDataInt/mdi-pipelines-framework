@@ -4,6 +4,7 @@ use warnings;
 # helper functions to locate environment, module, or option files that are
 # external to a pipeline suite, i.e., to be read from a different suite 
 # (which must therefore also be installed into the working MDI path)
+# external suite version requirements can be specified in pipeline.yml
 
 # working variables
 use vars qw($mdiDir $suitesDir);
@@ -29,7 +30,10 @@ sub getSharedFile {
 }
 sub getExternalSharedFile {
     my ($suite, $sharedTarget, $sharedType) = @_;
-    my $suiteSharedDir = "$suitesDir/$suite/shared/$sharedType"."s";
+    my $suiteDir = "$suitesDir/$suite";
+    -d $suiteDir or return;
+    setExternalSuiteVersion($suiteDir, $suite);
+    my $suiteSharedDir = "$suiteDir/shared/$sharedType"."s";
     my $sharedFile = "$suiteSharedDir/$sharedTarget.yml";
     -e $sharedFile and return $sharedFile;
     undef;

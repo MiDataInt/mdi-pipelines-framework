@@ -5,7 +5,7 @@
 #--------------------------------------------------------------------
 optionFamilies:
     output: 
-        order: 101
+        order: 100
         universal: true
         template: true
         options:        
@@ -25,8 +25,32 @@ optionFamilies:
                 required: true
                 default: null
                 description: "simple name for the data (e.g., sample) being analyzed (no spaces or periods)"
-    resources: # always required, even when running pipeline as a simple inline command
+    version:
+        order: 101
+        universal: true
+        template: false # pipeline version is set at top of data.yml, in pipeline dictionary, not per action
+        options:        # template.pl handles its proper inclusion and placement in job config templates
+            version:
+                order: 1
+                short: v
+                type: string
+                required: false
+                default: latest
+                description: "the version to use of the tool suite that provides the requested pipeline"
+    Singularity:
         order: 102
+        universal: true
+        template: true
+        options:
+            container:
+                order: 1
+                short: c
+                type: boolean
+                required: false
+                default: false
+                description: "when set, the pipeline will run within a Singularity container when available"
+    resources: # always required, even when running pipeline as a simple inline command
+        order: 103
         universal: true
         template: true
         options:      
@@ -63,7 +87,7 @@ optionFamilies:
                     must-exist: false # cluster node may have tmp directories not present on login host
                 description: "directory used for large temporary files (generally >10GB)"
     job-manager: # only required when queuing jobs with jobManager (in contrast to family 'resources')
-        order: 103
+        order: 104
         universal: true
         options:
             email:
@@ -95,7 +119,7 @@ optionFamilies:
                 default: standard
                 description: "slurm --partition (standard, gpu, largemem, viz, standard-oc)" 
     workflow:
-        order: 104
+        order: 105
         universal: true
         options:
             task-id:
@@ -105,7 +129,7 @@ optionFamilies:
                 type: integer
                 required: false
                 default: 0
-                description: "the arrayed options task number to run, from 1 to N (used programatically)"
+                description: "the arrayed options task number to run, from 1 to N (used programmatically)"
             force:
                 order: 1
                 short: f
@@ -128,7 +152,7 @@ optionFamilies:
                 default: false
                 description: "suppress the configuration feedback in the output log stream"  
     help: 
-        order: 105
+        order: 106
         universal: true
         options:
             help:

@@ -13,7 +13,7 @@ function setStatusFile { # construct a rule-based status file name
         echo "missing variable: OUTPUT_DIR"
         exit 1
     fi
-    if [ ! -d "$OUTPUT_DIR" ]; then
+    if [ ! -d "$OUTPUT_DIR" ]; then # OUTPUT_DIR must exist, it will not be created
         echo "directory does not exist: $OUTPUT_DIR"
         exit 1
     fi
@@ -29,11 +29,17 @@ function setStatusFile { # construct a rule-based status file name
         echo "missing variable: DATA_NAME"
         exit 1
     fi
-    DATA_NAME_DIR=$OUTPUT_DIR/$DATA_NAME   
-    LOGS_DIR=$DATA_NAME_DIR/$PIPELINE_NAME"_logs";
-    if [ ! -d "$LOGS_DIR" ]; then mkdir $LOGS_DIR; fi    
-    STATUS_FILE=$LOGS_DIR/$DATA_NAME.$PIPELINE_NAME.status
-    if [ ! -e "$STATUS_FILE" ]; then touch $STATUS_FILE; fi        
+    if [ "$TASK_PIPELINE_DIR" = "" ]; then
+        echo "missing variable: TASK_PIPELINE_DIR"
+        exit 1
+    fi
+    if [ "$TASK_ACTION_DIR" = "" ]; then
+        echo "missing variable: TASK_ACTION_DIR"
+        exit 1
+    fi
+    if [ ! -d "$TASK_ACTION_DIR" ]; then mkdir -p $TASK_ACTION_DIR; fi # a direct child of TASK_PIPELINE_DIR, under OUTPUT_DIR
+    STATUS_FILE=$TASK_PIPELINE_DIR/$DATA_NAME.$PIPELINE_NAME.status # a pipeline level file, includes all steps for all actions
+    if [ ! -e "$STATUS_FILE" ]; then touch $STATUS_FILE; fi  
 }
 function getWorkflowStatus {
     setStatusFile
@@ -78,7 +84,7 @@ function runWorkflowStep {
         if [[ "$STEP_SCRIPT" == /* ]]; then
             TARGET_SCRIPT=$STEP_SCRIPT # an absolute script path was provided
         else
-            TARGET_SCRIPT=$SCRIPT_DIR/$STEP_SCRIPT # path interpreted relative to current app step
+            TARGET_SCRIPT=$ACTION_DIR/$STEP_SCRIPT # path interpreted relative to current action step
         fi
         source $TARGET_SCRIPT # NB: script is responsible for calling checkPipe to validate execution success
         setWorkflowStatus $STEP_NUMBER $STEP_NAME $STEP_SCRIPT

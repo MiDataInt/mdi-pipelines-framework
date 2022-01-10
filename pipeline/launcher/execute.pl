@@ -1,12 +1,14 @@
 use strict;
 use warnings;
+use File::Path qw(make_path);
 
 # main sub for executing a pipeline action
 
 # working variables
-use vars qw($pipelineName $pipelineDir $modulesDir
+use vars qw($pipelineName $pipelineSuite $pipelineDir $modulesDir
             @args $config $isSingleAction
-            %longOptions %optionArrays $workflowScript $isNTasks);
+            %longOptions %optionArrays $workflowScript $isNTasks
+            $suitesDir %workingSuiteVersions);
 
 # parse the options and construct a call to a single pipeline action
 sub executeAction {
@@ -51,14 +53,18 @@ sub executeAction {
     my $isDryRun = $$assembled{taskOptions}[0]{'dry-run'};
     foreach my $i(@workingTaskIs){    
         my ($taskId, $taskReport) = processActionTask($assembled, $i, $requestedTaskId, @workingTaskIds);
-        manageActionEnvironment($action, $cmd, $isDryRun, $assembled, $taskReport);
-        executeActionBash($action, $isDryRun, $isSingleTask, $assembled, $taskId, $conda);
+        manageTaskEnvironment($action, $cmd, $isDryRun, $assembled, $taskReport);
+        copyTaskCodeSuites();
+        executeTaskBash($action, $isDryRun, $isSingleTask, $assembled, $taskId, $conda);
     } 
 }
-sub getCmdHash {
-    my $name = $_[0] or return;
+sub getCmdHash {                # the name of this function, 'cmd', and the varnames it populates
+    my $name = $_[0] or return; # is a legacy holdover from when 'actions' were called 'commands'
     $$config{actions}{$name};
 } 
+
+# parse the options and construct a call to a single pipeline task
+# a task is a pipeline action applied to a given data set, with a single output folder
 sub processActionTask {
     my ($assembled, $i, $requestedTaskId, @workingTaskIds) = @_;
     
@@ -87,50 +93,79 @@ sub processActionTask {
     }
     ($taskId, \$taskReport);
 }
-sub manageActionEnvironment {
+sub manageTaskEnvironment { # set all task environment variables (listed in tool suite pipeline README.md)
     my ($action, $cmd, $isDryRun, $assembled, $taskReport) = @_;
-    
-        # parse and create universal derivative paths
-        $ENV{DATA_NAME_DIR}    = "$ENV{OUTPUT_DIR}/$ENV{DATA_NAME}"; # guaranteed unique per task by validateOptionArrays
-        $ENV{DATA_FILE_PREFIX} = "$ENV{DATA_NAME_DIR}/$ENV{DATA_NAME}";
-        $ENV{LOGS_DIR}         = "$ENV{DATA_NAME_DIR}/$ENV{PIPELINE_NAME}_logs";
-        $ENV{LOG_FILE_PREFIX}  = "$ENV{LOGS_DIR}/$ENV{DATA_NAME}";
-        $ENV{TASK_LOG_FILE}    = "$ENV{LOG_FILE_PREFIX}.$action.task.log";
-        $ENV{PLOTS_DIR}        = "$ENV{DATA_NAME_DIR}/plots";
-        $ENV{PLOT_PREFIX}      = "$ENV{PLOTS_DIR}/$ENV{DATA_NAME}";
-        if (!$isDryRun) {
-            -d $ENV{DATA_NAME_DIR} or mkdir $ENV{DATA_NAME_DIR};
-            -d $ENV{LOGS_DIR} or mkdir $ENV{LOGS_DIR};
-            
-            # (re)initialize the log file for this task (always carries just the most recent execution)
-            open my $outH, ">", $ENV{TASK_LOG_FILE} or throwError("could not open:\n    $ENV{TASK_LOG_FILE}\n$!");
-            print $outH "$$assembled{report}$$taskReport";
-            close $outH;
-        }
 
-        # set memory-related environment variables
-        $ENV{RAM_PER_CPU_INT} = getIntRam($ENV{RAM_PER_CPU}); 
-        $ENV{TOTAL_RAM_INT} = $ENV{RAM_PER_CPU_INT} * $ENV{N_CPU};       
-        $ENV{TOTAL_RAM} = getStrRam($ENV{TOTAL_RAM_INT});
+    # parse and create derivative paths and prefixes for this task
+    $ENV{TASK_DIR}          = "$ENV{OUTPUT_DIR}/$ENV{DATA_NAME}"; # guaranteed unique per task by validateOptionArrays
+    $ENV{DATA_FILE_PREFIX}  = "$ENV{TASK_DIR}/$ENV{DATA_NAME}"; 
+    $ENV{PLOTS_DIR}         = "$ENV{TASK_DIR}/plots"; 
+    $ENV{PLOT_PREFIX}       = "$ENV{PLOTS_DIR}/$ENV{DATA_NAME}"; 
+    $ENV{SUITE_NAME}        = $pipelineSuite;
+    $ENV{PIPELINE_NAME}     = $pipelineName; 
+    $ENV{PIPELINE_ACTION}   = $action;
+    $ENV{TASK_PIPELINE_DIR} = "$ENV{TASK_DIR}/$pipelineName"; 
+    $ENV{TASK_ACTION_DIR}   = "$ENV{TASK_PIPELINE_DIR}/$action";
+    $ENV{SUITES_DIR}        = "$ENV{TASK_ACTION_DIR}/suites";
+    $ENV{SUITE_DIR}         = "$ENV{SUITES_DIR}/$pipelineSuite"; 
+    $ENV{PIPELINE_DIR}      = "$ENV{SUITE_DIR}/pipelines/$pipelineName"; 
+    $ENV{MODULES_DIR}       = "$ENV{SUITE_DIR}/shared/modules";
 
-        # pass some options to snakemake
-        $ENV{SN_DRY_RUN}  = $ENV{SN_DRY_RUN}  ? '--dry-run'  : "";
-        $ENV{SN_FORCEALL} = $ENV{SN_FORCEALL} ? '--forceall' : "";
+    # (re)initialize the log file for this task (always carries just the most recent execution)
+    $ENV{LOGS_DIR}        = "$ENV{TASK_ACTION_DIR}/logs"; 
+    $ENV{LOG_FILE_PREFIX} = "$ENV{LOGS_DIR}/$ENV{DATA_NAME}"; 
+    $ENV{TASK_LOG_FILE}   = "$ENV{LOG_FILE_PREFIX}.$pipelineName.$action.task.log";
+    if (!$isDryRun) {
+        -d $ENV{LOGS_DIR} or make_path($ENV{LOGS_DIR});
+        open my $outH, ">", $ENV{TASK_LOG_FILE} or throwError("could not open:\n    $ENV{TASK_LOG_FILE}\n$!");
+        print $outH "$$assembled{report}$$taskReport";
+        close $outH;
+    }
 
-        # parse our script target
-        $ENV{SCRIPT_DIR} = $$cmd{module} ? "$modulesDir/$$cmd{module}[0]" : "$pipelineDir/$action";
-        $ENV{SCRIPT_TARGET} = $$cmd{script} || "Workflow.sh";
-        $ENV{SCRIPT_TARGET} = "$ENV{SCRIPT_DIR}/$ENV{SCRIPT_TARGET}";
-        -e $ENV{SCRIPT_TARGET} or throwError("pipeline configuration error\n".
-                                             "missing script target:\n    $ENV{SCRIPT_TARGET}");
-        $ENV{ACTION_DIR} = $ENV{SCRIPT_DIR};
-        $ENV{ACTION_TARGET} = $ENV{SCRIPT_TARGET};
-        
-        # add any pipeline-specific environment variables as last step
-        my $pipelineScript = "$pipelineDir/pipeline.pl";
-        -f $pipelineScript and require $pipelineScript;     
+    # set memory-related environment variables
+    $ENV{RAM_PER_CPU_INT} = getIntRam($ENV{RAM_PER_CPU}); 
+    $ENV{TOTAL_RAM_INT}   = $ENV{RAM_PER_CPU_INT} * $ENV{N_CPU};       
+    $ENV{TOTAL_RAM}       = getStrRam($ENV{TOTAL_RAM_INT});
+
+    # pass some options to snakemake
+    $ENV{SN_DRY_RUN}  = $ENV{SN_DRY_RUN}  ? '--dry-run'  : "";
+    $ENV{SN_FORCEALL} = $ENV{SN_FORCEALL} ? '--forceall' : "";
+
+    # parse our script target
+    $ENV{ACTION_DIR}    = $$cmd{module} ? "$ENV{MODULES_DIR}/$$cmd{module}[0]" : "$ENV{PIPELINE_DIR}/$action";
+    $ENV{ACTION_SCRIPT} = $$cmd{script} || "Workflow.sh";
+    $ENV{ACTION_SCRIPT} = "$ENV{ACTION_DIR}/$ENV{ACTION_SCRIPT}";
+    $ENV{SCRIPT_DIR}    = "$ENV{ACTION_DIR}"; # set some legacy aliases  
+    $ENV{SCRIPT_TARGET} = "$ENV{ACTION_SCRIPT}"; 
+
+    # add any pipeline-specific environment variables as last step
+    # thus can use any standard pipeline variables to construct new, pipeline-specific ones
+    my $pipelineScript = "$pipelineDir/pipeline.pl";
+    -f $pipelineScript and require $pipelineScript;     
 }
-sub executeActionBash {
+sub copyTaskCodeSuites { # create a permanent, fixed working copy of all tool suite code required by this task
+    sub copyCodeDir {
+        my ($srcDir, $destDir) = @_;
+        make_path($destDir);
+        system("cp -fr $srcDir/* $destDir") and die "suite code copy failed: $!\n    $srcDir\n    $destDir\n";
+    }
+    foreach my $suiteDir(keys %workingSuiteVersions){
+        my @parts = split("/", $suiteDir); 
+        my $suiteName = $parts[$#parts];
+        if($suiteName eq $pipelineSuite){ # this pipeline's suite copies the pipeline itself (all actions) and all shared modules
+            copyCodeDir($pipelineDir, $ENV{PIPELINE_DIR});
+            copyCodeDir($modulesDir,  $ENV{MODULES_DIR});
+        } else { # external modules always come from definitive code suites
+            my $modulesPath = "$suiteName/shared/modules";
+            my $modulesDirSrc  = "$suitesDir/$modulesPath";
+            my $modulesDirDest = "$ENV{SUITES_DIR}/$modulesPath";
+            copyCodeDir($modulesDirSrc,  $ENV{modulesDirDest});
+        }
+    }
+    -e $ENV{ACTION_SCRIPT} or throwError("pipeline configuration error\n". # from a pipeline action or shared module folder
+                                         "missing script target:\n    $ENV{ACTION_SCRIPT}"); 
+}
+sub executeTaskBash {
     my ($action, $isDryRun, $isSingleTask, $assembled, $taskId, $conda) = @_;
 
     # parse our bash command that sets up the conda evironment
@@ -149,7 +184,7 @@ conda activate $$conda{dir}
 source $workflowScript
 $rollback
 showWorkflowStatus
-source $ENV{SCRIPT_TARGET}
+source $ENV{ACTION_SCRIPT}
 perl $ENV{WORKFLOW_DIR}/package.pl
 '";
     

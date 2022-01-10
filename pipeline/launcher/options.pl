@@ -15,6 +15,21 @@ use vars qw($mdiDir $pipeline
 our (%nTasks);
 
 #------------------------------------------------------------------------------
+# preliminary read of command line arguments to pull any pipeline-level version request
+#------------------------------------------------------------------------------
+sub getCommandLineVersionRequest {
+    @args or return;  
+    foreach my $i(0..$#args){
+        $args[$i] eq '-v' or $args[$i] eq '--version' or next;
+        my $version = $args[$i + 1];
+        $version or throwError("command line error: missing value for option --version");
+        splice(@args, $i, 2); # prevent --version from being read as an action option later on
+        return $version;
+    }
+    undef;
+}
+
+#------------------------------------------------------------------------------
 # top-level function that discovers and checks all expected and requested option values
 #------------------------------------------------------------------------------
 sub parseAllOptions {
