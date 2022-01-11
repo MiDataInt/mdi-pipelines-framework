@@ -173,11 +173,7 @@ sub showCreateCondaEnvironments {
         print "---------------------------------\n";
         print "conda environment for: $$config{pipeline}{name}[0] $subjectAction\n";
         print "$$conda{dir}\n";
-        my $allow = (
-            !$ENV{IS_CONTAINER_BUILD} or             # build all environments for direct execution
-            actionSupportsContainers($subjectAction) # only build supported action environments in containers
-        );
-        if ($create and $allow) {
+        if ($create) {
             createCondaEnvironment($conda, 1, $force, $noMamba);            
         } else {
             if (-e $$conda{showFile}) {

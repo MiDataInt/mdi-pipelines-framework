@@ -5,10 +5,6 @@ use warnings;
 
 use vars qw($launcherDir $config %workingSuiteVersions
             $pipelineSuite $pipelineName $pipelineDir $pipelineSuiteDir);
-my %installers = (      # key   = Linux distribution, from singularity.def 'From: distro:version'
-    ubuntu => 'apt-get' # value = the associated installer, one of 'apt-get', 'yum'
-);                      # if distro not listed here, defaults to 'apt-get'
-my @supportTypes = qw(unsupported supported required);
 
 sub buildSingularity {
     my ($sandbox) = @_;
@@ -17,12 +13,12 @@ sub buildSingularity {
     # get permission to create and post the Singularity image
     pipelineSupportsContainers() or throwError(
         "nothing to build\n".
-        "no action in pipeline $pipelineName supports containers\n".
-        "add 'container: supported|required' to action(s) to enable container builds"
+        "pipeline $pipelineName does not support containers\n".
+        "add section 'container:' to pipeline.yml to enable container support"
     );
     getPermission(
         "\n'build' will create and post a Singularity container image for:\n".
-        "    $pipelineSuite/$pipelineName=$suiteVersion"
+        "    $pipelineSuite/$pipelineName:$suiteVersion"
     ) or exit;   
     
     # parse the pipeline version to build
@@ -48,22 +44,22 @@ sub buildSingularity {
     $pipelineDef =~ m/\nFrom:\s+(\S+):\S+/ or 
     $pipelineDef =~ m/\nFrom:\s+(\S+)/ or throwError(
         "missing or malformed 'From:' declaration in singularity.def\n".
-        "expected: From: distro[:version]"
+        "expected: From: base[:version]"
     );
-    my $linuxDistro = $1;
-    my $linuxVersion = $pipelineDef =~ m/\nFrom:\s+\S+:(.+)/ ? $1 : "unspecified";
+    my $containerBase = $1;
+    my $containerBaseVersion = $pipelineDef =~ m/\nFrom:\s+\S+:(.+)/ ? $1 : "unspecified";
     my $commonDef = slurpContainerDef("$launcherDir/build-common.def");
     my $containerDef = "$pipelineDef\n$commonDef";
 
     # replace placeholders with pipeline-specific values (Singularity does not offer def file variables)
     my %vars = (
-        SUITE_NAME          => $pipelineSuite,
-        SUITE_VERSION       => $suiteVersion,
-        PIPELINE_NAME       => $pipelineName,
-        PIPELINE_VERSION    => $pipelineVersion,
-        LINUX_DISTRIBUTION  => $linuxDistro,
-        LINUX_VERSION       => $linuxVersion,
-        INSTALLER           => $installers{$linuxDistro} || 'apt-get'
+        SUITE_NAME       => $pipelineSuite,
+        SUITE_VERSION    => $suiteVersion,
+        PIPELINE_NAME    => $pipelineName,
+        PIPELINE_VERSION => $pipelineVersion,
+        CONTAINER_BASE   => $containerBase,
+        CONTAINER_BASE_VERSION => $containerBaseVersion,
+        INSTALLER        => $$config{container}{installer} ? $$config{container}{installer}[0] : 'apt-get'
     );
     foreach my $varName(keys %vars){
         my $placeholder = "__".$varName."__";
@@ -71,14 +67,13 @@ sub buildSingularity {
     }
 
     # set container directory and file paths
-    my $nameVersion   = "$pipelineName-$pipelineVersion";
-    my $containersDir = "$ENV{MDI_DIR}/containers";
-    my $containerDir  = "$containersDir/$pipelineName";
-    my $versionDir    = "$containerDir/$nameVersion";
-    mkdir $containersDir; # make_path not necessarily available in container
+    my $containerDir = "$ENV{MDI_DIR}/containers";
+    mkdir $containerDir; # make_path not necessarily available in container
+    $containerDir = "$containerDir/$pipelineSuite";
     mkdir $containerDir;
-    mkdir $versionDir;
-    my $imagePrefix = "$versionDir/$nameVersion";
+    $containerDir = "$containerDir/$pipelineName";
+    mkdir $containerDir;
+    my $imagePrefix = "$containerDir/$pipelineName-$pipelineVersion";
     my $defFile     = "$imagePrefix.def";
     my $imageFile   = "$imagePrefix.sif";
 
@@ -87,6 +82,14 @@ sub buildSingularity {
     print $outH $containerDef;
     close $outH;
     system("cd $ENV{MDI_DIR}; singularity build --fakeroot $sandbox $imageFile $defFile");
+
+    # push container to registry
+
+# ubuntu@ip-172-31-35-15:~$ TOKEN=xxxxx
+# ubuntu@ip-172-31-35-15:~$ echo $TOKEN | singularity remote login --username xxxxx --password-stdin oras://ghcr.io
+# singularity push test-v0.3.sif oras://ghcr.io/xxxxx/suite/pipeline:0.3
+# https://docs.github.com/en/packages/working-with-a-github-packages-registry/working-with-the-container-registry
+# https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/creating-a-personal-access-token
 }
 
 # slurp the contents of a container definition file
@@ -96,34 +99,11 @@ sub slurpContainerDef {
     slurpFile($defFile);
 }
 
-# determine whether _any_ action supports containers, i.e., if there is something for build to do
+# determine whether the pipeline supports containers, i.e., if there is something for build to do
 sub pipelineSupportsContainers {
-    foreach my $action(keys %{$$config{actions}}){
-        actionSupportsContainers($action) and return 1;
-    }
-    undef;
-}
-
-# parse the container support status for a given pipeline action
-sub actionSupportsContainers {
-    my ($action) = @_;
-    getActionContainerFlag($action) ne "unsupported";
-}
-sub actionRequiresContainers {
-    my ($action) = @_;
-    getActionContainerFlag($action) eq "required";
-}
-sub getActionContainerFlag {
-    my ($action) = @_;
-    my %supportTypes = map { $_ => 1 } @supportTypes;
-    my $container = $$config{actions}{$action}{container};    # only build environments for supported actions in containers
-    $container = $container ? $$container[0] : "unsupported"; # actions default to unsupported; developers must actively use containers
-    $supportTypes{$container} or throwError(
-        "unrecognized value for 'container' for action '$action' in configuration file:\n".
-        "    $pipelineDir/pipeline.yml".
-        "expected one of: ".join(", ", @supportTypes)
-    );
-    $container;
+    $$config{container} and 
+    $$config{container}{supported} and 
+    $$config{container}{supported}[0]
 }
 
 1;

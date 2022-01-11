@@ -48,7 +48,7 @@ sub getJobFileVersionRequest {
     $ymlFile or return;
     my $yaml = loadYamlFile($ymlFile, undef, undef, undef, 1);
     $$yaml{pipeline} or throwError("malformed data.yml: missing pipeline declaration\n    $ymlFile\n");
-    $$yaml{pipeline}[0] =~ m/.+=(.+)/ or return; # format \[pipelineSuite/\]pipelineName\[=suiteVersion\]
+    $$yaml{pipeline}[0] =~ m/.+:(.+)/ or return; # format \[pipelineSuite/\]pipelineName\[:suiteVersion\]
     $1;
 }
 

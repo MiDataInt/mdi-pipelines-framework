@@ -55,7 +55,7 @@ sub reportAssembledConfig {
     my $thread = $$cmd{thread}[0] || "default";
     my $report = "";
     $report .= "---\n";
-    $report .= "pipeline: $pipelineSuite/$pipelineName=$workingSuiteVersions{$pipelineSuiteDir}\n";
+    $report .= "pipeline: $pipelineSuite/$pipelineName:$workingSuiteVersions{$pipelineSuiteDir}\n";
     $report .= "description: \"$desc\"\n";  
     if(@externalSuiteDirs){
         $report .= "suiteVersions:\n";

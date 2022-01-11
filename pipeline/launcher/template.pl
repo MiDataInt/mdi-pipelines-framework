@@ -18,7 +18,7 @@ sub getLeader {
     my ($pipelineName, $addComments) = @_;
     !$addComments ?
 "---
-pipeline: $pipelineSuite/$pipelineName=latest
+pipeline: $pipelineSuite/$pipelineName:latest
 
 variables:
 
@@ -27,10 +27,10 @@ shared:
 
 "---
 #--------------------------------------------------------------
-# identify the pipeline in format \[pipelineSuite/\]pipelineName\[=suiteVersion\]
+# identify the pipeline in format \[pipelineSuite/\]pipelineName\[:suiteVersion\]
 # suiteVersion is v#.#.#, a tag or branch, pre-release or latest (the default)
 #--------------------------------------------------------------
-pipeline: $pipelineSuite/$pipelineName=latest
+pipeline: $pipelineSuite/$pipelineName:latest
 
 #--------------------------------------------------------------
 # you can use variables to avoid repetition and typing errors 

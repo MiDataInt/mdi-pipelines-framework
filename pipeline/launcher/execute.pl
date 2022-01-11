@@ -97,12 +97,10 @@ sub manageTaskEnvironment { # set all task environment variables (listed in tool
     my ($action, $cmd, $isDryRun, $assembled, $taskReport) = @_;
 
     # check the validity/necessity of a container to run the task
-    if(actionRequiresContainers($action)){
-        $ENV{CONTAINER} = 1;
-    } elsif($ENV{CONTAINER}) {
-        actionSupportsContainers($action) or throwError(
-            "action '$action' does not support containers\n".
-            "please omit option --container for this action"
+    if($ENV{CONTAINER}){
+        pipelineSupportsContainers() or throwError(
+            "pipeline '$pipelineName' does not support containers\n".
+            "please omit option --container and build conda environments locally"
         )
     }
 
