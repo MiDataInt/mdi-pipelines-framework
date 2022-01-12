@@ -22,6 +22,18 @@ sub getPermission {
 }
 
 #------------------------------------------------------------------------------
+# prompt user for input
+#------------------------------------------------------------------------------
+sub getUserInput {
+    my ($message, $required) = @_;
+    print "$message ";
+    my $response = <STDIN>;
+    chomp $response;
+    !$required or $response or die("aborting with no input\n");
+    return $response;
+}
+
+#------------------------------------------------------------------------------
 # string conversions
 #------------------------------------------------------------------------------
 sub getIntRam { # convert string to integer RAM

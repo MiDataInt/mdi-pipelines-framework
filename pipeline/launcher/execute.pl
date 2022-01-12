@@ -7,7 +7,8 @@ use File::Path qw(make_path);
 # working variables
 use vars qw($pipelineName $pipelineSuite $pipelineDir $modulesDir
             @args $config $isSingleAction
-            %longOptions %optionArrays $workflowScript $isNTasks
+            %longOptions %optionArrays $isNTasks
+            $launcherDir $workFlowDir $workflowScript
             $suitesDir %workingSuiteVersions);
 
 # parse the options and construct a call to a single pipeline action
@@ -53,9 +54,9 @@ sub executeAction {
     my $isDryRun = $$assembled{taskOptions}[0]{'dry-run'};
     foreach my $i(@workingTaskIs){    
         my ($taskId, $taskReport) = processActionTask($assembled, $i, $requestedTaskId, @workingTaskIds);
-        manageTaskEnvironment($action, $cmd, $isDryRun, $assembled, $taskReport);
+        manageTaskEnvironment($action, $cmd, $isDryRun, $assembled, $taskReport, $conda);
         copyTaskCodeSuites($isDryRun);
-        executeTask($action, $isDryRun, $isSingleTask, $assembled, $taskId, $conda);
+        $isDryRun or executeTask($action, $isDryRun, $isSingleTask, $taskId, $conda);
     } 
 }
 sub getCmdHash {                # the name of this function, 'cmd', and the varnames it populates
@@ -94,15 +95,24 @@ sub processActionTask {
     ($taskId, \$taskReport);
 }
 sub manageTaskEnvironment { # set all task environment variables (listed in tool suite pipeline README.md)
-    my ($action, $cmd, $isDryRun, $assembled, $taskReport) = @_;
+    my ($action, $cmd, $isDryRun, $assembled, $taskReport, $conda) = @_;
+
+    # note: some environment variables are overridden for containers in build-common.def
 
     # check the validity/necessity of a container to run the task
-    if($ENV{CONTAINER}){
-        pipelineSupportsContainers() or throwError(
-            "pipeline '$pipelineName' does not support containers\n".
-            "please omit option --container and build conda environments locally"
-        )
-    }
+    my $hasContainers = pipelineSupportsContainers();
+    $ENV{RUNTIME} eq 'auto' and $ENV{RUNTIME} = $hasContainers ? 'container' : 'direct';
+    $ENV{IS_CONTAINER} = ($ENV{RUNTIME} eq 'container');    
+    $ENV{IS_CONTAINER} and !$hasContainers and throwError(
+        "pipeline '$pipelineName' does not support containers\n".
+        "please omit set option --runtime to 'direct' or 'auto'"
+    );
+
+    # set up conda activate
+    $ENV{CONDA_LOAD_COMMAND}   = $$conda{loadCommand};
+    $ENV{CONDA_PROFILE_SCRIPT} = $$conda{profileScript};  
+    $ENV{ENVIRONMENTS_DIR}     = $$conda{baseDir};      
+    $ENV{CONDA_NAME}           = $$conda{name};
 
     # parse and create derivative paths and prefixes for this task
     $ENV{TASK_DIR}          = "$ENV{OUTPUT_DIR}/$ENV{DATA_NAME}"; # guaranteed unique per task by validateOptionArrays
@@ -139,12 +149,20 @@ sub manageTaskEnvironment { # set all task environment variables (listed in tool
     $ENV{SN_DRY_RUN}  = $ENV{SN_DRY_RUN}  ? '--dry-run'  : "";
     $ENV{SN_FORCEALL} = $ENV{SN_FORCEALL} ? '--forceall' : "";
 
-    # parse our script target
+    # parse our script target and the framework scripts that help it run
     $ENV{ACTION_DIR}    = $$cmd{module} ? "$ENV{MODULES_DIR}/$$cmd{module}[0]" : "$ENV{PIPELINE_DIR}/$action";
     $ENV{ACTION_SCRIPT} = $$cmd{script} || "Workflow.sh";
     $ENV{ACTION_SCRIPT} = "$ENV{ACTION_DIR}/$ENV{ACTION_SCRIPT}";
     $ENV{SCRIPT_DIR}    = "$ENV{ACTION_DIR}"; # set some legacy aliases  
     $ENV{SCRIPT_TARGET} = "$ENV{ACTION_SCRIPT}"; 
+    $ENV{LAUNCHER_DIR}  = $launcherDir; # framework directories are _not_ copied into TASK_DIR
+    $ENV{WORKFLOW_DIR}  = $workFlowDir;
+    $ENV{WORKFLOW_SH}   = $workflowScript;
+    $ENV{SLURP} = "$ENV{FRAMEWORK_DIR}/shell/slurp";
+
+    # set up any requested task rollback
+    my $rollback = $$assembled{taskOptions}[0]{rollback};
+    $ENV{LAST_SUCCESSFUL_STEP} = $rollback eq "null" ? "" : $rollback;
 
     # add any pipeline-specific environment variables as last step
     # thus can use any standard pipeline variables to construct new, pipeline-specific ones
@@ -181,86 +199,41 @@ sub copyTaskCodeSuites { # create a permanent, fixed working copy of all tool su
 
 # finally, execute the task ...
 sub executeTask {
-    my ($action, $isDryRun, $isSingleTask, $assembled, $taskId, $conda) = @_;
+    my ($action, $isSingleTask, $taskId, $conda) = @_;
 
-    # set up a status rollback if requested
-    my $rollback = $$assembled{taskOptions}[0]{rollback};
-    $rollback = $rollback eq 'null' ? "" :
-"echo
-echo \"rolling back to pipeline step $rollback\"
-echo
-export LAST_SUCCESSFUL_STEP=$rollback
-resetWorkflowStatus";
-
-    # get the bash command to execute depending on container status
-    my $bash = $ENV{CONTAINER} ? 
-        getTaskBashContainer($conda, $rollback, $isDryRun) : 
-        getTaskBashDirect($conda, $rollback);
-    
-    # do nothing if --dry-run
-    $isDryRun and return;
-
-    # validate conda environment
-    $ENV{CONTAINER} or -d $$conda{dir} or throwError(
-        "missing conda environment for action '$action'\n".
-        "please run 'mdi $ENV{PIPELINE_NAME} conda --create' before launching the pipeline"
-    );
+    # validate the containter or conda environment based on runtime mode
+    my $execCommand = "cd $ENV{TASK_DIR}; ";
+    if($ENV{IS_CONTAINER}){
+        my $uris = getContainerUris();
+        if(! -f $$uris{imageFile}){
+            getPermission(
+                "\n$pipelineName wishes to download its Singularity container image:\n".
+                "    $$uris{imageFile}\n".
+                "from:\n".
+                "    $$uris{container}"
+            ) or exit;  
+            print "pulling required container image...\n"; 
+            system("cd $ENV{MDI_DIR}; singularity pull $$uris{imageFile} $$uris{container}") and throwError(
+                "container pull failed"
+            );
+        }
+        $execCommand .= "singularity run $$uris{imageFile}";
+    } else {
+        -d $$conda{dir} or throwError(
+            "missing conda environment for action '$action'\n".
+            "please run 'mdi $ENV{PIPELINE_NAME} conda --create' before launching the pipeline"
+        );  
+        $execCommand .= "bash $launcherDir/execute.sh";
+    }
 
     # single actions or tasks replace this process and never return
-    $isSingleAction and $isSingleTask and exec $bash;
+    $isSingleAction and $isSingleTask and exec $execCommand;
     
     # multiple actions or tasks require that we stay alive to run the next one 
-    system($bash) and throwError(
+    system($execCommand) and throwError(
         "action '$action' task #$taskId had non-zero exit status\n".
         "no more actions or tasks will be executed"
     );  
-}
-
-# ... directly on the OS where the call is being made ...
-sub getTaskBashDirect {
-    my ($conda, $rollback) = @_;
-"bash -c '
-$$conda{loadCommand}
-source $$conda{profileScript}
-conda activate $$conda{dir}
-source $workflowScript
-$rollback
-showWorkflowStatus
-source $ENV{ACTION_SCRIPT}
-perl $ENV{WORKFLOW_DIR}/package.pl
-'";
-}
-
-# ... or within a container running on that OS
-sub getTaskBashContainer {
-    my ($conda, $rollback, $isDryRun) = @_; 
-    
-    # in this bash, escaped path variables are interpreted relative to the container, to access mdi-pipelines-framework
-    # unescaped path variables point to the bind-mounted TASK_DIR (and thus are the same inside and outside the container)
-    my $singularityRunCommand =
-
-"source $$conda{profileScript}
-
-conda activate \${MDI_DIR}/environments/$$conda{name}
-source \${WORKFLOW_SH}
-$rollback
-showWorkflowStatus
-source $ENV{ACTION_SCRIPT}
-perl \$ENV{WORKFLOW_DIR}/package.pl
-";
-
-    # write the command sequence to a bind-mounted script
-    my $singularityRunScript = "$ENV{TASK_ACTION_DIR}/singularity-run.sh";
-    my $singularityContainerFile = "${MDI_DIR}/containers/.../TODO_NEED_CONTAINER_HERE.sif";
-    if(!isDryRun){
-        open my $outH, ">", $singularityRunScript or throwError("could not open:\n    $singularityRunScript\n$!");
-        print $outH $singularityRunCommand;
-        close $outH;
-        # TODO: download the sif container file
-    }
-
-    # return the command to run the job inside the singularity container
-    "singularity run --bind $ENV{TASK_DIR} $singularityContainerFile $singularityRunScript"
 }
 
 1;

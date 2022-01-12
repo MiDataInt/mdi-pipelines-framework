@@ -75,13 +75,21 @@ sub reportAssembledConfig {
     
     # print the dependencies
     $report .= $indent."conda:\n";
-    my $condaPathSuffix = $showMissingConda ? (-d $$condaPaths{dir} ? "" : "*** NOT CREATED YET ***") : "";
+    my $condaPathSuffix = $showMissingConda ? (-d $$condaPaths{dir} ? "" : "*** NOT PRESENT LOCALLY ***") : "";
     $report .= "$indent$indent"."prefix: $$condaPaths{dir} $condaPathSuffix\n";
     foreach my $key(qw(channels dependencies)){
+        ($conda{$key} and ref($conda{$key}) eq 'ARRAY' and @{$conda{$key}}) or next;
         $report .= "$indent$indent$key:\n";
         $report .= join("\n", map { "$indent$indent$indent- $_" } @{$conda{$key}})."\n";
     } 
-    
+
+    # print container metadata
+    if($$config{container} and $$config{container}{supported} and $$config{container}{supported}[0]){
+        my $uris = getContainerUris();  
+        $report .= $indent."singularity:\n";
+        $report .= "$indent$indent"."image: $$uris{container}\n";
+    }
+
     # finish up
     $report .= "...\n";
     {taskOptions => \@taskOptions, report => $report};

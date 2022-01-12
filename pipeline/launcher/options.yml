@@ -37,39 +37,34 @@ optionFamilies:
                 required: false
                 default: latest
                 description: "the version to use of the tool suite that provides the requested pipeline"
-    singularity:
+    resources: # always required, even when running pipeline as a simple inline command
         order: 102
         universal: true
         template: true
-        options:
-            container:
+        options:  
+            runtime:
                 order: 1
-                short: c
-                type: boolean
+                short: m
+                type: string
                 required: false
-                default: false
-                description: "when set, the pipeline will run within a Singularity container when available"
-    resources: # always required, even when running pipeline as a simple inline command
-        order: 103
-        universal: true
-        template: true
-        options:      
+                default: auto
+                description: "execution environment: one of direct, container or auto (container if supported)"
             n-cpu:
-                order: 1
+                order: 2
                 short: p
                 type: integer
                 required: false
                 default: 1
                 description: "number of CPUs used for parallel processing"
             ram-per-cpu:
-                order: 2
+                order: 3
                 short: r
                 type: string
                 required: false
                 default: 4G
                 description: "RAM allocated per CPU (e.g., 500M, 4G)"
             tmp-dir:
-                order: 3
+                order: 4
                 short: t
                 type: string
                 required: false
@@ -78,7 +73,7 @@ optionFamilies:
                     must-exist: false # cluster node may have tmp directories not present on login host
                 description: "directory used for small temporary files (recommend SSD)"
             tmp-dir-large:
-                order: 4
+                order: 5
                 short: T
                 type: string
                 required: false
@@ -87,7 +82,7 @@ optionFamilies:
                     must-exist: false # cluster node may have tmp directories not present on login host
                 description: "directory used for large temporary files (generally >10GB)"
     job-manager: # only required when queuing jobs with jobManager (in contrast to family 'resources')
-        order: 104
+        order: 103
         universal: true
         options:
             email:
@@ -119,7 +114,7 @@ optionFamilies:
                 default: standard
                 description: "slurm --partition (standard, gpu, largemem, viz, standard-oc)" 
     workflow:
-        order: 105
+        order: 104
         universal: true
         options:
             task-id:
@@ -152,7 +147,7 @@ optionFamilies:
                 default: false
                 description: "suppress the configuration feedback in the output log stream"  
     help: 
-        order: 106
+        order: 105
         universal: true
         options:
             help:

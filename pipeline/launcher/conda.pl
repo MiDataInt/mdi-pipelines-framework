@@ -113,6 +113,7 @@ sub getCondaPaths {
     
     # return our conda details
     {
+        baseDir => $baseDir,
         dir  => $envDir,
         initFile => $initFile,
         showFile => $showFile,
@@ -202,6 +203,7 @@ sub createCondaEnvironment {
     open my $outH, ">", $$cnd{initFile} or throwError("could not open:\n    $$cnd{initFile}\n$!");
     print $outH "---\n"; # do NOT put name or prefix in file (should work, but doesn't)
     foreach my $key(qw(channels dependencies)){
+        ($conda{$key} and ref($conda{$key}) eq 'ARRAY' and @{$conda{$key}}) or next;
         print $outH "$key:\n";
         print $outH join("\n", map { "$indent- $_" } @{$conda{$key}})."\n";
     }

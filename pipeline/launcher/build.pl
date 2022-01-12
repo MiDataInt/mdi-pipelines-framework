@@ -3,11 +3,14 @@ use warnings;
 
 # subs for building and posting a Singularity container image of a pipeline
 
+# https://docs.github.com/en/packages/working-with-a-github-packages-registry/working-with-the-container-registry
+# https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/creating-a-personal-access-token
+
 use vars qw($launcherDir $config %workingSuiteVersions
             $pipelineSuite $pipelineName $pipelineDir $pipelineSuiteDir);
 
 sub buildSingularity {
-    my ($sandbox) = @_;
+    my ($sandbox, $force) = @_;
     my $suiteVersion = $workingSuiteVersions{$pipelineSuiteDir};
 
     # get permission to create and post the Singularity image
@@ -24,20 +27,7 @@ sub buildSingularity {
     # parse the pipeline version to build
     # container labels only use major and minor versions; patches must not change software dependencies
     # we do NOT use suite versions to label containers as suite versions might change even when this pipeline hasn't   
-    my $config = loadYamlFile("$pipelineDir/pipeline.yml"); # obtain pipeline version from suite-version-adjusted tool suite
-    my $pipelineVersion = $$config{pipeline}{version};
-    $pipelineVersion or throwError( # abort if no version found; it is required to build containers
-        "missing pipeline version designation in configuration file:\n".
-        "    $pipelineDir/pipeline.yml"
-    );
-    $$pipelineVersion[0] =~ m/v(\d+)\.(\d+)\.(\d+)/ or 
-    $$pipelineVersion[0] =~ m/v(\d+)\.(\d+)/ or throwError(
-        "malformed pipeline version designation in configuration file:\n".
-        "    $$pipelineVersion[0]\n".
-        "    $pipelineDir/pipeline.yml\n".
-        "expected format: v0.0[.0]"
-    );
-    $pipelineVersion = "v$1.$2"; 
+    my $pipelineVersion = getPipelineMajorMinorVersion();
 
     # concatenate the complete Singularity container definition file
     my $pipelineDef = slurpContainerDef("$pipelineDir/singularity.def");
@@ -68,7 +58,7 @@ sub buildSingularity {
 
     # set container directory and file paths
     my $containerDir = "$ENV{MDI_DIR}/containers";
-    mkdir $containerDir; # make_path not necessarily available in container
+    mkdir $containerDir; 
     $containerDir = "$containerDir/$pipelineSuite";
     mkdir $containerDir;
     $containerDir = "$containerDir/$pipelineName";
@@ -78,18 +68,32 @@ sub buildSingularity {
     my $imageFile   = "$imagePrefix.sif";
 
     # run singularity build
-    open my $outH, ">", $defFile or die "$!\n";
-    print $outH $containerDef;
-    close $outH;
-    system("cd $ENV{MDI_DIR}; singularity build --fakeroot $sandbox $imageFile $defFile");
+    if(! -e $imageFile or $force){
+        open my $outH, ">", $defFile or die "$!\n";
+        print $outH $containerDef;
+        close $outH;
+        print "\nbuilding Singularity container image:\n    $imageFile\nfrom:\n    $defFile\n\n";    
+        system("cd $ENV{MDI_DIR}; singularity build --fakeroot $sandbox $force $imageFile $defFile") and throwError(
+            "container build failed"
+        );        
+    } else {
+        print "\nSingularity container image already exists:\n    $imageFile\nuse option --force to re-build it\n";
+    }
 
     # push container to registry
-
-# ubuntu@ip-172-31-35-15:~$ TOKEN=xxxxx
-# ubuntu@ip-172-31-35-15:~$ echo $TOKEN | singularity remote login --username xxxxx --password-stdin oras://ghcr.io
-# singularity push test-v0.3.sif oras://ghcr.io/xxxxx/suite/pipeline:0.3
-# https://docs.github.com/en/packages/working-with-a-github-packages-registry/working-with-the-container-registry
-# https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/creating-a-personal-access-token
+    my $uris = getContainerUris($pipelineVersion);  
+    print "\npushing Singularity container image:\n    $imageFile\nto:\n    $$uris{container}\n\n";
+    my $isLoggedIn = qx/singularity remote list | grep '^$$uris{registry}'/; # singularity remote status does not work unless add is used
+    chomp $isLoggedIn;
+    if(!$isLoggedIn){
+        print "Please log in: $$uris{owner}\@$$uris{registry}:\n";
+        system("cd $ENV{MDI_DIR}; singularity remote login --username $$uris{owner} $$uris{registry}") and throwError(
+            "registry login failed"
+        );
+    }      
+    system("cd $ENV{MDI_DIR}; singularity push $imageFile $$uris{container}") and throwError(
+        "container push failed"
+    );
 }
 
 # slurp the contents of a container definition file
@@ -104,6 +108,25 @@ sub pipelineSupportsContainers {
     $$config{container} and 
     $$config{container}{supported} and 
     $$config{container}{supported}[0]
+}
+
+# construct the URI to push/pull a pipeline container to/from a registry server
+sub getContainerUris { # pipelineSupportsContainers(), i.e.,  $$config{container}{supported}, must already have been checked
+    my ($pipelineVersion) = @_;
+    $pipelineVersion or $pipelineVersion = getPipelineMajorMinorVersion();
+    my $cfg = $$config{container};
+    my $registry = $$cfg{registry} ? $$cfg{registry}[0] : 'ghcr.io'; # default to MDI standard of GitHub Container Registry
+    my $owner = $$cfg{owner} ? $$cfg{owner}[0] : '';
+    $owner or throwError(
+        "missing owner for container registry $registry\n".
+        "expected tag 'container: owner' in pipeline.yml"
+    );  
+    {
+        registry  => "oras://$registry",
+        owner     => $owner,
+        container => "oras://$registry/$owner/$pipelineSuite/$pipelineName:$pipelineVersion",
+        imageFile => "$ENV{MDI_DIR}/containers/$pipelineSuite/$pipelineName/$pipelineName-$pipelineVersion.sif"
+    }
 }
 
 1;

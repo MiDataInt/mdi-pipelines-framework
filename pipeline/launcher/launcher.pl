@@ -10,12 +10,8 @@ our %Forks = (definitive => "definitive", developer => "developer-forks");
 our $mdiDir = $ENV{MDI_DIR}; # the installation from which the pipeline was launched
 our $suitesDir = "$mdiDir/suites/$Forks{definitive}"; # for external suites, which never come from developer forks
 our $launcherDir    = "$ENV{FRAMEWORK_DIR}/pipeline/launcher";
-$ENV{LAUNCHER_DIR} = $launcherDir; # framework directories are _not_ copied into TASK_DIR
 our $workFlowDir    = "$ENV{FRAMEWORK_DIR}/pipeline/workflow";
-$ENV{WORKFLOW_DIR} = $workFlowDir;
 our $workflowScript = "$workFlowDir/workflow.sh";
-$ENV{WORKFLOW_SH}  = $workflowScript;
-$ENV{SLURP} = "$ENV{FRAMEWORK_DIR}/shell/slurp";
 
 # collect the requested pipeline, action, data.yml, and option arguments
 our ($pipelineName, $target, @args) = @ARGV;

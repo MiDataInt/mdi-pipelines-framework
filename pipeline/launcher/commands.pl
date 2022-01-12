@@ -282,10 +282,12 @@ sub runBuild {
     # NOTE: as always, --version was already handled by launcher.pl: setPipelineSuiteVersion()
     my $help    = "help";
     my $version = "version";
+    my $force   = "force";
     my $sandbox = "sandbox";
     my %options;   
     $args[0] or $args[0] = ""; 
     ($args[0] eq '-h' or $args[0] eq "--$help")    and $options{$help}    = 1;
+    ($args[0] eq '-f' or $args[0] eq "--$force")   and $options{$force}   = 1;
     ($args[0] eq '-s' or $args[0] eq "--$sandbox") and $options{$sandbox} = 1;        
                 
     # if requested, show custom action help
@@ -296,14 +298,15 @@ sub runBuild {
         $usage .= "\n$pname build: $desc\n";
         $usage .=  "\nusage: mdi $pname build [options]\n";  
         $usage .=  "\n    -h/--$help     show this help";    
-        $usage .=  "\n    -v/--$version  the suite version to build from, as a git release tag or branch [latest]";    
+        $usage .=  "\n    -v/--$version  the suite version to build from, as a git release tag or branch [latest]";
+        $usage .=  "\n    -f/--$force    overwrite existing container images";  
         $usage .=  "\n    -s/--$sandbox  run singularity with the --sandbox option set"; 
         print "$usage\n\n";
         exit;
     }
     
     # call Singularity build action
-    buildSingularity($options{$sandbox} ? "--sandbox" : "");
+    buildSingularity($options{$sandbox} ? "--sandbox" : "", $options{$force} ? "--force" : "");
     exit;
 }
 

@@ -64,7 +64,7 @@ function resetWorkflowStatus { # override any prior job outcomes and force a new
 function showWorkflowStatus {
     setStatusFile
     STATUS_LINE_LENGTH=`cat $STATUS_FILE | wc -l`
-    if [[ "$STATUS_LINE_LENGTH" -gt "0" && "$QUIET" = "" ]]; then
+    if [[ "$STATUS_LINE_LENGTH" -gt "0" && "$QUIET" = "0" ]]; then
         echo -e "ACTION\tSTEP#\tSTEP\tDATE"
         cat $STATUS_FILE
         echo

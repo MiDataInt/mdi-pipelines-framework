@@ -5,7 +5,7 @@ use warnings;
 # through calls to git tag and git checkout
 
 # working variables
-use vars qw($target @args $pipelineDir $pipelineSuite $pipelineSuiteDir);
+use vars qw($target @args $config $pipelineDir $pipelineSuite $pipelineSuiteDir);
 my $silently = "> /dev/null 2>&1"; # bash suffix to suppress git messages
 my $main       = 'main';
 my $latest     = "latest";
@@ -98,6 +98,23 @@ sub setSuiteVersion {
             "expected v#.#.#, a tag or branch, pre-release or latest (the default)"
         );        
     }
+}
+
+# get the version of a pipeline (not its suite) suitable for container tagging
+sub getPipelineMajorMinorVersion {
+    my $pipelineVersion = $$config{pipeline}{version};
+    $pipelineVersion or throwError( # abort if no version found; it is required to build containers
+        "missing pipeline version designation in configuration file:\n".
+        "    $pipelineDir/pipeline.yml"
+    );
+    $$pipelineVersion[0] =~ m/v(\d+)\.(\d+)\.(\d+)/ or 
+    $$pipelineVersion[0] =~ m/v(\d+)\.(\d+)/ or throwError(
+        "malformed pipeline version designation in configuration file:\n".
+        "    $$pipelineVersion[0]\n".
+        "    $pipelineDir/pipeline.yml\n".
+        "expected format: v0.0[.0]"
+    );
+    "v$1.$2"; 
 }
 
 1;
