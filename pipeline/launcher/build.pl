@@ -160,4 +160,33 @@ sub checkForSingularity { # return TRUE if a proper singularity exists in system
     $version =~ m/^singularity.+version.+/; # may fail if not a true singularity target (e.g., on greatlakes)
 }
 
+# pull a previously built container
+sub pullPipelineContainer {
+    my ($uris, $singularity) = @_;
+
+    # do nothing if image was previously downloaded
+    $uris or $uris = getContainerUris();
+    -f $$uris{imageFile} and return;
+
+    # get permission  
+    getPermission(
+        "\n$pipelineName wishes to download its Singularity container image:\n".
+        "    $$uris{imageFile}\n".
+        "from:\n".
+        "    $$uris{container}"
+    ) or releaseMdiGitLock(1);  
+
+    # learn how to use singularity
+    if(!$singularity){
+        my $singularityLoad = getSingularityLoadCommand();
+        $singularity = "$singularityLoad; cd $ENV{MDI_DIR}; singularity";        
+    }      
+
+    # pull the image
+    print "pulling required container image...\n"; 
+    system("$singularity pull $$uris{imageFile} $$uris{container}") and throwError(
+        "container pull failed"
+    );
+}
+
 1;

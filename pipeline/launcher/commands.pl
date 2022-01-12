@@ -12,14 +12,19 @@ use vars qw($pipeline $pipelineName $launcherDir $mdiDir
 sub doRestrictedCommand {
     my ($target) = @_;
     my %restricted = (
+
+        # commands advertised to users
         template => \&runTemplate,
         conda    => \&runConda,
+        build    => \&runBuild,        
         status   => \&runStatus,
         rollback => \&runRollback,
-        options  => \&runOptions, 
-        optionsTable => \&runOptionsTable,
-        valuesYaml  => \&runValuesYaml,
-        build    => \&runBuild
+
+        # commands for developers or MDI-internal use
+        options         => \&runOptions, 
+        optionsTable    => \&runOptionsTable,
+        valuesYaml      => \&runValuesYaml,
+        checkContainer  => \&checkContainer
     );
     $restricted{$target} and &{$restricted{$target}}();
 }
@@ -103,6 +108,43 @@ sub runConda {
     # list or create conda environments in action order
     @args = @newArgs;
     showCreateCondaEnvironments($options{$create}, $options{$force}, $options{$noMamba});
+    releaseMdiGitLock(0);
+}
+
+#------------------------------------------------------------------------------
+# build a Singularity image and post to a registry (for suite developers)
+#------------------------------------------------------------------------------
+sub runBuild { 
+
+    # command has limited options, collect them now
+    # NOTE: as always, --version was already handled by launcher.pl: setPipelineSuiteVersion()
+    my $help    = "help";
+    my $version = "version";
+    my $force   = "force";
+    my $sandbox = "sandbox";
+    my %options;   
+    $args[0] or $args[0] = ""; 
+    ($args[0] eq '-h' or $args[0] eq "--$help")    and $options{$help}    = 1;
+    ($args[0] eq '-f' or $args[0] eq "--$force")   and $options{$force}   = 1;
+    ($args[0] eq '-s' or $args[0] eq "--$sandbox") and $options{$sandbox} = 1;        
+                
+    # if requested, show custom action help
+    my $pname = $$config{pipeline}{name}[0];
+    if($options{$help}){
+        my $usage;
+        my $desc = getTemplateValue($$config{actions}{build}{description});
+        $usage .= "\n$pname build: $desc\n";
+        $usage .=  "\nusage: mdi $pname build [options]\n";  
+        $usage .=  "\n    -h/--$help     show this help";    
+        $usage .=  "\n    -v/--$version  the suite version to build from, as a git release tag or branch [latest]";
+        $usage .=  "\n    -f/--$force    overwrite existing container images";  
+        $usage .=  "\n    -s/--$sandbox  run singularity with the --sandbox option set"; 
+        print "$usage\n\n";
+        releaseMdiGitLock(0);
+    }
+    
+    # call Singularity build action
+    buildSingularity($options{$sandbox} ? "--sandbox" : "", $options{$force} ? "--force" : "");
     releaseMdiGitLock(0);
 }
 
@@ -275,39 +317,12 @@ sub runValuesYaml { # takes no arguments
 }
 
 #------------------------------------------------------------------------------
-# build a Singularity image and post to a registry (for suite developers)
+# pre-pull a pipeline container for asynchronous, queued jobs to use (used by jobManager)
 #------------------------------------------------------------------------------
-sub runBuild { 
-
-    # command has limited options, collect them now
-    # NOTE: as always, --version was already handled by launcher.pl: setPipelineSuiteVersion()
-    my $help    = "help";
-    my $version = "version";
-    my $force   = "force";
-    my $sandbox = "sandbox";
-    my %options;   
-    $args[0] or $args[0] = ""; 
-    ($args[0] eq '-h' or $args[0] eq "--$help")    and $options{$help}    = 1;
-    ($args[0] eq '-f' or $args[0] eq "--$force")   and $options{$force}   = 1;
-    ($args[0] eq '-s' or $args[0] eq "--$sandbox") and $options{$sandbox} = 1;        
-                
-    # if requested, show custom action help
-    my $pname = $$config{pipeline}{name}[0];
-    if($options{$help}){
-        my $usage;
-        my $desc = getTemplateValue($$config{actions}{build}{description});
-        $usage .= "\n$pname build: $desc\n";
-        $usage .=  "\nusage: mdi $pname build [options]\n";  
-        $usage .=  "\n    -h/--$help     show this help";    
-        $usage .=  "\n    -v/--$version  the suite version to build from, as a git release tag or branch [latest]";
-        $usage .=  "\n    -f/--$force    overwrite existing container images";  
-        $usage .=  "\n    -s/--$sandbox  run singularity with the --sandbox option set"; 
-        print "$usage\n\n";
-        releaseMdiGitLock(0);
-    }
-    
-    # call Singularity build action
-    buildSingularity($options{$sandbox} ? "--sandbox" : "", $options{$force} ? "--force" : "");
+sub checkContainer {
+    # command has no options: mdi pipeline checkContainer <data.yml>
+    # is silent unless needs to prompt for download
+    pullPipelineContainer();
     releaseMdiGitLock(0);
 }
 

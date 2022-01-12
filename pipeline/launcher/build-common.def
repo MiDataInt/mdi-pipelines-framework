@@ -64,6 +64,7 @@
     export WORKFLOW_SH=${WORKFLOW_DIR}/workflow.sh
     export SLURP=${FRAMEWORK_DIR}/shell/slurp   
     export RESOURCES_DIR=${MDI_DIR}/resources
+    export LC_ALL=C
 
 # scriplet called by execute.pl to launch the pipeline; it takes no arguments
 %runscript
