@@ -1,11 +1,12 @@
 use strict;
 use warnings;
+use Time::HiRes qw(usleep);
 
 # subs for controlling the working version of pipeline suites
 # through calls to git tag and git checkout
 
 # working variables
-use vars qw($target @args $pipelineDir $pipelineSuite $pipelineSuiteDir);
+use vars qw($target @args $config $pipelineDir $pipelineSuite $pipelineSuiteDir);
 my $silently = "> /dev/null 2>&1"; # bash suffix to suppress git messages
 my $main       = 'main';
 my $latest     = "latest";
@@ -48,7 +49,7 @@ sub getJobFileVersionRequest {
     $ymlFile or return;
     my $yaml = loadYamlFile($ymlFile, undef, undef, undef, 1);
     $$yaml{pipeline} or throwError("malformed data.yml: missing pipeline declaration\n    $ymlFile\n");
-    $$yaml{pipeline}[0] =~ m/.+=(.+)/ or return; # format \[pipelineSuite/\]pipelineName\[=suiteVersion\]
+    $$yaml{pipeline}[0] =~ m/.+:(.+)/ or return; # format \[pipelineSuite/\]pipelineName\[:suiteVersion\]
     $1;
 }
 
@@ -62,7 +63,7 @@ sub convertSuiteVersion {
     } elsif($versionDirectives{$version}) {
         $version = $versionDirectives{$version};
     } # else request is a branch or non-semvar tag name (so could be ~anything) 
-    $version =~ m/^\d+\.\d+\.\d+$/ and $version = "v$version"; # help user out if they specific 0.0.0 instead of v0.0.0
+    $version =~ m/^\d+\.\d+\.\d+$/ and $version = "v$version"; # help user out if they specified 0.0.0 instead of v0.0.0
     $workingSuiteVersions{$suiteDir} = $version;
     $version; 
 }
@@ -89,11 +90,32 @@ sub getSuiteLatestVersion {
 # use git to check out the proper version of a pipelines suite
 sub setSuiteVersion {
     my ($suiteDir, $version, $suite) = @_; # version might be a branch name or any valid tag
-    system("cd $suiteDir; git checkout $version $silently") and 
+    my $gitCommand = "cd $suiteDir; git checkout $version"; # normally, we don't need to report git comments to user
+    if(system("$gitCommand $silently")){
+        print "\n";
+        system($gitCommand); # repeat non-silently so user can see exactly what error git is reporting
         throwError(
-            "unknown version directive for suite $suite: '$version'\n".
+            "unknown or unusable version directive for suite $suite: '$version'\n".
             "expected v#.#.#, a tag or branch, pre-release or latest (the default)"
-        );
+        );        
+    }
+}
+
+# get the version of a pipeline (not its suite) suitable for container tagging
+sub getPipelineMajorMinorVersion {
+    my $pipelineVersion = $$config{pipeline}{version};
+    $pipelineVersion or throwError( # abort if no version found; it is required to build containers
+        "missing pipeline version designation in configuration file:\n".
+        "    $pipelineDir/pipeline.yml"
+    );
+    $$pipelineVersion[0] =~ m/v(\d+)\.(\d+)\.(\d+)/ or 
+    $$pipelineVersion[0] =~ m/v(\d+)\.(\d+)/ or throwError(
+        "malformed pipeline version designation in configuration file:\n".
+        "    $$pipelineVersion[0]\n".
+        "    $pipelineDir/pipeline.yml\n".
+        "expected format: v0.0[.0]"
+    );
+    "v$1.$2"; 
 }
 
 1;

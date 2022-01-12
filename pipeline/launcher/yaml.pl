@@ -219,14 +219,14 @@ sub mergeYAML {
 
 # print YAML hash to a bare bones .yml file
 sub printYAML {
-    my ($yaml, $ymlFile, $comment, $stdout) = @_;
+    my ($yaml, $ymlFile, $comment, $stdout, @primaryKeys) = @_;
     our $outH;
     if($stdout){
         $outH = *STDOUT;
     } else {
         open $outH, ">", $ymlFile or throwError("could not open for writing:\n    $ymlFile\n$!");
     }
-    sub printYAML_ {
+    sub printYAML_ { # recursively write the revised lines
         my ($x, $indentLevel) = @_;
         my $indent = " " x ($indentLevel * 4);
         if (ref($x) eq "HASH") {
@@ -246,7 +246,15 @@ sub printYAML {
     $comment or $comment = "";
     print $outH "\n", $comment, "\n";
     print $outH "\n---";
-    printYAML_($yaml, 0); # recursively write the revised lines
+    if(@primaryKeys){ # allow caller to force the order of the primary yaml keys
+        foreach my $key(@primaryKeys){ 
+            $$yaml{$key} or next;
+            print $outH "\n$key:";
+            printYAML_($$yaml{$key}, 1); 
+        }
+    } else {
+        printYAML_($yaml, 0);
+    }
     print $outH "\n\n";
     close $outH;
 }

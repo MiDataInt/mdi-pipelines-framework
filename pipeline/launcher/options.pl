@@ -7,7 +7,7 @@ use File::Spec;
 
 # working variables
 use vars qw($mdiDir $pipeline
-            $config $isSingleAction @args
+            $config $isSingleAction $target @args
             @universalOptionFamilies %allOptionFamilies
             %longOptions %shortOptions %optionArrays
             $helpAction $helpCmd
@@ -18,12 +18,14 @@ our (%nTasks);
 # preliminary read of command line arguments to pull any pipeline-level version request
 #------------------------------------------------------------------------------
 sub getCommandLineVersionRequest {
-    @args or return;  
-    foreach my $i(0..$#args){
-        $args[$i] eq '-v' or $args[$i] eq '--version' or next;
-        my $version = $args[$i + 1];
+    $target or return; # ensure that we also handle blind calls to a pipeline, i.e., mdi <pipeline> --version xxx
+    my @ARGS = ($target, @args);
+    foreach my $i(0..$#ARGS){
+        $ARGS[$i] eq '-v' or $ARGS[$i] eq '--version' or next;
+        my $version = $ARGS[$i + 1];
         $version or throwError("command line error: missing value for option --version");
-        splice(@args, $i, 2); # prevent --version from being read as an action option later on
+        splice(@ARGS, $i, 2); # prevent --version from being read as an action option later on
+        ($target, @args) = @ARGS;
         return $version;
     }
     undef;
@@ -201,10 +203,11 @@ sub loadOptionsConfigFile {
     if (defined $$yaml{pipeline}) { # server level config files do not declare a single pipeline; others should
         my $yamlPipeline = ref($$yaml{pipeline}) eq 'HASH' ? $$yaml{pipeline}{name}[0] : $$yaml{pipeline}[0];
         $yamlPipeline or $yamlPipeline = '';
-        if($yamlPipeline =~ m|/|){
+        if($yamlPipeline =~ m|/|){ # strip suite name prefix
             my @x = split('/', $yamlPipeline);
             $yamlPipeline = $x[$#x];
         }
+        $yamlPipeline =~ m/(.+):/ and $yamlPipeline = $1; # strip :version suffix
         $yamlPipeline eq $$config{pipeline}{name}[0] or
             throwError("$configFile is not a configuration file for pipeline '$$config{pipeline}{name}[0]'");
     }

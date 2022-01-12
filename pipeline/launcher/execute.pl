@@ -7,7 +7,8 @@ use File::Path qw(make_path);
 # working variables
 use vars qw($pipelineName $pipelineSuite $pipelineDir $modulesDir
             @args $config $isSingleAction
-            %longOptions %optionArrays $workflowScript $isNTasks
+            %longOptions %optionArrays $isNTasks
+            $launcherDir $workFlowDir $workflowScript
             $suitesDir %workingSuiteVersions);
 
 # parse the options and construct a call to a single pipeline action
@@ -53,9 +54,9 @@ sub executeAction {
     my $isDryRun = $$assembled{taskOptions}[0]{'dry-run'};
     foreach my $i(@workingTaskIs){    
         my ($taskId, $taskReport) = processActionTask($assembled, $i, $requestedTaskId, @workingTaskIds);
-        manageTaskEnvironment($action, $cmd, $isDryRun, $assembled, $taskReport);
-        copyTaskCodeSuites();
-        executeTaskBash($action, $isDryRun, $isSingleTask, $assembled, $taskId, $conda);
+        manageTaskEnvironment($action, $cmd, $isDryRun, $assembled, $taskReport, $conda);
+        copyTaskCodeSuites($isDryRun);
+        $isDryRun or executeTask($action, $isSingleTask, $taskId, $conda);
     } 
 }
 sub getCmdHash {                # the name of this function, 'cmd', and the varnames it populates
@@ -63,7 +64,7 @@ sub getCmdHash {                # the name of this function, 'cmd', and the varn
     $$config{actions}{$name};
 } 
 
-# parse the options and construct a call to a single pipeline task
+# parse the options and prepare to execute a single pipeline task
 # a task is a pipeline action applied to a given data set, with a single output folder
 sub processActionTask {
     my ($assembled, $i, $requestedTaskId, @workingTaskIds) = @_;
@@ -94,7 +95,24 @@ sub processActionTask {
     ($taskId, \$taskReport);
 }
 sub manageTaskEnvironment { # set all task environment variables (listed in tool suite pipeline README.md)
-    my ($action, $cmd, $isDryRun, $assembled, $taskReport) = @_;
+    my ($action, $cmd, $isDryRun, $assembled, $taskReport, $conda) = @_;
+
+    # note: some environment variables are overridden for containers in build-common.def
+
+    # check the validity/necessity of a container to run the task
+    my $hasContainers = pipelineSupportsContainers();
+    $ENV{RUNTIME} eq 'auto' and $ENV{RUNTIME} = $hasContainers ? 'container' : 'direct';
+    $ENV{IS_CONTAINER} = ($ENV{RUNTIME} eq 'container');    
+    $ENV{IS_CONTAINER} and !$hasContainers and throwError(
+        "pipeline '$pipelineName' does not support containers\n".
+        "please omit set option --runtime to 'direct' or 'auto'"
+    );
+
+    # set up conda activate
+    $ENV{CONDA_LOAD_COMMAND}   = $$conda{loadCommand};
+    $ENV{CONDA_PROFILE_SCRIPT} = $$conda{profileScript};  
+    $ENV{ENVIRONMENTS_DIR}     = $$conda{baseDir};      
+    $ENV{CONDA_NAME}           = $$conda{name};
 
     # parse and create derivative paths and prefixes for this task
     $ENV{TASK_DIR}          = "$ENV{OUTPUT_DIR}/$ENV{DATA_NAME}"; # guaranteed unique per task by validateOptionArrays
@@ -131,12 +149,20 @@ sub manageTaskEnvironment { # set all task environment variables (listed in tool
     $ENV{SN_DRY_RUN}  = $ENV{SN_DRY_RUN}  ? '--dry-run'  : "";
     $ENV{SN_FORCEALL} = $ENV{SN_FORCEALL} ? '--forceall' : "";
 
-    # parse our script target
+    # parse our script target and the framework scripts that help it run
     $ENV{ACTION_DIR}    = $$cmd{module} ? "$ENV{MODULES_DIR}/$$cmd{module}[0]" : "$ENV{PIPELINE_DIR}/$action";
     $ENV{ACTION_SCRIPT} = $$cmd{script} || "Workflow.sh";
     $ENV{ACTION_SCRIPT} = "$ENV{ACTION_DIR}/$ENV{ACTION_SCRIPT}";
     $ENV{SCRIPT_DIR}    = "$ENV{ACTION_DIR}"; # set some legacy aliases  
     $ENV{SCRIPT_TARGET} = "$ENV{ACTION_SCRIPT}"; 
+    $ENV{LAUNCHER_DIR}  = $launcherDir; # framework directories are _not_ copied into TASK_DIR
+    $ENV{WORKFLOW_DIR}  = $workFlowDir;
+    $ENV{WORKFLOW_SH}   = $workflowScript;
+    $ENV{SLURP} = "$ENV{FRAMEWORK_DIR}/shell/slurp";
+
+    # set up any requested task rollback
+    my $rollback = $$assembled{taskOptions}[0]{rollback};
+    $ENV{LAST_SUCCESSFUL_STEP} = $rollback eq "null" ? "" : $rollback;
 
     # add any pipeline-specific environment variables as last step
     # thus can use any standard pipeline variables to construct new, pipeline-specific ones
@@ -144,64 +170,64 @@ sub manageTaskEnvironment { # set all task environment variables (listed in tool
     -f $pipelineScript and require $pipelineScript;     
 }
 sub copyTaskCodeSuites { # create a permanent, fixed working copy of all tool suite code required by this task
+    my ($isDryRun) = @_;
     sub copyCodeDir {
-        my ($srcDir, $destDir) = @_;
+        my ($srcDir, $destDir, $isDryRun) = @_;
+        -d $srcDir or throwError("does not exist or is not a directory: \n    $srcDir");
+        $isDryRun and return;
         make_path($destDir);
-        system("cp -fr $srcDir/* $destDir") and die "suite code copy failed: $!\n    $srcDir\n    $destDir\n";
+        system("cp -fr $srcDir/* $destDir") and throwError("suite code copy failed: $!\n    $srcDir\n    $destDir");
     }
     foreach my $suiteDir(keys %workingSuiteVersions){
         my @parts = split("/", $suiteDir); 
         my $suiteName = $parts[$#parts];
         if($suiteName eq $pipelineSuite){ # this pipeline's suite copies the pipeline itself (all actions) and all shared modules
-            copyCodeDir($pipelineDir, $ENV{PIPELINE_DIR});
-            copyCodeDir($modulesDir,  $ENV{MODULES_DIR});
+            copyCodeDir($pipelineDir, $ENV{PIPELINE_DIR}, $isDryRun);
+            copyCodeDir($modulesDir,  $ENV{MODULES_DIR}, $isDryRun);
         } else { # external modules always come from definitive code suites
             my $modulesPath = "$suiteName/shared/modules";
             my $modulesDirSrc  = "$suitesDir/$modulesPath";
             my $modulesDirDest = "$ENV{SUITES_DIR}/$modulesPath";
-            copyCodeDir($modulesDirSrc,  $ENV{modulesDirDest});
+            copyCodeDir($modulesDirSrc,  $ENV{modulesDirDest}, $isDryRun);
         }
     }
-    -e $ENV{ACTION_SCRIPT} or throwError("pipeline configuration error\n". # from a pipeline action or shared module folder
-                                         "missing script target:\n    $ENV{ACTION_SCRIPT}"); 
+    $isDryRun or -e $ENV{ACTION_SCRIPT} or throwError(
+        "pipeline configuration error\n". # from a pipeline action or shared module folder
+        "missing script target:\n    $ENV{ACTION_SCRIPT}"
+    ); 
 }
-sub executeTaskBash {
-    my ($action, $isDryRun, $isSingleTask, $assembled, $taskId, $conda) = @_;
 
-    # parse our bash command that sets up the conda evironment
-    my $rollback = $$assembled{taskOptions}[0]{rollback};
-    $rollback = $rollback eq 'null' ? "" :
-"echo
-echo \"rolling back to pipeline step $rollback\"
-echo
-export LAST_SUCCESSFUL_STEP=$rollback
-resetWorkflowStatus";
-    my $bash =
-"bash -c '
-$$conda{loadCommand}
-source $$conda{profileScript}
-conda activate $$conda{dir}
-source $workflowScript
-$rollback
-showWorkflowStatus
-source $ENV{ACTION_SCRIPT}
-perl $ENV{WORKFLOW_DIR}/package.pl
-'";
+# finally, execute the task ...
+sub executeTask {
+    my ($action, $isSingleTask, $taskId, $conda) = @_;
+
+    # validate the containter or conda environment based on runtime mode
+    my $execCommand = "cd $ENV{TASK_DIR}; ";
+    if($ENV{IS_CONTAINER}){
+        my $uris = getContainerUris();
+        my $singularityLoad = getSingularityLoadCommand();
+        my $singularity = "$singularityLoad; cd $ENV{MDI_DIR}; singularity";
+        pullPipelineContainer($uris, $singularity);
+        $execCommand .= "$singularity run $$uris{imageFile}";
+    } else {
+        -d $$conda{dir} or throwError(
+            "missing conda environment for action '$action'\n".
+            "please run 'mdi $ENV{PIPELINE_NAME} conda --create' before launching the pipeline"
+        );  
+        $execCommand .= "bash $launcherDir/execute.sh";
+    }
+
+    # single actions or tasks replace this process and never return
+    if($isSingleAction and $isSingleTask){
+        releaseMdiGitLock();
+        exec $execCommand;
+    } 
     
-    # do the work
-    if (!$isDryRun) {
-
-        # validate conda environment
-        -d $$conda{dir} or throwError("missing conda environment for action '$action'\n".
-                                      "please run 'mdi $ENV{PIPELINE_NAME} conda --create' before launching the pipeline");
-
-        # single actions or tasks replace this process and never return
-        $isSingleAction and $isSingleTask and exec $bash;
-        
-        # multiple actions or tasks require that we stay alive to run the next one 
-        system($bash) and throwError("action '$action' task #$taskId had non-zero exit status\n".
-                                     "no more actions or tasks will be executed");
-    }   
+    # multiple actions or tasks require that we stay alive to run the next one 
+    system($execCommand) and throwError(
+        "action '$action' task #$taskId had non-zero exit status\n".
+        "no more actions or tasks will be executed"
+    );  
 }
 
 1;

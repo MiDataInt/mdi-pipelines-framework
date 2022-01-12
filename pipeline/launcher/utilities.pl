@@ -22,6 +22,21 @@ sub getPermission {
 }
 
 #------------------------------------------------------------------------------
+# prompt user for input
+#------------------------------------------------------------------------------
+sub getUserInput {
+    my ($message, $required) = @_;
+    print "$message ";
+    my $response = <STDIN>;
+    chomp $response;
+    unless(!$required or $response){
+        print "aborting with no input\n";
+        releaseMdiGitLock(1);
+    }
+    return $response;
+}
+
+#------------------------------------------------------------------------------
 # string conversions
 #------------------------------------------------------------------------------
 sub getIntRam { # convert string to integer RAM
@@ -74,6 +89,14 @@ sub slurpFile {  # read the entire contents of a disk file into memory
     my $contents = <$inH>; 
     close $inH;
     return $contents;
+}
+
+#------------------------------------------------------------------------------
+# remove duplicate elements from an array while preserving order
+#------------------------------------------------------------------------------
+sub uniqueElements { 
+    my %seen; 
+    grep !$seen{$_}++, @_;
 }
 
 1;

@@ -1,0 +1,88 @@
+#------------------------------------------------------------------------------
+# These sections are appended to all assembled singularity.def files,
+# after replacing __VAR_NAME__ with ${VAR_NAME}.
+#------------------------------------------------------------------------------
+# https://sylabs.io/guides/latest/user-guide/definition_files.html
+#------------------------------------------------------------------------------
+
+# copy the pipelines-relevant mdi installation into the container and reset for use
+# MDI_DIR is always /srv/mdi in a pipeline container
+%setup
+    SRV_DIR=/srv
+    MDI_DIR=${SINGULARITY_ROOTFS}${SRV_DIR}/mdi
+    mkdir -p ${MDI_DIR}/environments
+    mkdir -p ${MDI_DIR}/resources
+    cp -r ./config      ${MDI_DIR}/config
+    cp -r ./frameworks  ${MDI_DIR}/frameworks
+    cp -r ./suites      ${MDI_DIR}/suites
+    cp    ./mdi         ${MDI_DIR}/mdi
+    rm -f ${MDI_DIR}/suites/*.lock
+
+# install the software required by supported pipeline actions as conda environments
+%post
+
+    # path variables set by us
+    export SRV_DIR=/srv
+    export MINICONDA_DIR=${SRV_DIR}/miniconda  
+    export PATH=${MINICONDA_DIR}/bin:${PATH}      
+    export MDI_DIR=${SRV_DIR}/mdi 
+
+    # variables set by mdi build
+    SUITE_VERSION=__SUITE_VERSION__
+    PIPELINE_NAME=__PIPELINE_NAME__
+    INSTALLER=__INSTALLER__
+
+    # install git, conda and zip, as used by the MDI
+    if [ "$INSTALLER" = "apt-get" ] || \
+       [ "$INSTALLER" = "yum" ]; then
+        $INSTALLER update && $INSTALLER install -y git wget zip
+    else 
+        echo "unknown installer: $INSTALLER"
+        exit 1
+    fi
+    wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh -O ${SRV_DIR}/miniconda.sh
+    bash ${SRV_DIR}/miniconda.sh -b -p ${MINICONDA_DIR}  
+
+    # creata conda environments of the software required by the pipeline
+    export IS_CONTAINER_BUILD=TRUE
+    ${MDI_DIR}/mdi ${PIPELINE_NAME} conda --create --force --no-mamba --version ${SUITE_VERSION} 
+
+# path overrides include all ways that running pipelines use files from mdi-pipelines-framework
+# https://sylabs.io/guides/latest/user-guide/environment_and_metadata.html#environment-and-metadata
+%environment 
+    export SRV_DIR=/srv
+    export MINICONDA_DIR=${SRV_DIR}/miniconda  
+    export PATH=${MINICONDA_DIR}/bin:${PATH}     
+    export CONDA_LOAD_COMMAND=""
+    export CONDA_PROFILE_SCRIPT=${MINICONDA_DIR}/etc/profile.d/conda.sh
+    export MDI_DIR=${SRV_DIR}/mdi
+    export ENVIRONMENTS_DIR=${MDI_DIR}/environments
+    export FRAMEWORK_DIR=${MDI_DIR}/frameworks/definitive/mdi-pipelines-framework
+    export JOB_MANAGER_DIR=${FRAMEWORK_DIR}/job_manager
+    export LAUNCHER_DIR=${FRAMEWORK_DIR}/pipeline/launcher
+    export WORKFLOW_DIR=${FRAMEWORK_DIR}/pipeline/workflow
+    export WORKFLOW_SH=${WORKFLOW_DIR}/workflow.sh
+    export SLURP=${FRAMEWORK_DIR}/shell/slurp   
+    export RESOURCES_DIR=${MDI_DIR}/resources
+    export LC_ALL=C
+
+# scriplet called by execute.pl to launch the pipeline; it takes no arguments
+%runscript
+    exec bash ${LAUNCHER_DIR}/execute.sh
+
+# labels for the container image, displayed as 'singularity inspect __PIPELINE_NAME__-__PIPELINE_VERSION__.sif'
+%labels
+    Source Michigan Data Interface
+    SuiteName __SUITE_NAME__
+    SuiteVersion __SUITE_VERSION__
+    PipelineName __PIPELINE_NAME__
+    PipelineVersion __PIPELINE_VERSION__
+    ContainerBase __CONTAINER_BASE__
+    ContainerBaseVersion __CONTAINER_BASE_VERSION__
+
+# help text displayed by 'singularity run-help __PIPELINE_NAME__-__PIPELINE_VERSION__.sif'
+%help
+    Source:    Michigan Data Interface
+    Suite:     __SUITE_NAME__:__SUITE_VERSION__
+    Pipeline:  __PIPELINE_NAME__:__PIPELINE_VERSION__
+    Base:      __CONTAINER_BASE__:__CONTAINER_BASE_VERSION__

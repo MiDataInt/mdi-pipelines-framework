@@ -17,9 +17,19 @@ sub loadPipelineConfig {
     
     # load the pipeline-specific and universal configs
     my $launcher = loadYamlFile("$launcherDir/commands.yml", 0, 1);
-    my $pipeline = loadYamlFile("$pipelineDir/pipeline.yml"); # first partial read to obtain suite version declarations
-    $pipelineSuiteVersions = $$pipeline{suiteVersions};
-       $pipeline = loadYamlFile("$pipelineDir/pipeline.yml", 2, 1, 1); # highest priority, allows modules
+    my $pipeline = loadYamlFile("$pipelineDir/pipeline.yml"); # quick read to obtain suite version declarations and merge _global
+    $pipelineSuiteVersions = $$pipeline{suiteVersions};  
+    mergeGlobalFamilies($$pipeline{actions}); # control order of re-assembled yaml to ensure that suiteVersion precedes actions on full load  
+    printYAML($pipeline, \my $pipelineYml, undef, undef, qw(
+        pipeline
+        suiteVersions
+        actions
+        optionFamilies
+        condaFamilies
+        package
+        container
+    ));
+    $pipeline = loadYamlFile(\$pipelineYml, 2, 1, 1); # full read to support modules, etc.
     my @optionFamilies = (loadYamlFile("$launcherDir/options.yml", 1, 1));
     my %loaded = (universal => 1);
 
@@ -38,6 +48,29 @@ sub loadPipelineConfig {
     # merge information into a single, final config file hash
     mergeYAML($launcher, $pipeline, @optionFamilies);  
 }
+sub mergeGlobalFamilies { # support option and conda family sharing between actions
+    my ($actions) = @_;
+    my $global = "_global";
+    $$actions{$global} or return; # no global families, nothing to do
+    if(ref($$actions{$global}) eq "HASH"){ # check for something to do
+        foreach my $familyType(qw(optionFamilies condaFamilies)){ # control what is supported in _global, ignore all other keys
+            my $globalRef = $$actions{$global}{$familyType};
+            (ref($globalRef) eq "ARRAY" and @$globalRef and $$globalRef[0] ne 'null') or next; # make sure family is defined
+            foreach my $action(keys %$actions){ # append _global to every action
+                $action eq $global and next;
+                my $actionRef = $$actions{$action}{$familyType};
+                if(!$actionRef or ref($actionRef) ne "ARRAY" or $$actionRef[0] eq 'null'){ # initialize family for each action if not present in pipeline.yml
+                    $actionRef = [];
+                    $$actions{$action}{$familyType} = $actionRef;
+                }
+                unshift @$actionRef, @$globalRef; # prepend _global to action
+                @$actionRef = uniqueElements(@$actionRef); # remove duplicate elements while preserving order
+                @$actionRef or delete $$actions{$action}{$familyType};
+            }
+        }
+    }
+    delete $$actions{$global}; # all paths delete the non-existent _global action
+}
 
 #------------------------------------------------------------------------------
 # print configuration to log stream, i.e. all option values/dependencies for all tasks
@@ -55,7 +88,7 @@ sub reportAssembledConfig {
     my $thread = $$cmd{thread}[0] || "default";
     my $report = "";
     $report .= "---\n";
-    $report .= "pipeline: $pipelineSuite/$pipelineName=$workingSuiteVersions{$pipelineSuiteDir}\n";
+    $report .= "pipeline: $pipelineSuite/$pipelineName:$workingSuiteVersions{$pipelineSuiteDir}\n";
     $report .= "description: \"$desc\"\n";  
     if(@externalSuiteDirs){
         $report .= "suiteVersions:\n";
@@ -75,13 +108,21 @@ sub reportAssembledConfig {
     
     # print the dependencies
     $report .= $indent."conda:\n";
-    my $condaPathSuffix = $showMissingConda ? (-d $$condaPaths{dir} ? "" : "*** NOT CREATED YET ***") : "";
+    my $condaPathSuffix = $showMissingConda ? (-d $$condaPaths{dir} ? "" : "*** NOT PRESENT LOCALLY ***") : "";
     $report .= "$indent$indent"."prefix: $$condaPaths{dir} $condaPathSuffix\n";
     foreach my $key(qw(channels dependencies)){
+        ($conda{$key} and ref($conda{$key}) eq 'ARRAY' and @{$conda{$key}}) or next;
         $report .= "$indent$indent$key:\n";
         $report .= join("\n", map { "$indent$indent$indent- $_" } @{$conda{$key}})."\n";
     } 
-    
+
+    # print container metadata
+    if($$config{container} and $$config{container}{supported} and $$config{container}{supported}[0]){
+        my $uris = getContainerUris();  
+        $report .= $indent."singularity:\n";
+        $report .= "$indent$indent"."image: $$uris{container}\n";
+    }
+
     # finish up
     $report .= "...\n";
     {taskOptions => \@taskOptions, report => $report};

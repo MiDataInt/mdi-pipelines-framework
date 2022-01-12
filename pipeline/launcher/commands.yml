@@ -7,7 +7,7 @@
 
 actions:
     
-    # visible user commands
+    # commands advertised to users
     template:
         order: 1
         universal: true
@@ -24,8 +24,16 @@ actions:
                 total-ram: null
         optionFamilies: null        
         description: "create or list the conda environment(s) required by the pipeline" 
-    status:
+    build:
         order: 3
+        universal: true      
+        resources:
+            required:
+                total-ram: null
+        optionFamilies: null        
+        description: "build a pipeline Singularity image and push to a registry" 
+    status:
+        order: 4
         universal: true
         resources:
             required:
@@ -33,17 +41,17 @@ actions:
         optionFamilies: null        
         description: "print the pipeline status file for an output directory"
     rollback:
-        order: 4
+        order: 5
         universal: true
         resources:
             required:
                 total-ram: null
         optionFamilies: null        
         description: "revert the pipeline to an earlier step for an output directory"    
-    
-    # hidden developer commands
+
+    # commands for developers or MDI-internal use
     options:
-        order: 5
+        order: 6
         universal: true
         hidden: true        
         resources:
@@ -52,7 +60,7 @@ actions:
         optionFamilies: null        
         description: "show a concise, alphabetically sorted option list for a pipeline action" 
     optionsTable:
-        order: 6
+        order: 7
         universal: true
         hidden: true
         resources:
@@ -61,7 +69,7 @@ actions:
         optionFamilies: null
         description: "return a tab-delimited table of all pipeline actions and options"
     valuesYaml:
-        order: 7
+        order: 8
         universal: true
         hidden: true
         resources:
@@ -69,13 +77,12 @@ actions:
                 total-ram: null
         optionFamilies: null
         description: "return yaml-formatted parsed option values for <data>.yml"
-    
-    # suite developer commands
-    build:
-        order: 8
-        universal: true      
+    checkContainer:
+        order: 9
+        universal: true
+        hidden: true
         resources:
-            required:
+            required: 
                 total-ram: null
-        optionFamilies: null        
-        description: "build pipeline Singularity image and post to registry (for suite developers)" 
+        optionFamilies: null
+        description: "check for the presence of a container and prompt to pull if missing"

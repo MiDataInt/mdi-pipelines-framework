@@ -18,7 +18,7 @@ sub getLeader {
     my ($pipelineName, $addComments) = @_;
     !$addComments ?
 "---
-pipeline: $pipelineSuite/$pipelineName=latest
+pipeline: $pipelineSuite/$pipelineName:latest
 
 variables:
 
@@ -27,10 +27,10 @@ shared:
 
 "---
 #--------------------------------------------------------------
-# identify the pipeline in format \[pipelineSuite/\]pipelineName\[=suiteVersion\]
+# identify the pipeline in format \[pipelineSuite/\]pipelineName\[:suiteVersion\]
 # suiteVersion is v#.#.#, a tag or branch, pre-release or latest (the default)
 #--------------------------------------------------------------
-pipeline: $pipelineSuite/$pipelineName=latest
+pipeline: $pipelineSuite/$pipelineName:latest
 
 #--------------------------------------------------------------
 # you can use variables to avoid repetition and typing errors 
@@ -131,7 +131,7 @@ sub writeOptionFamily {
         my $opt = $$options{$option};
         my $isRequired = $$opt{required}[0];
         my $value      = defined $recs{$option} ? $recs{$option} : $$opt{default}[0];
-        $isRequired and $value eq 'null' and $value = $requiredLabel;        
+        $isRequired and (!defined $value or $value eq 'null') and $value = $requiredLabel;        
         !$allOptions and $value ne $requiredLabel and next;          
         #my $desc = getTemplateValue($$opt{description});
         #my $type = getTemplateValue($$opt{type});

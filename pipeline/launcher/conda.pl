@@ -113,6 +113,7 @@ sub getCondaPaths {
     
     # return our conda details
     {
+        baseDir => $baseDir,
         dir  => $envDir,
         initFile => $initFile,
         showFile => $showFile,
@@ -202,20 +203,27 @@ sub createCondaEnvironment {
     open my $outH, ">", $$cnd{initFile} or throwError("could not open:\n    $$cnd{initFile}\n$!");
     print $outH "---\n"; # do NOT put name or prefix in file (should work, but doesn't)
     foreach my $key(qw(channels dependencies)){
+        ($conda{$key} and ref($conda{$key}) eq 'ARRAY' and @{$conda{$key}}) or next;
         print $outH "$key:\n";
         print $outH join("\n", map { "$indent- $_" } @{$conda{$key}})."\n";
     }
     print "\n";
     close $outH;
 
-    # allow use of conda-only, i.e., bypass mamba, on systems where mamba is problematic
+    # Singularity container build always uses conda, not mamba
     my $bash;
-    if($noMamba){
-        $bash =
+    my $createCommand = "env create --prefix $$cnd{dir} --file $$cnd{initFile}";
+    if($ENV{IS_CONTAINER_BUILD}){
+        $bash = 
+"bash -c 'conda $createCommand'";
+
+    # allow use of conda-only, i.e., bypass mamba, on systems where mamba is problematic
+    } elsif($noMamba){
+        $bash = 
 "bash -c '
 $$cnd{loadCommand}
 source $$cnd{profileScript}
-conda env create --prefix $$cnd{dir} --file $$cnd{initFile}
+conda $createCommand
 '";
     
     # default is to use Mamba to speed subsequent environment creation
@@ -229,7 +237,7 @@ conda env create --prefix $$cnd{dir} --file $$cnd{initFile}
 $$cnd{loadCommand}
 source $$cnd{profileScript}
 conda activate $mambaDir
-mamba env create --prefix $$cnd{dir} --file $$cnd{initFile}
+mamba $createCommand
 conda deactivate
 '";
     }

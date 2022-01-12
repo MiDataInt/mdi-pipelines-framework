@@ -12,14 +12,19 @@ use vars qw($pipeline $pipelineName $launcherDir $mdiDir
 sub doRestrictedCommand {
     my ($target) = @_;
     my %restricted = (
+
+        # commands advertised to users
         template => \&runTemplate,
         conda    => \&runConda,
+        build    => \&runBuild,        
         status   => \&runStatus,
         rollback => \&runRollback,
-        options  => \&runOptions, 
-        optionsTable => \&runOptionsTable,
-        valuesYaml  => \&runValuesYaml,
-        build    => \&runBuild
+
+        # commands for developers or MDI-internal use
+        options         => \&runOptions, 
+        optionsTable    => \&runOptionsTable,
+        valuesYaml      => \&runValuesYaml,
+        checkContainer  => \&checkContainer
     );
     $restricted{$target} and &{$restricted{$target}}();
 }
@@ -49,12 +54,12 @@ sub runTemplate {
         print  "\n    -a/--$allOptions    include all possible options [only include options needing values]";
         print  "\n    -c/--$addComments   add instructional comments for new users [comments omitted]";
         print "\n\n";
-        exit;
+        releaseMdiGitLock(0);
     }
     
     # print the template to STDOUT
     writeDataFileTemplate($options{$allOptions}, $options{$addComments});
-    exit;
+    releaseMdiGitLock(0);
 }
 
 #------------------------------------------------------------------------------
@@ -97,13 +102,50 @@ sub runConda {
         $usage .=  "\n    -M/--$noMamba  do not use Mamba, only use Conda to create environments";   
         $error and throwError($error.$usage);
         print "$usage\n\n";
-        exit;
+        releaseMdiGitLock(0);
     }
     
     # list or create conda environments in action order
     @args = @newArgs;
     showCreateCondaEnvironments($options{$create}, $options{$force}, $options{$noMamba});
-    exit;
+    releaseMdiGitLock(0);
+}
+
+#------------------------------------------------------------------------------
+# build a Singularity image and post to a registry (for suite developers)
+#------------------------------------------------------------------------------
+sub runBuild { 
+
+    # command has limited options, collect them now
+    # NOTE: as always, --version was already handled by launcher.pl: setPipelineSuiteVersion()
+    my $help    = "help";
+    my $version = "version";
+    my $force   = "force";
+    my $sandbox = "sandbox";
+    my %options;   
+    $args[0] or $args[0] = ""; 
+    ($args[0] eq '-h' or $args[0] eq "--$help")    and $options{$help}    = 1;
+    ($args[0] eq '-f' or $args[0] eq "--$force")   and $options{$force}   = 1;
+    ($args[0] eq '-s' or $args[0] eq "--$sandbox") and $options{$sandbox} = 1;        
+                
+    # if requested, show custom action help
+    my $pname = $$config{pipeline}{name}[0];
+    if($options{$help}){
+        my $usage;
+        my $desc = getTemplateValue($$config{actions}{build}{description});
+        $usage .= "\n$pname build: $desc\n";
+        $usage .=  "\nusage: mdi $pname build [options]\n";  
+        $usage .=  "\n    -h/--$help     show this help";    
+        $usage .=  "\n    -v/--$version  the suite version to build from, as a git release tag or branch [latest]";
+        $usage .=  "\n    -f/--$force    overwrite existing container images";  
+        $usage .=  "\n    -s/--$sandbox  run singularity with the --sandbox option set"; 
+        print "$usage\n\n";
+        releaseMdiGitLock(0);
+    }
+    
+    # call Singularity build action
+    buildSingularity($options{$sandbox} ? "--sandbox" : "", $options{$force} ? "--force" : "");
+    releaseMdiGitLock(0);
 }
 
 #------------------------------------------------------------------------------
@@ -130,6 +172,7 @@ sub runStatus {
     
     # do the work
     print "\n";
+    releaseMdiGitLock();
     exec "bash -c 'source $workflowScript; showWorkflowStatus'";  
 }
 
@@ -163,13 +206,13 @@ sub doRollback {
     my ($subjectAction, $statusLevel, $exit) = @_;
     
     # request permission
-    getPermission("Pipeline status will be permanently reset.") or exit;
+    getPermission("Pipeline status will be permanently reset.") or releaseMdiGitLock(1);
     $ENV{PIPELINE_ACTION} = $subjectAction;
     $ENV{LAST_SUCCESSFUL_STEP} = $statusLevel;
     
     # do the work
     system("bash -c 'source $workflowScript; resetWorkflowStatus'");
-    $exit and exit;
+    $exit and releaseMdiGitLock(0);
 }
 
 #------------------------------------------------------------------------------
@@ -202,7 +245,7 @@ sub runOptions {
             print join("\t", $shortOut, "--$$option{long}[0]", $required), "\n";
         }   
     }
-    exit;
+    releaseMdiGitLock(0);
 }
 
 #------------------------------------------------------------------------------
@@ -232,7 +275,7 @@ sub runOptionsTable { # takes no arguments
                              $default, $$option{description}[0]), "\n";
         }    
     }
-    exit;
+    releaseMdiGitLock(0);
 }
 
 #------------------------------------------------------------------------------
@@ -270,39 +313,17 @@ sub runValuesYaml { # takes no arguments
 
     # print the final yaml results
     print $yml.$actionsYml;
-    exit;
+    releaseMdiGitLock(0);
 }
 
 #------------------------------------------------------------------------------
-# build a Singularity image and post to a registry (for suite developers)
+# pre-pull a pipeline container for asynchronous, queued jobs to use (used by jobManager)
 #------------------------------------------------------------------------------
-sub runBuild { 
-
-    # command has limited options, collect them now
-    my $help    = "help";
-    my $version = "version";
-    my %options;    
-    ($args[0] eq '-h' or $args[0] eq "--$help")    and $options{$help}    = 1;      
-    ($args[0] eq '-v' or $args[0] eq "--$version") and $options{$version} = $args[1];   
-    my $error = ($options{$help} and $options{$version}) ?
-        "\noptions '--$help' and '--$version' are mutually exclusive\n" : "";    
-                
-    # if requested, show custom action help
-    my $pname = $$config{pipeline}{name}[0];
-    if($options{$help} or $error){
-        my $usage;
-        my $desc = getTemplateValue($$config{actions}{build}{description});
-        $usage .= "\n$pname build: $desc\n";
-        $usage .=  "\nusage: mdi $pname build [options]\n";   
-        $usage .=  "\n    -v/--$version  the suite version to build from, as a git release tag [latest]";    
-        $error and throwError($error.$usage);
-        print "$usage\n\n";
-        exit;
-    }
-    
-    # call Singularity build action
-    buildSingularity($options{$version} or "latest");
-    exit;
+sub checkContainer {
+    # command has no options: mdi pipeline checkContainer <data.yml>
+    # is silent unless needs to prompt for download
+    pullPipelineContainer();
+    releaseMdiGitLock(0);
 }
 
 1;

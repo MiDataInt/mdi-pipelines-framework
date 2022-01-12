@@ -1,5 +1,6 @@
 use strict;
 use warnings;
+$| = 1;
 
 # execute, i.e., launch, a pipeline
 # called by the 'mdi' command line function
@@ -10,12 +11,8 @@ our %Forks = (definitive => "definitive", developer => "developer-forks");
 our $mdiDir = $ENV{MDI_DIR}; # the installation from which the pipeline was launched
 our $suitesDir = "$mdiDir/suites/$Forks{definitive}"; # for external suites, which never come from developer forks
 our $launcherDir    = "$ENV{FRAMEWORK_DIR}/pipeline/launcher";
-$ENV{LAUNCHER_DIR} = $launcherDir; # framework directories are _not_ copied into TASK_DIR
 our $workFlowDir    = "$ENV{FRAMEWORK_DIR}/pipeline/workflow";
-$ENV{WORKFLOW_DIR} = $workFlowDir;
 our $workflowScript = "$workFlowDir/workflow.sh";
-$ENV{WORKFLOW_SH}  = $workflowScript;
-$ENV{SLURP} = "$ENV{FRAMEWORK_DIR}/shell/slurp";
 
 # collect the requested pipeline, action, data.yml, and option arguments
 our ($pipelineName, $target, @args) = @ARGV;
@@ -40,6 +37,7 @@ sub getPipeline {
     my ($fork) = @_;
     foreach my $pipelineDir(@pipelineDirs){
         # MDI_DIR/suites/definitive/mdi-pipelines-suite-template/pipelines/_template/
+        chop $pipelineDir;
         my ($pipelineName, $pipelinesLabel, $suiteRepo, $pipelineFork) = reverse( split('/', $pipelineDir) );
         $suiteRepo or next;
         $pipelineName[0] eq $pipelineName or next;
@@ -68,6 +66,10 @@ our $modulesDir      = "$sharedDir/modules";
 
 # load launcher scripts
 map { $_ =~ m/launcher\.pl$/ or require $_ } glob("$launcherDir/*.pl");
+
+# lock the suite repository - only one MDI process can use it at a time since branches may change
+# hereafter, use throwError() or releaseMdiGitLock() to end this launcher process (not exit or die)
+setMdiGitLock();
 
 # do a first read of requested options to set the pipeline's suite version, as needed
 # external suite dependencies are set during the subsequent call to loadPipelineConfig
@@ -118,5 +120,9 @@ if ($target =~ m/\.yml$/) {
     my $actionCommand = $target;
     executeAction($actionCommand); # never returns
 }
+
+# release our lock on the suite repository
+# any functions that terminate execution before this point must also release the lock
+releaseMdiGitLock(0);
 
 1;

@@ -51,7 +51,7 @@ sub getConfigFromLauncher {
         print $parsedYaml;
         exit 1;
     }
-    loadYamlFromString($parsedYaml); # potentiall a series of configs for multiple jobs
+    loadYamlFromString($parsedYaml); # potentially a series of configs for multiple jobs
 }
 sub getJobManagerCommand {
     my ($pipelineCommand) = @_;
@@ -89,6 +89,7 @@ sub parseAndSubmitJobs {
         $$parsed{execute} or next; # the jobs configs we need to act on, in series (jobs may be arrays)        
         my $config = assembleJobConfig($parsed);
         checkExtendability($config) or next; # jobs is already satisfied
+        checkSingularityContainer($parsed);
         my $job = $jobI + 1;     
         my ($jobName, $nTasks, $thread, $targetScriptContents) = assembleTargetScript($qInUse, $parsed, $jobI);
         my $targetScriptFile = getTargetScriptFile($qInUse, $jobName);         
@@ -114,6 +115,29 @@ sub assembleJobConfig {
         }  
     }
     $config;
+}
+# check for the presence of a required singularity container
+sub checkSingularityContainer {
+    my ($parsed) = @_;
+    my $pipelineCommand = $$parsed{execute}[0];
+    my $cfg = $$parsed{$pipelineCommand};
+    $$cfg{singularity} or return; # pipeline does not support containers
+    my $runtime = $$cfg{resources}{runtime}[0];
+    $runtime eq "auto" or $runtime eq "container" or return; # user enforcing direct execution, regardless of container support
+    my $uri = $$cfg{singularity}{image}[0]; # oras://ghcr.io/owner/suite/pipeline:v0.0
+    $uri =~ m|.+/(.+)/(.+):(v\d+\.\d+)$|;
+    my ($suite, $pipeline, $version) = ($1, $2, $3);
+    my $imageFile = "$rootDir/containers/$suite/$pipeline/$pipeline-$version.sif";
+    -f $imageFile and return;
+    my $developerFlag = $ENV{DEVELOPER_MODE} ? "-d" : "";
+    my $pullCommand = "$rootDir/$jobManagerName $developerFlag $pipeline checkContainer $dataYmlFile";
+    if(system($pullCommand)){
+        print 
+            "\nYou must either pull the container image or set '--runtime' to 'direct'\n".
+            "to use the '$suite/$pipeline' pipeline.\n\n";
+        exit 1;
+    }
+    print "\n";
 }
 # construct the complete script that is submitted for execution, with all helpers
 sub assembleTargetScript {
