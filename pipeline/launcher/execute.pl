@@ -204,6 +204,8 @@ sub executeTask {
     # validate the containter or conda environment based on runtime mode
     my $execCommand = "cd $ENV{TASK_DIR}; ";
     if($ENV{IS_CONTAINER}){
+        my $singularityLoad = getSingularityLoadCommand();
+        my $singularity = "$singularityLoad; cd $ENV{MDI_DIR}; singularity";
         my $uris = getContainerUris();
         if(! -f $$uris{imageFile}){
             getPermission(
@@ -213,11 +215,11 @@ sub executeTask {
                 "    $$uris{container}"
             ) or releaseMdiGitLock(1);  
             print "pulling required container image...\n"; 
-            system("cd $ENV{MDI_DIR}; singularity pull $$uris{imageFile} $$uris{container}") and throwError(
+            system("$singularity pull $$uris{imageFile} $$uris{container}") and throwError(
                 "container pull failed"
             );
         }
-        $execCommand .= "singularity run $$uris{imageFile}";
+        $execCommand .= "$singularity run $$uris{imageFile}";
     } else {
         -d $$conda{dir} or throwError(
             "missing conda environment for action '$action'\n".

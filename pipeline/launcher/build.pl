@@ -6,8 +6,9 @@ use warnings;
 # https://docs.github.com/en/packages/working-with-a-github-packages-registry/working-with-the-container-registry
 # https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/creating-a-personal-access-token
 
-use vars qw($launcherDir $config %workingSuiteVersions
+use vars qw($mdiDir $launcherDir $config %workingSuiteVersions
             $pipelineSuite $pipelineName $pipelineDir $pipelineSuiteDir);
+my $silently = "> /dev/null 2>&1";
 
 sub buildSingularity {
     my ($sandbox, $force) = @_;
@@ -22,8 +23,12 @@ sub buildSingularity {
     getPermission(
         "\n'build' will create and post a Singularity container image for:\n".
         "    $pipelineSuite/$pipelineName:$suiteVersion"
-    ) or releaseMdiGitLock(1);   
-    
+    ) or releaseMdiGitLock(1); 
+
+    # learn how to use Singularity on the system
+    my $singularityLoad = getSingularityLoadCommand();
+    my $singularity = "$singularityLoad; cd $ENV{MDI_DIR}; singularity";
+  
     # parse the pipeline version to build
     # container labels only use major and minor versions; patches must not change software dependencies
     # we do NOT use suite versions to label containers as suite versions might change even when this pipeline hasn't   
@@ -73,7 +78,7 @@ sub buildSingularity {
         print $outH $containerDef;
         close $outH;
         print "\nbuilding Singularity container image:\n    $imageFile\nfrom:\n    $defFile\n\n";    
-        system("cd $ENV{MDI_DIR}; singularity build --fakeroot $sandbox $force $imageFile $defFile") and throwError(
+        system("$singularity build --fakeroot $sandbox $force $imageFile $defFile") and throwError(
             "container build failed"
         );        
     } else {
@@ -83,15 +88,15 @@ sub buildSingularity {
     # push container to registry
     my $uris = getContainerUris($pipelineVersion);  
     print "\npushing Singularity container image:\n    $imageFile\nto:\n    $$uris{container}\n\n";
-    my $isLoggedIn = qx/singularity remote list | grep '^$$uris{registry}'/; # singularity remote status does not work unless add is used
+    my $isLoggedIn = qx/$singularity remote list | grep '^$$uris{registry}'/; # singularity remote status does not work unless add is used
     chomp $isLoggedIn;
     if(!$isLoggedIn){
         print "Please log in: $$uris{owner}\@$$uris{registry}:\n";
-        system("cd $ENV{MDI_DIR}; singularity remote login --username $$uris{owner} $$uris{registry}") and throwError(
+        system("$singularity remote login --username $$uris{owner} $$uris{registry}") and throwError(
             "registry login failed"
         );
     }      
-    system("cd $ENV{MDI_DIR}; singularity push $imageFile $$uris{container}") and throwError(
+    system("$singularity push $imageFile $$uris{container}") and throwError(
         "container push failed"
     );
 }
@@ -127,6 +132,32 @@ sub getContainerUris { # pipelineSupportsContainers(), i.e.,  $$config{container
         container => "oras://$registry/$owner/$pipelineSuite/$pipelineName:$pipelineVersion",
         imageFile => "$ENV{MDI_DIR}/containers/$pipelineSuite/$pipelineName/$pipelineName-$pipelineVersion.sif"
     }
+}
+
+# make sure singularity is available on the system
+sub getSingularityLoadCommand {
+
+    # first, see if it is already present and ready
+    my $command = "echo $silently";
+    checkForSingularity($command) and return $command; 
+    
+    # if not, attempt to use singularity: load-command from stage1-pipelines.yml
+    my $configYml = loadYamlFile("$mdiDir/config/stage1-pipelines.yml");
+    if($$configYml{singularity} and $$configYml{singularity}{'load-command'}){
+        my $command = "$$configYml{singularity}{'load-command'}[0] $silently";
+        checkForSingularity($command) and return $command; 
+    }
+
+    # singularity failed, throw and error
+    throwError(
+        "Could not find a way to load singularity from PATH or stage1-pipelines.yml"
+    );
+}
+sub checkForSingularity { # return TRUE if a proper singularity exists in system PATH after executing $command
+    my ($command) = @_;
+    system("$command; singularity --version $silently") and return; # command did not exist, system threw an error
+    my $version = qx|$command; singularity --version|;
+    $version =~ m/^singularity.+version.+/; # may fail if not a true singularity target (e.g., on greatlakes)
 }
 
 1;
