@@ -1,5 +1,6 @@
 use strict;
 use warnings;
+$| = 1;
 
 # execute, i.e., launch, a pipeline
 # called by the 'mdi' command line function
@@ -66,6 +67,10 @@ our $modulesDir      = "$sharedDir/modules";
 # load launcher scripts
 map { $_ =~ m/launcher\.pl$/ or require $_ } glob("$launcherDir/*.pl");
 
+# lock the suite repository - only one MDI process can use it at a time since branches may change
+# hereafter, use throwError() or releaseMdiGitLock() to end this launcher process (not exit or die)
+setMdiGitLock();
+
 # do a first read of requested options to set the pipeline's suite version, as needed
 # external suite dependencies are set during the subsequent call to loadPipelineConfig
 setPipelineSuiteVersion();
@@ -115,5 +120,9 @@ if ($target =~ m/\.yml$/) {
     my $actionCommand = $target;
     executeAction($actionCommand); # never returns
 }
+
+# release our lock on the suite repository
+# any functions that terminate execution before this point must also release the lock
+releaseMdiGitLock(0);
 
 1;

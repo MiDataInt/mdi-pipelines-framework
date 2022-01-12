@@ -29,7 +29,10 @@ sub getUserInput {
     print "$message ";
     my $response = <STDIN>;
     chomp $response;
-    !$required or $response or die("aborting with no input\n");
+    unless(!$required or $response){
+        print "aborting with no input\n";
+        releaseMdiGitLock(1);
+    }
     return $response;
 }
 

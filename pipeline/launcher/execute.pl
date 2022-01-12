@@ -56,7 +56,7 @@ sub executeAction {
         my ($taskId, $taskReport) = processActionTask($assembled, $i, $requestedTaskId, @workingTaskIds);
         manageTaskEnvironment($action, $cmd, $isDryRun, $assembled, $taskReport, $conda);
         copyTaskCodeSuites($isDryRun);
-        $isDryRun or executeTask($action, $isDryRun, $isSingleTask, $taskId, $conda);
+        $isDryRun or executeTask($action, $isSingleTask, $taskId, $conda);
     } 
 }
 sub getCmdHash {                # the name of this function, 'cmd', and the varnames it populates
@@ -211,7 +211,7 @@ sub executeTask {
                 "    $$uris{imageFile}\n".
                 "from:\n".
                 "    $$uris{container}"
-            ) or exit;  
+            ) or releaseMdiGitLock(1);  
             print "pulling required container image...\n"; 
             system("cd $ENV{MDI_DIR}; singularity pull $$uris{imageFile} $$uris{container}") and throwError(
                 "container pull failed"
@@ -227,7 +227,10 @@ sub executeTask {
     }
 
     # single actions or tasks replace this process and never return
-    $isSingleAction and $isSingleTask and exec $execCommand;
+    if($isSingleAction and $isSingleTask){
+        releaseMdiGitLock();
+        exec $execCommand;
+    } 
     
     # multiple actions or tasks require that we stay alive to run the next one 
     system($execCommand) and throwError(

@@ -1,5 +1,6 @@
 use strict;
 use warnings;
+use Time::HiRes qw(usleep);
 
 # subs for controlling the working version of pipeline suites
 # through calls to git tag and git checkout

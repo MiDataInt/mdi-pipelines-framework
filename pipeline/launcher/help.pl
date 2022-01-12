@@ -47,7 +47,7 @@ sub showActionsHelp {
         print  "$leftPad"."$name$spaces$desc\n";
     }
     print  "\n"; 
-    $exit and exit 1;
+    $exit and releaseMdiGitLock(1);
 }
 
 #------------------------------------------------------------------------------
@@ -101,7 +101,7 @@ sub showOptionsHelp {
         }
         $useValues or print "\n";
     }
-    $suppressExit or exit 1;
+    $suppressExit or releaseMdiGitLock(1);
 }
 sub getFamilyOrder {
     my ($family) = @_;
@@ -117,11 +117,11 @@ sub getOptionOrder {
 }
 
 #------------------------------------------------------------------------------
-# throw an error message and exit (but don't die to avoid compile error from require of launcher)
+# throw an error message and exit
 #------------------------------------------------------------------------------
 sub throwError {
     print "\n$errorSeparator\n$_[0]\n$errorSeparator\n\n";
-    exit 1;
+    releaseMdiGitLock(1);
 }
 sub throwConfigError { # thrown when a configuration file is malformed
     my ($message, @keys) = @_;

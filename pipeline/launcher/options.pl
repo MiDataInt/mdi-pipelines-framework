@@ -203,10 +203,11 @@ sub loadOptionsConfigFile {
     if (defined $$yaml{pipeline}) { # server level config files do not declare a single pipeline; others should
         my $yamlPipeline = ref($$yaml{pipeline}) eq 'HASH' ? $$yaml{pipeline}{name}[0] : $$yaml{pipeline}[0];
         $yamlPipeline or $yamlPipeline = '';
-        if($yamlPipeline =~ m|/|){
+        if($yamlPipeline =~ m|/|){ # strip suite name prefix
             my @x = split('/', $yamlPipeline);
             $yamlPipeline = $x[$#x];
         }
+        $yamlPipeline =~ m/(.+):/ and $yamlPipeline = $1; # strip :version suffix
         $yamlPipeline eq $$config{pipeline}{name}[0] or
             throwError("$configFile is not a configuration file for pipeline '$$config{pipeline}{name}[0]'");
     }

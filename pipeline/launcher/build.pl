@@ -22,7 +22,7 @@ sub buildSingularity {
     getPermission(
         "\n'build' will create and post a Singularity container image for:\n".
         "    $pipelineSuite/$pipelineName:$suiteVersion"
-    ) or exit;   
+    ) or releaseMdiGitLock(1);   
     
     # parse the pipeline version to build
     # container labels only use major and minor versions; patches must not change software dependencies
@@ -69,7 +69,7 @@ sub buildSingularity {
 
     # run singularity build
     if(! -e $imageFile or $force){
-        open my $outH, ">", $defFile or die "$!\n";
+        open my $outH, ">", $defFile or throwError($!);
         print $outH $containerDef;
         close $outH;
         print "\nbuilding Singularity container image:\n    $imageFile\nfrom:\n    $defFile\n\n";    

@@ -51,7 +51,7 @@ sub getConfigFromLauncher {
         print $parsedYaml;
         exit 1;
     }
-    loadYamlFromString($parsedYaml); # potentiall a series of configs for multiple jobs
+    loadYamlFromString($parsedYaml); # potentially a series of configs for multiple jobs
 }
 sub getJobManagerCommand {
     my ($pipelineCommand) = @_;

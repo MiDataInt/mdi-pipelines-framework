@@ -49,12 +49,12 @@ sub runTemplate {
         print  "\n    -a/--$allOptions    include all possible options [only include options needing values]";
         print  "\n    -c/--$addComments   add instructional comments for new users [comments omitted]";
         print "\n\n";
-        exit;
+        releaseMdiGitLock(0);
     }
     
     # print the template to STDOUT
     writeDataFileTemplate($options{$allOptions}, $options{$addComments});
-    exit;
+    releaseMdiGitLock(0);
 }
 
 #------------------------------------------------------------------------------
@@ -97,13 +97,13 @@ sub runConda {
         $usage .=  "\n    -M/--$noMamba  do not use Mamba, only use Conda to create environments";   
         $error and throwError($error.$usage);
         print "$usage\n\n";
-        exit;
+        releaseMdiGitLock(0);
     }
     
     # list or create conda environments in action order
     @args = @newArgs;
     showCreateCondaEnvironments($options{$create}, $options{$force}, $options{$noMamba});
-    exit;
+    releaseMdiGitLock(0);
 }
 
 #------------------------------------------------------------------------------
@@ -130,6 +130,7 @@ sub runStatus {
     
     # do the work
     print "\n";
+    releaseMdiGitLock();
     exec "bash -c 'source $workflowScript; showWorkflowStatus'";  
 }
 
@@ -163,13 +164,13 @@ sub doRollback {
     my ($subjectAction, $statusLevel, $exit) = @_;
     
     # request permission
-    getPermission("Pipeline status will be permanently reset.") or exit;
+    getPermission("Pipeline status will be permanently reset.") or releaseMdiGitLock(1);
     $ENV{PIPELINE_ACTION} = $subjectAction;
     $ENV{LAST_SUCCESSFUL_STEP} = $statusLevel;
     
     # do the work
     system("bash -c 'source $workflowScript; resetWorkflowStatus'");
-    $exit and exit;
+    $exit and releaseMdiGitLock(0);
 }
 
 #------------------------------------------------------------------------------
@@ -202,7 +203,7 @@ sub runOptions {
             print join("\t", $shortOut, "--$$option{long}[0]", $required), "\n";
         }   
     }
-    exit;
+    releaseMdiGitLock(0);
 }
 
 #------------------------------------------------------------------------------
@@ -232,7 +233,7 @@ sub runOptionsTable { # takes no arguments
                              $default, $$option{description}[0]), "\n";
         }    
     }
-    exit;
+    releaseMdiGitLock(0);
 }
 
 #------------------------------------------------------------------------------
@@ -270,7 +271,7 @@ sub runValuesYaml { # takes no arguments
 
     # print the final yaml results
     print $yml.$actionsYml;
-    exit;
+    releaseMdiGitLock(0);
 }
 
 #------------------------------------------------------------------------------
@@ -302,12 +303,12 @@ sub runBuild {
         $usage .=  "\n    -f/--$force    overwrite existing container images";  
         $usage .=  "\n    -s/--$sandbox  run singularity with the --sandbox option set"; 
         print "$usage\n\n";
-        exit;
+        releaseMdiGitLock(0);
     }
     
     # call Singularity build action
     buildSingularity($options{$sandbox} ? "--sandbox" : "", $options{$force} ? "--force" : "");
-    exit;
+    releaseMdiGitLock(0);
 }
 
 1;
