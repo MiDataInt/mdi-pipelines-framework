@@ -36,6 +36,7 @@ sub getPipeline {
     my ($fork) = @_;
     foreach my $pipelineDir(@pipelineDirs){
         # MDI_DIR/suites/definitive/mdi-pipelines-suite-template/pipelines/_template/
+        chop $pipelineDir;
         my ($pipelineName, $pipelinesLabel, $suiteRepo, $pipelineFork) = reverse( split('/', $pipelineDir) );
         $suiteRepo or next;
         $pipelineName[0] eq $pipelineName or next;

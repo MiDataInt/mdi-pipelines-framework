@@ -88,4 +88,12 @@ sub slurpFile {  # read the entire contents of a disk file into memory
     return $contents;
 }
 
+#------------------------------------------------------------------------------
+# remove duplicate elements from an array while preserving order
+#------------------------------------------------------------------------------
+sub uniqueElements { 
+    my %seen; 
+    grep !$seen{$_}++, @_;
+}
+
 1;
