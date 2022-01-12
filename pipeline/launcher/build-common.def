@@ -5,7 +5,7 @@
 # https://sylabs.io/guides/latest/user-guide/definition_files.html
 #------------------------------------------------------------------------------
 
-# copy the pipelines-relevant mdi installation into the container
+# copy the pipelines-relevant mdi installation into the container and reset for use
 # MDI_DIR is always /srv/mdi in a pipeline container
 %setup
     SRV_DIR=/srv
@@ -16,6 +16,7 @@
     cp -r ./frameworks  ${MDI_DIR}/frameworks
     cp -r ./suites      ${MDI_DIR}/suites
     cp    ./mdi         ${MDI_DIR}/mdi
+    rm -f ${MDI_DIR}/suites/*.lock
 
 # install the software required by supported pipeline actions as conda environments
 %post
