@@ -41,7 +41,12 @@
         exit 1
     fi
     wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh -O ${SRV_DIR}/miniconda.sh
-    bash ${SRV_DIR}/miniconda.sh -b -p ${MINICONDA_DIR}  
+    bash ${SRV_DIR}/miniconda.sh -b -p ${MINICONDA_DIR} 
+
+    # set conda channel_priority to strict
+    # https://docs.conda.io/projects/conda/en/latest/user-guide/tasks/manage-channels.html#strict-channel-priority
+    # https://github.com/conda/conda/issues/8197
+    conda config --set channel_priority strict
 
     # creata conda environments of the software required by the pipeline
     export IS_CONTAINER_BUILD=TRUE
