@@ -1,5 +1,6 @@
 use strict;
 use warnings;
+use File::Path qw(make_path);
 
 # subs for building and posting a Singularity container image of a pipeline
 
@@ -125,12 +126,14 @@ sub getContainerUris { # pipelineSupportsContainers(), i.e.,  $$config{container
     $owner or throwError(
         "missing owner for container registry $registry\n".
         "expected tag 'container: owner' in pipeline.yml"
-    );  
+    );
+    my $imageDir = "$ENV{MDI_DIR}/containers/$pipelineSuite/$pipelineName";
     {
         registry  => "oras://$registry",
         owner     => $owner,
         container => "oras://$registry/$owner/$pipelineSuite/$pipelineName:$pipelineVersion",
-        imageFile => "$ENV{MDI_DIR}/containers/$pipelineSuite/$pipelineName/$pipelineName-$pipelineVersion.sif"
+        imageDir  => $imageDir,
+        imageFile => "$imageDir/$pipelineName-$pipelineVersion.sif"
     }
 }
 
@@ -181,6 +184,9 @@ sub pullPipelineContainer {
         my $singularityLoad = getSingularityLoadCommand();
         $singularity = "$singularityLoad; cd $ENV{MDI_DIR}; singularity";        
     }      
+
+    # create the target directory
+    make_path($$uris{imageDir});
 
     # pull the image
     print "pulling required container image...\n"; 
