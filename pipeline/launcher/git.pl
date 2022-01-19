@@ -4,13 +4,13 @@ use warnings;
 # ensure that only one MDI process is working on a suite's git repo at a time
 # use a lock file to secure private repo access for the duration of a call to launcher
 
-use vars qw($mdiDir $pipelineSuite $pipelineName $errorSeparator);
+use vars qw($mdiDir $pipelineSuite $pipelineSuiteDir $errorSeparator);
 my $maxLockWaitUSec = 30 * 1000 * 1000; # i.e., 30 seconds
 
 # do not place the lock file in $pipelineSuiteDir since branch changes could wipe it out
-# all calls to xxxMdiGitLock are guaranteed to have a valid $pipelineSuite-$pipelineName
+# all calls to xxxMdiGitLock are guaranteed to have a valid $pipelineSuite
 sub getMdiLockFile {
-    "$mdiDir/suites/$pipelineSuite.$pipelineName.lock";    
+    "$mdiDir/suites/$pipelineSuite.lock";    
 }
 
 sub setMdiGitLock { 
