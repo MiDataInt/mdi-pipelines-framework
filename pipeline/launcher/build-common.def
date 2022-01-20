@@ -52,6 +52,9 @@
     export IS_CONTAINER_BUILD=TRUE
     ${MDI_DIR}/mdi ${PIPELINE_NAME} conda --create --force --no-mamba --version ${SUITE_VERSION} 
 
+    # clean up conda pkgs directory of cached tarballs (conda clean won't work here)
+    rm -f ${MINICONDA_DIR}/pkgs/*.tar.bz2
+
 # path overrides include all ways that running pipelines use files from mdi-pipelines-framework
 # https://sylabs.io/guides/latest/user-guide/environment_and_metadata.html#environment-and-metadata
 %environment 
