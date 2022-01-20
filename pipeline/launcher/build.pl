@@ -130,8 +130,8 @@ sub getContainerUris { # pipelineSupportsContainers(), i.e.,  $$config{container
     my $imageDir = "$ENV{MDI_DIR}/containers/$pipelineSuite/$pipelineName";
     {
         registry  => "oras://$registry",
-        owner     => $owner,
-        container => "oras://$registry/$owner/$pipelineSuite/$pipelineName:$pipelineVersion",
+        owner     => $owner,                    # container names must be lower case
+        container => "oras://$registry/$owner/".lc("$pipelineSuite/$pipelineName:$pipelineVersion"),
         imageDir  => $imageDir,
         imageFile => "$imageDir/$pipelineName-$pipelineVersion.sif"
     }
