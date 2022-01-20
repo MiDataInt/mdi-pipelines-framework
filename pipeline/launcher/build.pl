@@ -127,13 +127,15 @@ sub getContainerUris { # pipelineSupportsContainers(), i.e.,  $$config{container
         "missing owner for container registry $registry\n".
         "expected tag 'container: owner' in pipeline.yml"
     );
-    my $imageDir = "$ENV{MDI_DIR}/containers/$pipelineSuite/$pipelineName";
+    my $lcPipelineSuite = lc($pipelineSuite);
+    my $lcPipelineName  = lc($pipelineName);
+    my $imageDir = "$ENV{MDI_DIR}/containers/$lcPipelineSuite/$lcPipelineName";
     {
         registry  => "oras://$registry",
         owner     => $owner,                    # container names must be lower case
-        container => "oras://$registry/$owner/".lc("$pipelineSuite/$pipelineName:$pipelineVersion"),
+        container => "oras://$registry/$owner/$lcPipelineSuite/$lcPipelineName:$pipelineVersion",
         imageDir  => $imageDir,
-        imageFile => "$imageDir/$pipelineName-$pipelineVersion.sif"
+        imageFile => "$imageDir/$lcPipelineName-$pipelineVersion.sif"
     }
 }
 

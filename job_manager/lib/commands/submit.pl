@@ -125,16 +125,16 @@ sub checkSingularityContainer {
     my $runtime = $$cfg{resources}{runtime}[0];
     $runtime eq "auto" or $runtime eq "container" or return; # user enforcing direct execution, regardless of container support
     my $uri = $$cfg{singularity}{image}[0]; # oras://ghcr.io/owner/suite/pipeline:v0.0
-    $uri =~ m|.+/(.+)/(.+):(v\d+\.\d+)$|;
-    my ($suite, $pipeline, $version) = ($1, $2, $3);
-    my $imageFile = "$rootDir/containers/$suite/$pipeline/$pipeline-$version.sif";
+    $uri =~ m|.+/(.+)/(.+):(v\d+\.\d+)$|; # uri may have been modified to lowercase relative to suite and pipeline names
+    my ($lcSuite, $lcPipeline, $version) = ($1, $2, $3);
+    my $imageFile = "$rootDir/containers/$lcSuite/$lcPipeline/$lcPipeline-$version.sif";
     -f $imageFile and return;
     my $developerFlag = $ENV{DEVELOPER_MODE} ? "-d" : "";
-    my $pullCommand = "$rootDir/$jobManagerName $developerFlag $pipeline checkContainer $dataYmlFile";
+    my $pullCommand = "$rootDir/$jobManagerName $developerFlag $pipelineName checkContainer $dataYmlFile";
     if(system($pullCommand)){
         print 
             "\nYou must either pull the container image or set '--runtime' to 'direct'\n".
-            "to use the '$suite/$pipeline' pipeline.\n\n";
+            "to use the '$pipelineName' pipeline.\n\n";
         exit 1;
     }
     print "\n";
