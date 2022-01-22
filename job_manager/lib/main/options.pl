@@ -10,13 +10,14 @@ our (@options, %options);
 # get and check requested commands and options
 #-----------------------------------------------------------------------
 sub checkCommand { # check for help request or validity of requested command
-    my $descriptionString = "$jobManagerName is a utility for:\n".
+    my $jmName = $ENV{JOB_MANAGER_NAME_FULL} ? $ENV{JOB_MANAGER_NAME_FULL} : $jobManagerName;
+    my $descriptionString = "$jmName is a utility for:\n".
                             "  - submitting, monitoring and managing Stage 1 data analysis pipelines\n".
                             "  - launching the web interface that runs all Stage 2 interactive apps";
     $command or reportUsage($descriptionString);    
     ($command eq '-h' or $command eq '--help') and reportUsage("$descriptionString", "all");
     # NB: direct calls to <pipeline> are handled by the upstream shell script
-    $commands{$command} or throwError("'$command' is not a valid $jobManagerName command or pipeline name", "all");
+    $commands{$command} or throwError("'$command' is not a valid command or pipeline name", "all");
 }
 #-----------------------------------------------------------------------
 sub setOptions { # parse and check validity of options string

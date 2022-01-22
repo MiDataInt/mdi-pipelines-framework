@@ -3,6 +3,7 @@ use warnings;
 
 # working variables
 use vars qw($jobManagerName %commands %commandOptions %optionInfo);
+my $jmName = $ENV{JOB_MANAGER_NAME} ? $ENV{JOB_MANAGER_NAME} : $jobManagerName;
 my $commandTabLength = 12; 
 my $optionTabLength = 20;
 our $separatorLength = 87;
@@ -22,7 +23,7 @@ sub reportUsage { # program help, always exits
     my ($message, $command, $die) = @_;
     print "\n>>> Michigan Data Interface (MDI) <<<\n";
     print $message ? "\n$message\n\n" : "\n";
-    my $jmName = "$leftPad$jobManagerName";
+    $jmName = "$leftPad$jmName";
     print 
         "usage:\n".
         "$jmName <pipeline> <data.yml> [options]  # run all pipeline actions in data.yml\n".
@@ -53,7 +54,7 @@ sub reportCommandsHelp { # help on the set of available commands, organized by t
 sub reportOptionHelp { 
     my ($command) = @_;
     print "\n";
-    print "$jobManagerName $command: ${$commands{$command}}[1]\n";
+    print "$jmName $command: ${$commands{$command}}[1]\n";
     print "\n";
     print "available options:\n";
     my @availableOptions = sort {$a cmp $b} keys %{$commandOptions{$command}};

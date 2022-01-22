@@ -1,5 +1,7 @@
 use strict;
 use warnings;
+use vars qw($jobManagerName);
+my $jmName = $ENV{JOB_MANAGER_NAME} ? $ENV{JOB_MANAGER_NAME} : $jobManagerName;
 
 #========================================================================
 # configure job manager commands and options
@@ -20,11 +22,11 @@ our %commands = (  # [executionSub, commandHelp, mdiStage2]
     purge       =>  [\&qPurge,       "remove all status, script and log files associated with the jobs"],
     #move        =>  [\&qMove,        "move/rename <data.yml> and its associated script and status files"],
 #------------------------------------------------------------------------------------------------------------
-    initialize  =>  [undef,           "refresh the 'mdi' command to establish its program targets", 1], # 'mdi' handles this call
-    install     =>  [\&mdiInstall,    "re-run the MDI installation process to update suites, etc.", 1], # install and add assume a Stage 2 installation
+    initialize  =>  [undef,           "refresh the '$jmName' script to establish its program targets", 1], # 'mdi' handles this call
+    install     =>  [\&mdiInstall,    "re-run the installation process to update suites, etc.", 1], # install and add assume a Stage 2 installation
     add         =>  [\&mdiAdd,        "add one tool suite repository to config.yml and re-install", 1],
     list        =>  [\&mdiList,       "list all pipelines and apps available in this MDI installation", 1],
-    run         =>  [\&mdiRun,        "launch the MDI web server to use interactive Stage 2 apps",  1],
+    run         =>  [\&mdiRun,        "launch the web server to use interactive Stage 2 apps",  1],
 ); 
 #------------------------------------------------------------------------
 # options
