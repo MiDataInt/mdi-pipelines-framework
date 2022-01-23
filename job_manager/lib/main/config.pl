@@ -61,7 +61,7 @@ our %optionInfo = (# [shortOption, valueString, optionGroup, groupOrder, optionH
 #------------------------------------------------------------------------------------------------------------
     'install-packages'=>   ["p", undef,   "install", 0, "install R packages required by Stage 2 Apps"],
     'suite'=>              ["s", "<str>", "install", 1, "a single suite to install or build, in form GIT_USER/SUITE_NAME"],
-    'version'=>            ["v", "<str>", "install", 2, "the version of the suite to build, e.g. v0.0.0 [latest]"],
+    'version'=>            ["V", "<str>", "install", 2, "the version of the suite to build, e.g. v0.0.0 [latest]"],
     'develop'=>        ["v", undef,   "run", 0, "launch the web server in developer mode [run mode]"],
     'ondemand'=>       ["o", undef,   "run", 1, "launch the web server in ondemand mode [run mode]"],
     'data-dir'=>       ["D", "<str>", "run", 2, "path to the desired data directory [./data]"],

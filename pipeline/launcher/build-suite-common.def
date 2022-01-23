@@ -1,0 +1,110 @@
+#------------------------------------------------------------------------------
+# These sections are appended to all assembled suite-level singularity.def files,
+# after replacing __VAR_NAME__ with ${VAR_NAME}.
+#------------------------------------------------------------------------------
+# https://sylabs.io/guides/latest/user-guide/definition_files.html
+#------------------------------------------------------------------------------
+
+# copy the previously-versioned MDI tool suite repository into the container
+# SUITE_DIR is /srv/SUITE_NAME, a suite-centric installation of SUITE_NAME
+%setup
+    SRV_DIR=${SINGULARITY_ROOTFS}/srv
+    cp -r ./containers/tmp/__SUITE_NAME__ ${SRV_DIR}
+
+# install the software required by pipeline actions as conda environments
+# install Shiny and other R packages if container supports apps
+%post
+
+    # path variables set by us
+    export SRV_DIR=/srv
+    export MINICONDA_DIR=${SRV_DIR}/miniconda  
+    export PATH=${MINICONDA_DIR}/bin:${PATH} 
+
+    # variables set by mdi build
+    SUITE_NAME=__SUITE_NAME__
+    SUITE_VERSION=__SUITE_VERSION__
+    SUITE_CONTAINER_VERSION=__SUITE_CONTAINER_VERSION__
+    INSTALLER=__INSTALLER__
+    export MDI_FORCE_PIPELINES=__MDI_FORCE_PIPELINES__
+    export MDI_FORCE_APPS=__MDI_FORCE_APPS__
+    export MDI_SKIP_APPS=__MDI_SKIP_APPS__
+    SUITE_DIR=${SRV_DIR}/${SUITE_NAME}
+    export MDI_DIR=${SUITE_DIR}/mdi
+
+    # install git, conda and zip, as used by the MDI
+    if [ "$INSTALLER" = "apt-get" ] || \
+       [ "$INSTALLER" = "yum" ]; then
+        $INSTALLER update && $INSTALLER install -y git wget zip
+    else 
+        echo "unknown installer: $INSTALLER"
+        exit 1
+    fi
+    wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh -O ${SRV_DIR}/miniconda.sh
+    bash ${SRV_DIR}/miniconda.sh -b -p ${MINICONDA_DIR} 
+
+    # set conda channel_priority to strict
+    # https://docs.conda.io/projects/conda/en/latest/user-guide/tasks/manage-channels.html#strict-channel-priority
+    # https://github.com/conda/conda/issues/8197
+    conda config --set channel_priority strict
+
+    # execute the suite-centric installation of __SUITE_NAME__:__SUITE_VERSION__
+    # flags set above will clone repos and continue to install Shiny if container:add_apps:true
+    # unlike pipeline condas, app packages are installed for any suite dependencies also
+    cd ${SUITE_DIR}
+    ./install.sh
+    cd ${MDI_DIR}/suites/definitive/${SUITE_NAME}
+    git checkout ${SUITE_VERSION}
+
+    # creata conda environments for all __SUITE_NAME__:__SUITE_VERSION__ pipelines (but not it's suite dependencies)
+    export IS_CONTAINER_BUILD=TRUE    
+    PIPELINES=`ls -1 pipelines | grep -v -P "^_"`
+    for PIPELINE in $PIPELINES; do 
+        if [ ! -f $PIPELINE ]; then
+            ${MDI_DIR}/mdi ${PIPELINE} conda --create --force --no-mamba --version ${SUITE_VERSION} 
+        fi
+    done
+
+    # clean up conda pkgs directory of cached tarballs (conda clean won't work here)
+    rm -f ${MINICONDA_DIR}/pkgs/*.tar.bz2
+
+# path overrides include all ways that running pipelines use files from mdi-pipelines-framework
+# https://sylabs.io/guides/latest/user-guide/environment_and_metadata.html#environment-and-metadata
+%environment 
+    export SRV_DIR=/srv
+    export MINICONDA_DIR=${SRV_DIR}/miniconda     
+    export PATH=${MINICONDA_DIR}/bin:${PATH}   
+    export CONDA_LOAD_COMMAND=""   
+    export CONDA_PROFILE_SCRIPT=${MINICONDA_DIR}/etc/profile.d/conda.sh
+    export SUITE_NAME=__SUITE_NAME__
+    export SUITE_DIR=${SRV_DIR}/${SUITE_NAME}
+    export MDI_DIR=${SUITE_DIR}/mdi
+    export RUN_SCRIPT=__RUN_SCRIPT__
+    # export ENVIRONMENTS_DIR=${MDI_DIR}/environments
+    # export FRAMEWORK_DIR=${MDI_DIR}/frameworks/definitive/mdi-pipelines-framework
+    # export JOB_MANAGER_DIR=${FRAMEWORK_DIR}/job_manager
+    # export LAUNCHER_DIR=${FRAMEWORK_DIR}/pipeline/launcher
+    # export WORKFLOW_DIR=${FRAMEWORK_DIR}/pipeline/workflow
+    # export WORKFLOW_SH=${WORKFLOW_DIR}/workflow.sh
+    # export SLURP=${FRAMEWORK_DIR}/shell/slurp   
+    # export RESOURCES_DIR=${MDI_DIR}/resources
+    export LC_ALL=C
+
+# scriplet called by suite-centric 'run ...'
+%runscript
+    exec bash ${SUITE_DIR}/${RUN_SCRIPT} $@
+
+# labels for the container image, displayed as 'singularity inspect __SUITE_NAME__-__SUITE_CONTAINER_VERSION__.sif'
+%labels
+    Source Michigan Data Interface
+    SuiteName __SUITE_NAME__
+    SuiteVersion __SUITE_VERSION__
+    ContainerBase __CONTAINER_BASE__
+    ContainerBaseVersion __CONTAINER_BASE_VERSION__
+    Apps __HAS_APPS__
+
+# help text displayed by 'singularity run-help __SUITE_NAME__-__SUITE_CONTAINER_VERSION__.sif'
+%help
+    Source:    Michigan Data Interface
+    Suite:     __SUITE_NAME__:__SUITE_VERSION__
+    Base:      __CONTAINER_BASE__:__CONTAINER_BASE_VERSION__
+    Apps:      __HAS_APPS__

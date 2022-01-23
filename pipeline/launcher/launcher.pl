@@ -21,6 +21,7 @@ our ($pipelineName, $target, @args) = @ARGV;
 if($pipelineName eq "buildSuite"){
     map { $_ =~ m/launcher\.pl$/ or require $_ } glob("$launcherDir/*.pl");
     buildSuite($target);
+    exit;
 }
 
 # handle special case in Pipeline Runner where pipelineName is extracted from data.yml

@@ -1,5 +1,5 @@
 #------------------------------------------------------------------------------
-# These sections are appended to all assembled singularity.def files,
+# These sections are appended to all assembled pipeline-level singularity.def files,
 # after replacing __VAR_NAME__ with ${VAR_NAME}.
 #------------------------------------------------------------------------------
 # https://sylabs.io/guides/latest/user-guide/definition_files.html
@@ -18,7 +18,7 @@
     cp    ./mdi         ${MDI_DIR}/mdi
     rm -f ${MDI_DIR}/suites/*.lock
 
-# install the software required by supported pipeline actions as conda environments
+# install the software required by pipeline actions as conda environments
 %post
 
     # path variables set by us
