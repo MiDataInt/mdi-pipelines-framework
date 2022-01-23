@@ -23,7 +23,7 @@ sub reportUsage { # program help, always exits
     my ($message, $command, $die) = @_;
     print "\n>>> Michigan Data Interface (MDI) <<<\n";
     print $message ? "\n$message\n\n" : "\n";
-    $jmName = "$leftPad$jmName";
+    my $jmName = "$leftPad$jmName";
     print 
         "usage:\n".
         "$jmName <pipeline> <data.yml> [options]  # run all pipeline actions in data.yml\n".
@@ -49,7 +49,7 @@ sub reportCommandsHelp { # help on the set of available commands, organized by t
     reportCommandChunk("status and result reporting", qw(status report script));   
     reportCommandChunk("error handling",              qw(delete));           
     reportCommandChunk("pipeline management",         qw(rollback purge));  
-    reportCommandChunk("server management",           qw(initialize install add list run));  
+    reportCommandChunk("server management",           qw(initialize install add list build run));  
 }
 sub reportOptionHelp { 
     my ($command) = @_;

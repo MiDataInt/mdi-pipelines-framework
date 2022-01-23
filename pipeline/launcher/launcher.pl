@@ -17,6 +17,12 @@ our $workflowScript = "$workFlowDir/workflow.sh";
 # collect the requested pipeline, action, data.yml, and option arguments
 our ($pipelineName, $target, @args) = @ARGV;
 
+# handle special case for building suite-level containers
+if($pipelineName eq "buildSuite"){
+    map { $_ =~ m/launcher\.pl$/ or require $_ } glob("$launcherDir/*.pl");
+    buildSuite($target);
+}
+
 # handle special case in Pipeline Runner where pipelineName is extracted from data.yml
 if($pipelineName eq "valuesYaml"){
     require "$launcherDir/yaml.pl";

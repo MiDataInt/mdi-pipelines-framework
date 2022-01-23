@@ -26,6 +26,7 @@ our %commands = (  # [executionSub, commandHelp, mdiStage2]
     install     =>  [\&mdiInstall,    "re-run the installation process to update suites, etc.", 1], # install and add assume a Stage 2 installation
     add         =>  [\&mdiAdd,        "add one tool suite repository to config.yml and re-install", 1],
     list        =>  [\&mdiList,       "list all pipelines and apps available in this MDI installation", 1],
+    build       =>  [\&mdiBuild,      "build one container with all of a suite's pipelines and apps", 1],
     run         =>  [\&mdiRun,        "launch the web server to use interactive Stage 2 apps",  1],
 ); 
 #------------------------------------------------------------------------
@@ -59,7 +60,8 @@ our %optionInfo = (# [shortOption, valueString, optionGroup, groupOrder, optionH
     '_server_mode_'=>  ["NA", undef,   "NA", "NA", 0, "internalOption"], 
 #------------------------------------------------------------------------------------------------------------
     'install-packages'=>   ["p", undef,   "install", 0, "install R packages required by Stage 2 Apps"],
-    'suite'=>              ["s", "<str>", "install", 1, "a single suite to install, in form GIT_USER/SUITE_NAME"],
+    'suite'=>              ["s", "<str>", "install", 1, "a single suite to install or build, in form GIT_USER/SUITE_NAME"],
+    'version'=>            ["v", "<str>", "install", 2, "the version of the suite to build, e.g. v0.0.0 [latest]"],
     'develop'=>        ["v", undef,   "run", 0, "launch the web server in developer mode [run mode]"],
     'ondemand'=>       ["o", undef,   "run", 1, "launch the web server in ondemand mode [run mode]"],
     'data-dir'=>       ["D", "<str>", "run", 2, "path to the desired data directory [./data]"],
@@ -88,6 +90,7 @@ our %commandOptions =  ( # 0=allowed, 1=required
     install    =>  {'install-packages'=>0},
     add        =>  {'install-packages'=>0, 'suite'=>1},
     list       =>  {},
+    build      =>  {'suite'=>1, 'version'=>0},
     run        =>  {'develop'=>0,'ondemand'=>0,'data-dir'=>0,'host-dir'=>0}, 
 );  
 #========================================================================

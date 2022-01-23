@@ -86,3 +86,12 @@ actions:
                 total-ram: null
         optionFamilies: null
         description: "check for the presence of a container and prompt to pull if missing"
+    buildSuite:
+        order: 10
+        universal: true
+        hidden: true
+        resources:
+            required: 
+                total-ram: null
+        optionFamilies: null
+        description: "build one container with all of a tool suite's pipelines and apps"

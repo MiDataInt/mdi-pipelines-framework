@@ -17,7 +17,8 @@ our %workingSuiteVersions;  # the working version of all suites that have alread
 
 # examine user options and set the primary pipeline suite version accordingly
 sub setPipelineSuiteVersion { 
-    my $version = getRequestedSuiteVersion();
+    my ($version) = @_;
+    $version or $version = getRequestedSuiteVersion();
     $version = convertSuiteVersion($pipelineSuiteDir, $version);
     setSuiteVersion($pipelineSuiteDir, $version, $pipelineSuite);
 }

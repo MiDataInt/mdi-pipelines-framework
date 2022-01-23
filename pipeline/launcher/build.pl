@@ -1,13 +1,13 @@
 use strict;
 use warnings;
-use File::Path qw(make_path);
+use File::Path qw(make_path remove_tree);
 
 # subs for building and posting a Singularity container image of a pipeline
 
 # https://docs.github.com/en/packages/working-with-a-github-packages-registry/working-with-the-container-registry
 # https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/creating-a-personal-access-token
 
-use vars qw($mdiDir $launcherDir $config %workingSuiteVersions
+use vars qw($mdiDir $launcherDir $config %workingSuiteVersions @args
             $pipelineSuite $pipelineName $pipelineDir $pipelineSuiteDir);
 my $silently = "> /dev/null 2>&1";
 
@@ -195,6 +195,93 @@ sub pullPipelineContainer {
     system("$singularity pull $$uris{imageFile} $$uris{container}") and throwError(
         "container pull failed"
     );
+}
+
+# build a suite-level container
+sub buildSuiteContainer {
+    my ($suite) = @_;
+    my ($gitUser, $suite_) = split('/', $suite);
+    $suite_ or throwError(
+        "bad value for '--suite', expected 'GIT_USER/SUITE_NAME'"
+    );
+    $pipelineSuite = $suite_;
+
+    # parse and check the suite version; only allow latest and v0.0.0 for suites
+    my $version = getRequestedSuiteVersion();
+    $version or $version = "latest";
+    $version eq "latest" or $version =~ m/v\d+\.\d+\.\d+/ or throwError(
+        "bad value for '--version', expected 'latest' or form 'v0.0.0'"
+    );
+
+    # clone a fresh copy of the suite repository
+    my $containerDir = "$ENV{MDI_DIR}/containers";
+    mkdir $containerDir; 
+    $containerDir = "$containerDir/$pipelineSuite";
+    mkdir $containerDir;
+    my $tmpDir = "$containerDir/tmp";
+    mkdir $tmpDir;
+    $pipelineSuiteDir = "$tmpDir/$pipelineSuite";  
+    # remove_tree $pipelineSuiteDir;
+    # system("cd $tmpDir; git clone https://github.com/$suite.git") and throwError(
+    #     "git clone failed"
+    # );
+
+    # set the suite version
+    setPipelineSuiteVersion($version);
+    my $status = qx\cd $pipelineSuiteDir; git status\;
+    $status =~ m/detached/ or throwError( # always expect head to be detached at a suite version tag
+        "bad value for '--version', expected 'latest' or form 'v0.0.0'\n".
+        "alternatively, perhaps suite '$suite' does not have any version tags?"
+    );
+    my $suiteVersion;
+    $status =~ m/(v\d+\.\d+\.\d+)/ and $suiteVersion = $1;
+
+    # parse the suite config and check whether it supports containers
+    $config = loadYamlFile("$pipelineSuiteDir/_config.yml");
+    # pipelineSupportsContainers() or throwError(
+    #     "nothing to build\n".
+    #     "suite '$suite' does not support containers\n".
+    #     "add section 'container:' to _config.yml to enable container support"
+    # );
+    getPermission(
+        "\n'build' will create and post a Singularity container image for suite:\n".
+        "    $suite:$suiteVersion"
+    ) or exit;
+
+    # concatenate the complete Singularity container definition file
+    my $suiteDef = slurpContainerDef("$pipelineSuiteDir/singularity.def");
+    $suiteDef =~ m/\nFrom:\s+(\S+):\S+/ or 
+    $suiteDef =~ m/\nFrom:\s+(\S+)/ or throwError(
+        "missing or malformed 'From:' declaration in singularity.def\n".
+        "expected: From: base[:version]"
+    );
+    my $containerBase = $1;
+    my $containerBaseVersion = $suiteDef =~ m/\nFrom:\s+\S+:(.+)/ ? $1 : "unspecified";
+    my $commonDef = slurpContainerDef("$launcherDir/build-suite-common.def");
+    my $containerDef = "$suiteDef\n$commonDef";
+
+    # replace placeholders with pipeline-specific values (Singularity does not offer def file variables)
+    my %vars = (
+        SUITE_NAME       => $pipelineSuite,
+        SUITE_VERSION    => $suiteVersion,
+        CONTAINER_BASE   => $containerBase,
+        CONTAINER_BASE_VERSION => $containerBaseVersion,
+        INSTALLER        => $$config{container}{installer} ? $$config{container}{installer}[0] : 'apt-get'
+    );
+    foreach my $varName(keys %vars){
+        my $placeholder = "__".$varName."__";
+        $containerDef =~ s/$placeholder/$vars{$varName}/g;
+    }
+
+
+    my $imagePrefix = "$tmpDir/$suite-$suiteVersion";
+    my $defFile     = "$imagePrefix.def";
+    my $imageFile   = "$imagePrefix.sif";
+
+
+    # learn how to use Singularity on the system
+    my $singularityLoad = getSingularityLoadCommand();
+    my $singularity = "$singularityLoad; cd $ENV{MDI_DIR}; singularity";
 }
 
 1;

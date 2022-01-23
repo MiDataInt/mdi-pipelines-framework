@@ -24,7 +24,8 @@ sub doRestrictedCommand {
         options         => \&runOptions, 
         optionsTable    => \&runOptionsTable,
         valuesYaml      => \&runValuesYaml,
-        checkContainer  => \&checkContainer
+        checkContainer  => \&checkContainer,
+        buildSuite      => \&buildSuite
     );
     $restricted{$target} and &{$restricted{$target}}();
 }
@@ -324,6 +325,17 @@ sub checkContainer {
     # is silent unless needs to prompt for download
     pullPipelineContainer();
     releaseMdiGitLock(0);
+}
+
+#------------------------------------------------------------------------------
+# build one container with all of a tool suite's pipelines and apps (cascades from jobManager)
+#------------------------------------------------------------------------------
+sub buildSuite {  
+    my ($suite) = @_;
+    my $usage = "usage: mdi buildSuite <GIT_USER/SUITE_NAME> [--version v0.0.0]";
+    $suite or die "\nmissing suite\n$usage\n\n";
+    buildSuiteContainer($suite);
+    exit;
 }
 
 1;
