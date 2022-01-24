@@ -31,10 +31,10 @@
     SUITE_DIR=${SRV_DIR}/${SUITE_NAME}
     export MDI_DIR=${SUITE_DIR}/mdi
 
-    # install git, conda and zip, as used by the MDI
+    # install git, conda, zip, and others as used by the MDI
     if [ "$INSTALLER" = "apt-get" ] || \
        [ "$INSTALLER" = "yum" ]; then
-        $INSTALLER update && $INSTALLER install -y git wget zip
+        $INSTALLER update && $INSTALLER install -y git wget zip time
     else 
         echo "unknown installer: $INSTALLER"
         exit 1
@@ -66,6 +66,9 @@
 
     # clean up conda pkgs directory of cached tarballs (conda clean won't work here)
     rm -f ${MINICONDA_DIR}/pkgs/*.tar.bz2
+
+    # set needed execution permission on mdi target script
+    chmod ugo+rx ${MDI_DIR}/mdi
 
 # path overrides include all ways that running pipelines use files from mdi-pipelines-framework
 # https://sylabs.io/guides/latest/user-guide/environment_and_metadata.html#environment-and-metadata

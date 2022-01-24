@@ -143,12 +143,13 @@ sub assembleContainerDef {
     );
     foreach my $varName(keys %vars){
         my $placeholder = "__".$varName."__";
-        $containerDef =~ s/$placeholder/$vars{$varName}/g;
+        $def =~ s/$placeholder/$vars{$varName}/g;
     }
     foreach my $varName(keys %$replace){ # level-specific replacement, i.e., suite or pipeline
         my $placeholder = "__".$varName."__";
-        $containerDef =~ s/$placeholder/$$replace{$varName}/g;
+        $def =~ s/$placeholder/$$replace{$varName}/g;
     }
+    $def;
 }
 
 # build and push a pipeline-level or suite-level container
@@ -173,7 +174,7 @@ sub buildAndPushContainer {
         $force = (uc(substr($response, 0, 1)) eq "Y");
         $force and $force = "--force";
     }
-    if(! -e $$$uris{imageFile} or $force){
+    if(! -e $$uris{imageFile} or $force){
         print "\nbuilding Singularity container image:\n    $$uris{imageFile}\nfrom:\n    $$uris{defFile}\n\n";          
         make_path($$uris{imageDir});
         open my $outH, ">", $$uris{defFile} or throwError($!);
