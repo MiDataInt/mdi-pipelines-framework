@@ -20,6 +20,14 @@ sub buildSingularity {
     my ($sandbox, $force) = @_;
     my $suiteVersion = $workingSuiteVersions{$pipelineSuiteDir};
 
+    # check to see if suite supports suite-level containers with pipelines installed
+    # if so, no point in building pipeline-level containers
+    suiteSupportsContainers() and getSuiteContainerStage('pipelines') and throwError(
+        "suite '$pipelineSuite' supports a suite-level container with installed pipelines\n".
+        "pipeline-level containers are superfluous and unnecessary\n".
+        "aborting container build"
+    );
+
     # get permission to create and post the Singularity image
     pipelineSupportsContainers() or throwError(
         "nothing to build\n".
@@ -27,7 +35,7 @@ sub buildSingularity {
         "add/edit section 'container:' in pipeline.yml to enable container support"
     );
     getPermission(
-        "\n'build' will create and post a Singularity container image for:\n".
+        "\n'build' will create and post a Singularity container image for pipeline:\n".
         "    $pipelineSuite/$pipelineName:$suiteVersion"
     ) or releaseMdiGitLock(1); 
   
@@ -52,7 +60,7 @@ sub buildSuiteContainer {
     my ($suite) = @_;
     my ($gitUser, $repoName) = split('/', $suite);
     $repoName or throwError(
-        "bad value for '--suite', expected 'GIT_USER/SUITE_NAME'"
+        "bad value for option '--suite', expected 'GIT_USER/SUITE_NAME'"
     );
     $pipelineSuite = $repoName;
 
@@ -90,12 +98,19 @@ sub buildSuiteContainer {
 
     # parse the suite config and check whether it supports containers
     $config = loadYamlFile("$pipelineSuiteDir/_config.yml");
-    my $addApps = $$config{container}{add_apps} ? $$config{container}{add_apps}[0] : 0;
-    pipelineSupportsContainers() or throwError(
+    suiteSupportsContainers($config) or throwError(
         "nothing to build\n".
         "suite '$suite' does not support containers\n".
         "add/edit section 'container:' in _config.yml to enable container support"
     );
+
+    # determine the code stages to installs within the container
+    my $addStage1 = getSuiteContainerStage('pipelines', $config);
+    my $addStage2 = getSuiteContainerStage('apps',      $config);
+    $addStage1 or $addStage2 or throwError(
+        "nothing to build\n".
+        "container:stages:pipelines and container:stages:apps are both false"
+    );    
     getPermission(
         "\n'build' will create and post a Singularity container image for suite:\n".
         "    $suite:$suiteVersion"
@@ -105,11 +120,12 @@ sub buildSuiteContainer {
     my $containerDef = assembleContainerDef($pipelineSuiteDir, "build-suite-common", {
         SUITE_VERSION            => $suiteVersion,
         SUITE_CONTAINER_VERSION  => $suiteMajorMinorVersion,
-        MDI_FORCE_PIPELINES => "true", # flags for suite-centric install.sh
-        MDI_FORCE_APPS      => $addApps ? "true" : "",
-        MDI_SKIP_APPS       => $addApps ? "" : "true",        
-        HAS_APPS            => $addApps ? "true" : "false",
-        RUN_SCRIPT          => $$config{container}{run_script} ? $$config{container}{run_script}[0] : 'run'
+        MDI_FORCE_GIT            => "true", # flags for suite-centric install.sh
+        MDI_INSTALL_PIPELINES    => $addStage1 ? "true" : "",
+        MDI_FORCE_APPS           => $addStage2 ? "true" : "",
+        MDI_SKIP_APPS            => $addStage2 ? "" : "true",    
+        HAS_PIPELINES            => $addStage1 ? "true" : "false",
+        HAS_APPS                 => $addStage2 ? "true" : "false"
     });
 
     # build and push  
@@ -160,8 +176,8 @@ sub buildAndPushContainer {
     my $uris = getContainerUris($majorMinorVersion, $isSuite);
 
     # learn how to use Singularity on the system
-    my $singularityLoad = getSingularityLoadCommand();
-    my $singularity = "$singularityLoad; cd $ENV{MDI_DIR}; singularity";
+    my $singularityLoad = getSingularityLoadCommand(1);
+    my $singularity = "$singularityLoad; singularity";
 
     # run singularity build
     if(-e $$uris{imageFile} and !$force and $isSuite){ # for buildSuiteContainer
@@ -180,7 +196,7 @@ sub buildAndPushContainer {
         open my $outH, ">", $$uris{defFile} or throwError($!);
         print $outH $containerDef;
         close $outH;
-        system("cd $ENV{MDI_DIR}; $singularity build --fakeroot $sandbox $force $$uris{imageFile} $$uris{defFile}") and throwError(
+        system("$singularity build --fakeroot $sandbox $force $$uris{imageFile} $$uris{defFile}") and throwError(
             "container build failed"
         );        
     } elsif(!$isSuite) { # for buildSingularity, i.e., pipeline
@@ -223,8 +239,8 @@ sub pullPipelineContainer {
 
     # learn how to use singularity
     if(!$singularity){
-        my $singularityLoad = getSingularityLoadCommand();
-        $singularity = "$singularityLoad; cd $ENV{MDI_DIR}; singularity";        
+        my $singularityLoad = getSingularityLoadCommand(1);
+        $singularity = "$singularityLoad; singularity";        
     }      
 
     # create the target directory
@@ -242,11 +258,30 @@ sub pullPipelineContainer {
 #------------------------------------------------------------------------------
 
 # determine whether the pipeline or suite supports containers, i.e., if there is something for build to do
+sub suiteSupportsContainers {
+    my ($config) = @_;
+    $config or $config = loadYamlFile("$pipelineSuiteDir/_config.yml");
+    $$config{container} and 
+    $$config{container}{supported} and 
+    $$config{container}{supported}[0]
+}
 sub pipelineSupportsContainers {
     $$config{container} and 
     $$config{container}{supported} and 
     $$config{container}{supported}[0]
 }
+
+# get a flag whether a suite-level container supports stage 1 pipelines or stage 2 apps
+# presumes that suiteSupportsContainers has already been checked
+sub getSuiteContainerStage {
+    my ($stage, $config) = @_;
+    $config or $config = loadYamlFile("$pipelineSuiteDir/_config.yml");
+    my $default = $stage eq 'pipelines' ? 1 : 0; # default to pipelines-only suite containers
+    my $x = $$config{container} or return $default;
+    $x = $$x{stages} or return $default;
+    $x = $$x{$stage} or return $default;
+    $$x[0];
+} 
 
 # slurp a container definition file
 sub slurpContainerDef {
@@ -291,6 +326,7 @@ sub getContainerUris { # pipelineSupportsContainers(), i.e.,  $$config{container
 
 # make sure singularity is available on the system
 sub getSingularityLoadCommand {
+    my ($failIfMissing) = @_;
 
     # first, see if it is already present and ready
     my $command = "echo $silently";
@@ -304,9 +340,10 @@ sub getSingularityLoadCommand {
     }
 
     # singularity failed, throw and error
-    throwError(
-        "Could not find a way to load singularity from PATH or stage1-pipelines.yml"
+    $failIfMissing and throwError(
+        "could not find a way to load singularity from PATH or stage1-pipelines.yml"
     );
+    "";
 }
 sub checkForSingularity { # return TRUE if a proper singularity exists in system PATH after executing $command
     my ($command) = @_;

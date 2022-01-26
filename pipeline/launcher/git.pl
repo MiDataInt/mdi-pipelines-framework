@@ -39,6 +39,7 @@ sub setMdiGitLock {
 
 sub releaseMdiGitLock { # always called at the end of every launcher run
     my ($exitStatus) = @_; # omit exit status if, and only if, followed by call to exec
+    $pipelineSuite or exit $exitStatus;
     my $lockFile = getMdiLockFile();
     -e $lockFile and unlink $lockFile;
     defined $exitStatus and exit $exitStatus; # don't use die to avoid compile error from require of launcher

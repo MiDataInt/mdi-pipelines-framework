@@ -106,7 +106,7 @@ sub reportAssembledConfig {
     my @taskOptions;
     assembleActionYaml($action, $cmd, $indent, \@taskOptions, \$report);
     
-    # print the dependencies
+    # print the conda environment channels and dependencies
     $report .= $indent."conda:\n";
     my $condaPathSuffix = $showMissingConda ? (-d $$condaPaths{dir} ? "" : "*** NOT PRESENT LOCALLY ***") : "";
     $report .= "$indent$indent"."prefix: $$condaPaths{dir} $condaPathSuffix\n";
@@ -116,15 +116,8 @@ sub reportAssembledConfig {
         $report .= join("\n", map { "$indent$indent$indent- $_" } @{$conda{$key}})."\n";
     } 
 
-    # print container metadata
-    if($$config{container} and $$config{container}{supported} and $$config{container}{supported}[0]){
-        my $uris = getContainerUris();  
-        $report .= $indent."singularity:\n";
-        $report .= "$indent$indent"."image: $$uris{container}\n";
-    }
-
     # finish up
-    $report .= "...\n";
+    # $report .= "...\n"; # defer closure of yaml block to execute.pl, after container metadata
     {taskOptions => \@taskOptions, report => $report};
 }
 sub assembleActionYaml {

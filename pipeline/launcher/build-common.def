@@ -4,19 +4,27 @@
 #------------------------------------------------------------------------------
 # https://sylabs.io/guides/latest/user-guide/definition_files.html
 #------------------------------------------------------------------------------
+# STATIC_MDI_DIR=/srv/static/mdi is an mdi-centric, read-only MDI installation that is 
+# copied into the image and updated at build time, used by running pipelines.
+# It is where the pipelines framework and environments are drawn from. 
+#------------------------------------------------------------------------------
+# TASK_DIR is a user-defined, active, read-write folder bind-mounted at run time. 
+# In addition to being where pipelines deposit data files, TASK_DIR has a fixed, 
+# static copy of the tool suite code required to execute a pipeline.
+#------------------------------------------------------------------------------
 
 # copy the pipelines-relevant mdi installation into the container and reset for use
-# MDI_DIR is always /srv/mdi in a pipeline container
 %setup
     SRV_DIR=/srv
-    MDI_DIR=${SINGULARITY_ROOTFS}${SRV_DIR}/mdi
-    mkdir -p ${MDI_DIR}/environments
-    mkdir -p ${MDI_DIR}/resources
-    cp -r ./config      ${MDI_DIR}/config
-    cp -r ./frameworks  ${MDI_DIR}/frameworks
-    cp -r ./suites      ${MDI_DIR}/suites
-    cp    ./mdi         ${MDI_DIR}/mdi
-    rm -f ${MDI_DIR}/suites/*.lock
+    STATIC_DIR=${SINGULARITY_ROOTFS}${SRV_DIR}/static
+    STATIC_MDI_DIR=${STATIC_DIR}/mdi
+    mkdir -p ${STATIC_MDI_DIR}/environments
+    mkdir -p ${STATIC_MDI_DIR}/resources
+    cp -r ./config      ${STATIC_MDI_DIR}/config
+    cp -r ./frameworks  ${STATIC_MDI_DIR}/frameworks
+    cp -r ./suites      ${STATIC_MDI_DIR}/suites
+    cp    ./mdi         ${STATIC_MDI_DIR}/mdi
+    rm -f ${STATIC_MDI_DIR}/suites/*.lock
 
 # install the software required by pipeline actions as conda environments
 %post
@@ -24,8 +32,9 @@
     # path variables set by us
     export SRV_DIR=/srv
     export MINICONDA_DIR=${SRV_DIR}/miniconda  
-    export PATH=${MINICONDA_DIR}/bin:${PATH}      
-    export MDI_DIR=${SRV_DIR}/mdi 
+    export PATH=${MINICONDA_DIR}/bin:${PATH}  
+    export STATIC_DIR=${SRV_DIR}/static 
+    export STATIC_MDI_DIR=${STATIC_DIR}/mdi 
 
     # variables set by mdi build
     SUITE_VERSION=__SUITE_VERSION__
@@ -50,7 +59,7 @@
 
     # creata conda environments of the software required by the pipeline
     export IS_CONTAINER_BUILD=TRUE
-    ${MDI_DIR}/mdi ${PIPELINE_NAME} conda --create --force --no-mamba --version ${SUITE_VERSION} 
+    ${STATIC_MDI_DIR}/mdi ${PIPELINE_NAME} conda --create --force --no-mamba --version ${SUITE_VERSION} 
 
     # clean up conda pkgs directory of cached tarballs (conda clean won't work here)
     rm -f ${MINICONDA_DIR}/pkgs/*.tar.bz2
@@ -58,21 +67,30 @@
 # path overrides include all ways that running pipelines use files from mdi-pipelines-framework
 # https://sylabs.io/guides/latest/user-guide/environment_and_metadata.html#environment-and-metadata
 %environment 
+    export LC_ALL=C
+
+    # conda path specifications
     export SRV_DIR=/srv
     export MINICONDA_DIR=${SRV_DIR}/miniconda  
     export PATH=${MINICONDA_DIR}/bin:${PATH}     
     export CONDA_LOAD_COMMAND=""
     export CONDA_PROFILE_SCRIPT=${MINICONDA_DIR}/etc/profile.d/conda.sh
-    export MDI_DIR=${SRV_DIR}/mdi
-    export ENVIRONMENTS_DIR=${MDI_DIR}/environments
-    export FRAMEWORK_DIR=${MDI_DIR}/frameworks/definitive/mdi-pipelines-framework
+
+    # static, read only, code path specifications; environments, pipelines framework
+    export STATIC_DIR=${SRV_DIR}/static 
+    export STATIC_MDI_DIR=${STATIC_DIR}/mdi 
+    export MDI_DIR=${STATIC_MDI_DIR}
+    export ENVIRONMENTS_DIR=${STATIC_MDI_DIR}/environments
+    # export RESOURCES_DIR=${STATIC_MDI_DIR}/resources    
+    export FRAMEWORK_DIR=${STATIC_MDI_DIR}/frameworks/definitive/mdi-pipelines-framework
     export JOB_MANAGER_DIR=${FRAMEWORK_DIR}/job_manager
     export LAUNCHER_DIR=${FRAMEWORK_DIR}/pipeline/launcher
     export WORKFLOW_DIR=${FRAMEWORK_DIR}/pipeline/workflow
     export WORKFLOW_SH=${WORKFLOW_DIR}/workflow.sh
     export SLURP=${FRAMEWORK_DIR}/shell/slurp   
-    export RESOURCES_DIR=${MDI_DIR}/resources
-    export LC_ALL=C
+
+    # no read-write code folder needed
+    # a static copy of versioned suite code is placed in bind-mounted TASK_DIR
 
 # scriplet called by execute.pl to launch the pipeline; it takes no arguments
 %runscript

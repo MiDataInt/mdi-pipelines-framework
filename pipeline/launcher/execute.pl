@@ -5,7 +5,7 @@ use File::Path qw(make_path);
 # main sub for executing a pipeline action
 
 # working variables
-use vars qw($pipelineName $pipelineSuite $pipelineDir $modulesDir
+use vars qw($pipelineName $pipelineSuite $pipelineDir $pipelineSuiteDir $modulesDir
             @args $config $isSingleAction
             %longOptions %optionArrays $isNTasks
             $launcherDir $workFlowDir $workflowScript
@@ -50,6 +50,7 @@ sub executeAction {
     }
 
     # do the requested work by task id
+    setContainerEnvVars($assembled);
     $optionArrays{quiet}[0] or print $$assembled{report};
     my $isDryRun = $$assembled{taskOptions}[0]{'dry-run'};
     foreach my $i(@workingTaskIs){    
@@ -63,6 +64,59 @@ sub getCmdHash {                # the name of this function, 'cmd', and the varn
     my $name = $_[0] or return; # is a legacy holdover from when 'actions' were called 'commands'
     $$config{actions}{$name};
 } 
+
+# check the validity/necessity of a container to run the task
+# executed on all paths to ensure that task report carries container metadata
+sub setContainerEnvVars {
+    my ($assembled) = @_;
+    my $optionValues = $$assembled{taskOptions}[0]; # all tasks use the same runtime
+    setEnvVariable('runtime', $$optionValues{runtime}); 
+    if($ENV{RUNTIME} eq 'auto'){
+        $ENV{SINGULARITY_LOAD_COMMAND} = getSingularityLoadCommand();
+        if($ENV{SINGULARITY_LOAD_COMMAND}){
+            if(suiteSupportsContainers() and getSuiteContainerStage('pipelines')){
+                $ENV{RUNTIME} = 'container'; # suite containers take precedence if pipelines installed in them
+                $ENV{CONTAINER_LEVEL} = 'suite';
+            } elsif(pipelineSupportsContainers()){
+                $ENV{RUNTIME} = 'container';
+                $ENV{CONTAINER_LEVEL} = 'pipeline';
+            } else { # tool suite/pipeline does not support containers, even if user system does 
+                $ENV{RUNTIME} = 'direct';
+            }
+        } else { # user system does not support containers, even if suite/pipeline does
+            $ENV{RUNTIME} = 'direct';
+        }
+    } elsif($ENV{RUNTIME} eq 'container') {
+        $ENV{CONTAINER_LEVEL} = (suiteSupportsContainers() and getSuiteContainerStage('pipelines')) ? 
+            'suite': (pipelineSupportsContainers() ? 'pipeline' : '');
+        $ENV{CONTAINER_LEVEL} or throwError(
+            "pipeline '$pipelineName' does not support containers\n".
+            "please set option --runtime to 'direct' or 'auto'"
+        );  
+        $ENV{SINGULARITY_LOAD_COMMAND} = getSingularityLoadCommand() or throwError(
+            "could not find a way to load singularity from PATH or stage1-pipelines.yml\n".
+            "please set option --runtime to 'direct' or 'auto', install singularity, or edit:\n".
+            "    mdi/config/stage1-pipelines.yml >> singularity:load-command"
+        );        
+    }
+    $ENV{IS_CONTAINER} = ($ENV{RUNTIME} eq 'container');
+    
+    # append container metadata to the task report, if applicable
+    if($ENV{IS_CONTAINER}){
+        my $isSuite = $ENV{CONTAINER_LEVEL} eq 'suite';  
+        if($isSuite){
+            $workingSuiteVersions{$pipelineSuiteDir} =~ m/(v\d+\.\d+)\.\d+/ and $ENV{CONTAINER_MAJOR_MINOR} = $1;
+        } else {
+            $ENV{CONTAINER_MAJOR_MINOR} = getPipelineMajorMinorVersion();
+        }
+        my $uris = getContainerUris($ENV{CONTAINER_MAJOR_MINOR}, $isSuite);  
+        my $indent = "    ";
+        $$assembled{report} .= $indent."singularity:\n";
+        $$assembled{report} .= "$indent$indent"."image: $$uris{container}\n";
+        $$assembled{report} .= "$indent$indent"."level: $ENV{CONTAINER_LEVEL}\n";
+    }
+    $$assembled{report} .= "...\n"; # finish the job report by closing it's yaml block
+}
 
 # parse the options and prepare to execute a single pipeline task
 # a task is a pipeline action applied to a given data set, with a single output folder
@@ -90,6 +144,7 @@ sub processActionTask {
 
     # load environment variables with provided values for use by running pipelines
     foreach my $optionLong(keys %$optionValues){
+        $optionLong eq 'runtime' and next; # runtime was handled above, even in dry-run
         setEnvVariable($optionLong, $$optionValues{$optionLong}); 
     }
     ($taskId, \$taskReport);
@@ -98,15 +153,6 @@ sub manageTaskEnvironment { # set all task environment variables (listed in tool
     my ($action, $cmd, $isDryRun, $assembled, $taskReport, $conda) = @_;
 
     # note: some environment variables are overridden for containers in build-common.def
-
-    # check the validity/necessity of a container to run the task
-    my $hasContainers = pipelineSupportsContainers();
-    $ENV{RUNTIME} eq 'auto' and $ENV{RUNTIME} = $hasContainers ? 'container' : 'direct';
-    $ENV{IS_CONTAINER} = ($ENV{RUNTIME} eq 'container');    
-    $ENV{IS_CONTAINER} and !$hasContainers and throwError(
-        "pipeline '$pipelineName' does not support containers\n".
-        "please omit set option --runtime to 'direct' or 'auto'"
-    );
 
     # set up conda activate
     $ENV{CONDA_LOAD_COMMAND}   = $$conda{loadCommand};
@@ -204,11 +250,10 @@ sub executeTask {
     # validate the containter or conda environment based on runtime mode
     my $execCommand = "cd $ENV{TASK_DIR}; ";
     if($ENV{IS_CONTAINER}){
-        my $uris = getContainerUris();
-        my $singularityLoad = getSingularityLoadCommand();
-        my $singularity = "$singularityLoad; cd $ENV{MDI_DIR}; singularity";
+        my $uris = getContainerUris($ENV{CONTAINER_MAJOR_MINOR}, $ENV{CONTAINER_LEVEL} eq 'suite');
+        my $singularity = "$ENV{SINGULARITY_LOAD_COMMAND}; singularity";
         pullPipelineContainer($uris, $singularity);
-        $execCommand .= "$singularity run $$uris{imageFile}";
+        $execCommand .= "$singularity run $$uris{imageFile} pipeline"; # bind mounts TASK_DIR
     } else {
         -d $$conda{dir} or throwError(
             "missing conda environment for action '$action'\n".
