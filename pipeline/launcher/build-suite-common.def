@@ -35,6 +35,7 @@
     export PATH=${MINICONDA_DIR}/bin:${PATH} 
 
     # variables set by mdi build
+    BASE_NAME=mdi-singularity-base    
     SUITE_NAME=__SUITE_NAME__
     SUITE_VERSION=__SUITE_VERSION__
     SUITE_CONTAINER_VERSION=__SUITE_CONTAINER_VERSION__
@@ -43,9 +44,12 @@
     export MDI_INSTALL_PIPELINES=__MDI_INSTALL_PIPELINES__
     export MDI_FORCE_APPS=__MDI_FORCE_APPS__
     export MDI_SKIP_APPS=__MDI_SKIP_APPS__
-    STATIC_SUITE_DIR=${SRV_DIR}/static/${SUITE_NAME}
+    STATIC_DIR=${SRV_DIR}/static
+    STATIC_SUITE_DIR=${STATIC_DIR}/${SUITE_NAME}
+    STATIC_BASE_DIR=${STATIC_DIR}/${BASE_NAME}
+    if [ "$SUITE_NAME" = "$BASE_NAME" ] then; IS_BASE_INSTALL=true; fi
 
-    # install git, zip, and others as used by the MDI
+    # install/update git, zip, and others as used by the MDI
     if [ "$INSTALLER" = "apt-get" ] || \
        [ "$INSTALLER" = "yum" ]; then
         $INSTALLER update && $INSTALLER install -y git wget zip time
@@ -54,10 +58,18 @@
         exit 1
     fi
 
+    # copy existing R library if we are extending a prior Stage 2 MDI container build
+    if [ "$MDI_FORCE_APPS" = "true" ] && [ -d ${STATIC_BASE_DIR} ] && [ "$IS_BASE_INSTALL" = "" ]; then
+        rm -r ${STATIC_SUITE_DIR}/mdi/library
+        mv ${STATIC_BASE_DIR}/mdi/library to ${STATIC_SUITE_DIR}/mdi
+        rm -r ${STATIC_BASE_DIR}
+    fi
+
     # execute the suite-centric installation of __SUITE_NAME__:__SUITE_VERSION__
     # flags set above will clone repos and continue to install Shiny if container:stages:apps==true
     # unlike pipeline condas, app packages are installed for any suite dependencies also
     cd ${STATIC_SUITE_DIR}
+    export MDI_FORCE_SYSTEM_INSTALL=true
     ./install.sh
     cd ${STATIC_SUITE_DIR}/mdi/suites/definitive/${SUITE_NAME}
     git checkout ${SUITE_VERSION}
@@ -66,14 +78,16 @@
     # install __SUITE_NAME__:__SUITE_VERSION__ conda environments if container:stages:pipelines==true
     if [ "$MDI_INSTALL_PIPELINES" = "true" ]; then
 
-        # install conda itself
-        wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh -O ${SRV_DIR}/miniconda.sh
-        bash ${SRV_DIR}/miniconda.sh -b -p ${MINICONDA_DIR} 
+        # install conda itself if not already present from base image
+        if [ ! -d ${MINICONDA_DIR} ]; then
+            wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh -O ${SRV_DIR}/miniconda.sh
+            bash ${SRV_DIR}/miniconda.sh -b -p ${MINICONDA_DIR} 
 
-        # set conda channel_priority to strict
-        # https://docs.conda.io/projects/conda/en/latest/user-guide/tasks/manage-channels.html#strict-channel-priority
-        # https://github.com/conda/conda/issues/8197
-        conda config --set channel_priority strict
+            # set conda channel_priority to strict
+            # https://docs.conda.io/projects/conda/en/latest/user-guide/tasks/manage-channels.html#strict-channel-priority
+            # https://github.com/conda/conda/issues/8197
+            conda config --set channel_priority strict
+        fi
 
         # creata conda environments for all __SUITE_NAME__:__SUITE_VERSION__ pipelines (but not it's suite dependencies)
         export IS_CONTAINER_BUILD=TRUE    
@@ -121,22 +135,29 @@
     export MDI_DIR=${ACTIVE_MDI_DIR}
 
 # scriplet called by
-#   - execute.pl to launch the pipeline, argument 'pipeline'
-#   - run.pl to launch the web server, argument 'apps'
+#   - install.pl/sh, to use singularity-base to add suites lacking container support, argument 'install'
+#   - execute.pl, to launch a pipeline, argument 'pipeline'
+#   - run.pl, to launch the web server, argument 'apps'
 %runscript
-    if [ "$1" = "pipeline" ]; then
+    if [ "$1" = "install" ]; then
+        export EXTENDING_CONTAINER_BASE=TRUE
+        Rscript -e "mdi::install('$ACTIVE_MDI_DIR', confirm = FALSE, addToPATH = FALSE)"
+
+    elif [ "$1" = "pipeline" ]; then
         if [ "$HAS_PIPELINES" != "true" ]; then 
             echo "container does not have __SUITE_NAME__ pipelines installed"
             exit 1
         fi 
         exec bash ${LAUNCHER_DIR}/execute.sh
+
     elif [ "$1" = "apps" ]; then
         if [ "$HAS_APPS" != "true" ]; then 
             echo "container does not have __SUITE_NAME__ apps installed"
             exit 1
         fi 
         shift
-        exec bash ${ACTIVE_MDI_DIR}/mdi run $@
+        exec bash ${ACTIVE_MDI_DIR}/mdi server $@
+
     else
         echo "usage error: please run this container using an MDI command"
     fi

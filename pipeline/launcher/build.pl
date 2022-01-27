@@ -332,16 +332,19 @@ sub getSingularityLoadCommand {
     my $command = "echo $silently";
     checkForSingularity($command) and return $command; 
     
-    # if not, attempt to use singularity: load-command from stage1-pipelines.yml
-    my $configYml = loadYamlFile("$mdiDir/config/stage1-pipelines.yml");
-    if($$configYml{singularity} and $$configYml{singularity}{'load-command'}){
-        my $command = "$$configYml{singularity}{'load-command'}[0] $silently";
-        checkForSingularity($command) and return $command; 
+    # if not, attempt to use load-command from singularity.yml
+    my $ymlFile = "$mdiDir/config/singularity.yml";
+    if(-e $ymlFile){
+        my $yml = loadYamlFile($ymlFile);
+        if($$yml{'load-command'}){
+            my $command = "$$yml{'load-command'}[0] $silently";
+            checkForSingularity($command) and return $command; 
+        }
     }
 
     # singularity failed, throw and error
     $failIfMissing and throwError(
-        "could not find a way to load singularity from PATH or stage1-pipelines.yml"
+        "could not find a way to load singularity from PATH or config/singularity.yml"
     );
     "";
 }

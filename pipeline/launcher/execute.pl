@@ -94,9 +94,9 @@ sub setContainerEnvVars {
             "please set option --runtime to 'direct' or 'auto'"
         );  
         $ENV{SINGULARITY_LOAD_COMMAND} = getSingularityLoadCommand() or throwError(
-            "could not find a way to load singularity from PATH or stage1-pipelines.yml\n".
+            "could not find a way to load singularity from PATH or singularity.yml\n".
             "please set option --runtime to 'direct' or 'auto', install singularity, or edit:\n".
-            "    mdi/config/stage1-pipelines.yml >> singularity:load-command"
+            "    mdi/config/singularity.yml >> load-command"
         );        
     }
     $ENV{IS_CONTAINER} = ($ENV{RUNTIME} eq 'container');
