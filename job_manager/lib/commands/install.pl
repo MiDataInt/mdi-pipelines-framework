@@ -17,15 +17,22 @@ use vars qw(%options);
 #------------------------------------------------------------------------
 sub mdiInstall { 
 
-    # TODO: must honor singularity if present
-    # easiest past might be to always use ./install.sh (will it always be present?)
-    # install-packages sets 1 vs. 2, etc.
+    # ensure that mdi 'install.sh' script is present
+    # could be missing if initial installation was performed using mdi::install()
+    my $installScriptName = "install.sh";
+    my $installScriptPath = "$ENV{MDI_DIR}/$installScriptName";
+    my $installScriptUrl  = "https://raw.githubusercontent.com/MiDataInt/mdi/main/$installScriptName";
+    !-f $installScriptPath and system("cd $ENV{MDI_DIR}; wget $installScriptUrl");
 
-    my $installPackages = $options{'install-packages'} ? "TRUE" : "FALSE";
-    exec "Rscript -e 'mdi::install(\"$ENV{MDI_DIR}\", ".
-         "installPackages = $installPackages, confirm = FALSE, addToPATH = FALSE, ".
-         "clone = TRUE, force = FALSE)'";
+    # pass the call to 'install.sh' script from repo MiDataInt/mdi
+    my $installLevel = $options{'install-packages'} ? 2 : 1;
+    exec "bash $installScriptPath $installLevel";
 }
 #========================================================================
 
 1;
+
+    # my $installPackages = $options{'install-packages'} ? "TRUE" : "FALSE";
+    # exec "Rscript -e 'mdi::install(\"$ENV{MDI_DIR}\", ".
+    #      "installPackages = $installPackages, confirm = FALSE, addToPATH = FALSE, ".
+    #      "clone = TRUE, force = FALSE)'";

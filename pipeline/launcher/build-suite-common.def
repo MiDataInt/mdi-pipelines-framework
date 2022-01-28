@@ -23,19 +23,17 @@
     SRV_DIR=/srv
     STATIC_DIR=${SINGULARITY_ROOTFS}${SRV_DIR}/static
     mkdir -p ${STATIC_DIR}
+    BASE_SUITE=`ls -1 ${STATIC_DIR}`
+    if [ "$BASE_SUITE" != "" ]; then 
+        mv ${STATIC_DIR}/${BASE_SUITE} ${STATIC_DIR}/base-suite
+    fi
     cp -r ./containers/tmp/__SUITE_NAME__ ${STATIC_DIR}
 
 # install the software required by pipeline actions as conda environments
 # install Shiny and other R packages if the container supports apps
 %post
 
-    # path variables set by us
-    SRV_DIR=/srv
-    MINICONDA_DIR=${SRV_DIR}/miniconda  
-    export PATH=${MINICONDA_DIR}/bin:${PATH} 
-
     # variables set by mdi build
-    BASE_NAME=mdi-singularity-base    
     SUITE_NAME=__SUITE_NAME__
     SUITE_VERSION=__SUITE_VERSION__
     SUITE_CONTAINER_VERSION=__SUITE_CONTAINER_VERSION__
@@ -44,10 +42,17 @@
     export MDI_INSTALL_PIPELINES=__MDI_INSTALL_PIPELINES__
     export MDI_FORCE_APPS=__MDI_FORCE_APPS__
     export MDI_SKIP_APPS=__MDI_SKIP_APPS__
+
+    # conda path
+    SRV_DIR=/srv
+    MINICONDA_DIR=${SRV_DIR}/miniconda  
+    export PATH=${MINICONDA_DIR}/bin:${PATH} 
+
+    # path of the suite being installed and any source base suite
+    BASE_NAME=base-suite     
     STATIC_DIR=${SRV_DIR}/static
     STATIC_SUITE_DIR=${STATIC_DIR}/${SUITE_NAME}
     STATIC_BASE_DIR=${STATIC_DIR}/${BASE_NAME}
-    if [ "$SUITE_NAME" = "$BASE_NAME" ] then; IS_BASE_INSTALL=true; fi
 
     # install/update git, zip, and others as used by the MDI
     if [ "$INSTALLER" = "apt-get" ] || \
@@ -59,10 +64,9 @@
     fi
 
     # copy existing R library if we are extending a prior Stage 2 MDI container build
-    if [ "$MDI_FORCE_APPS" = "true" ] && [ -d ${STATIC_BASE_DIR} ] && [ "$IS_BASE_INSTALL" = "" ]; then
-        rm -r ${STATIC_SUITE_DIR}/mdi/library
-        mv ${STATIC_BASE_DIR}/mdi/library to ${STATIC_SUITE_DIR}/mdi
-        rm -r ${STATIC_BASE_DIR}
+    if [ "$MDI_FORCE_APPS" = "true" ] && [ -d ${STATIC_BASE_DIR} ]; then
+        rm -fr ${STATIC_SUITE_DIR}/mdi/library
+        mv ${STATIC_BASE_DIR}/mdi/library ${STATIC_SUITE_DIR}/mdi
     fi
 
     # execute the suite-centric installation of __SUITE_NAME__:__SUITE_VERSION__
@@ -89,18 +93,40 @@
             conda config --set channel_priority strict
         fi
 
+        # copy existing environments if we are extending a prior Stage 1 MDI container build
+        if [ -d ${STATIC_BASE_DIR} ]; then
+            rm -fr ${STATIC_SUITE_DIR}/mdi/environments
+            mv ${STATIC_BASE_DIR}/mdi/environments ${STATIC_SUITE_DIR}/mdi
+        fi
+
         # creata conda environments for all __SUITE_NAME__:__SUITE_VERSION__ pipelines (but not it's suite dependencies)
         export IS_CONTAINER_BUILD=TRUE    
         PIPELINES=`ls -1 pipelines | grep -v -P "^_"`
+        NEEDED_ENVIRONMENTS=""
         for PIPELINE in $PIPELINES; do 
             if [ ! -f $PIPELINE ]; then
                 ${STATIC_SUITE_DIR}/mdi/mdi ${PIPELINE} conda --create --force --no-mamba --version ${SUITE_VERSION} 
+                PIPELINE_ENVIRONMENTS=`${STATIC_SUITE_DIR}/mdi/mdi ${PIPELINE} conda --list | grep -P "^${STATIC_SUITE_DIR}" | sort | uniq`
+                NEEDED_ENVIRONMENTS="$NEEDED_ENVIRONMENTS $PIPELINE_ENVIRONMENTS"
             fi
         done
+
+        # remove any unused environments carried over from any prior base installation
+        ls -1d ${STATIC_SUITE_DIR}/mdi/environments/* | 
+        perl -e '
+            my %needed = map { "$_\n" => 1 } split(/\s+/, "'$NEEDED_ENVIRONMENTS'");
+            while (my $env = <STDIN>){
+                $needed{$env} or print $env;
+            }
+        ' | 
+        xargs -I ENV rm -fr ENV
 
         # clean up conda pkgs directory of cached tarballs (conda clean won't work here)
         rm -f ${MINICONDA_DIR}/pkgs/*.tar.bz2
     fi
+
+    # remove any prior base installation to allow serial building
+    rm -fr ${STATIC_BASE_DIR}
 
 # path overrides include all ways that running pipelines use files from mdi-pipelines-framework
 # https://sylabs.io/guides/latest/user-guide/environment_and_metadata.html#environment-and-metadata
@@ -135,13 +161,12 @@
     export MDI_DIR=${ACTIVE_MDI_DIR}
 
 # scriplet called by
-#   - install.pl/sh, to use singularity-base to add suites lacking container support, argument 'install'
+#   - install.pl/sh, to extend container-base to add suites lacking container support, argument 'extend'
 #   - execute.pl, to launch a pipeline, argument 'pipeline'
 #   - run.pl, to launch the web server, argument 'apps'
 %runscript
-    if [ "$1" = "install" ]; then
-        export EXTENDING_CONTAINER_BASE=TRUE
-        Rscript -e "mdi::install('$ACTIVE_MDI_DIR', confirm = FALSE, addToPATH = FALSE)"
+    if [ "$1" = "extend" ]; then
+        Rscript -e "mdi::extend('$STATIC_MDI_DIR')"
 
     elif [ "$1" = "pipeline" ]; then
         if [ "$HAS_PIPELINES" != "true" ]; then 
