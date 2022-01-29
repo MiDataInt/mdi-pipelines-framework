@@ -155,7 +155,8 @@ sub assembleContainerDef {
         SUITE_NAME     => $pipelineSuite,
         CONTAINER_BASE => $containerBase,
         CONTAINER_BASE_VERSION => $containerBaseVersion,
-        INSTALLER => $$config{container}{installer} ? $$config{container}{installer}[0] : 'apt-get'
+        INSTALLER => $$config{container}{installer} ? $$config{container}{installer}[0] : 'apt-get',
+        N_CPU => qx/nproc --all/
     );
     foreach my $varName(keys %vars){
         my $placeholder = "__".$varName."__";

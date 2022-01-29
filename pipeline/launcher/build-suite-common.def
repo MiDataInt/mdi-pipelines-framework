@@ -38,6 +38,7 @@
     SUITE_VERSION=__SUITE_VERSION__
     SUITE_CONTAINER_VERSION=__SUITE_CONTAINER_VERSION__
     INSTALLER=__INSTALLER__
+    export N_CPU=__N_CPU__
     export MDI_FORCE_GIT=__MDI_FORCE_GIT__
     export MDI_INSTALL_PIPELINES=__MDI_INSTALL_PIPELINES__
     export MDI_FORCE_APPS=__MDI_FORCE_APPS__
@@ -81,6 +82,7 @@
     # unlike pipeline condas, app packages are installed for any suite dependencies also
     cd ${STATIC_SUITE_DIR}
     export MDI_FORCE_SYSTEM_INSTALL=true
+    export MDI_SYSTEM_R_LIBRARY=/usr/local/lib/R/site-library
     ./install.sh
     cd ${STATIC_SUITE_DIR}/mdi/suites/definitive/${SUITE_NAME}
     git checkout ${SUITE_VERSION}
@@ -136,6 +138,7 @@
     export LC_ALL=C
     export HAS_PIPELINES=__HAS_PIPELINES__
     export HAS_APPS=__HAS_APPS__
+    export MDI_SYSTEM_R_LIBRARY=/usr/local/lib/R/site-library
 
     # conda path specifications
     export SRV_DIR=/srv
