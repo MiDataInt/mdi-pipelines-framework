@@ -118,6 +118,7 @@ sub buildSuiteContainer {
 
     # assemble the complete container definition
     my $containerDef = assembleContainerDef($pipelineSuiteDir, "build-suite-common", {
+        GIT_USER                 => $gitUser,
         SUITE_VERSION            => $suiteVersion,
         SUITE_CONTAINER_VERSION  => $suiteMajorMinorVersion,
         MDI_FORCE_GIT            => "true", # flags for suite-centric install.sh
@@ -196,8 +197,8 @@ sub buildAndPushContainer {
         make_path($$uris{imageDir});
         open my $outH, ">", $$uris{defFile} or throwError($!);
         print $outH $containerDef;
-        close $outH;
-        system("$singularity build --fakeroot $sandbox $force $$uris{imageFile} $$uris{defFile}") and throwError(
+        close $outH; # use --force (not $force) in build to always allow container labels to be re-written
+        system("$singularity build --fakeroot $sandbox --force $$uris{imageFile} $$uris{defFile}") and throwError(
             "container build failed"
         );        
     } elsif(!$isSuite) { # for buildSingularity, i.e., pipeline

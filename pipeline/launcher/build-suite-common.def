@@ -34,8 +34,9 @@
 %post
 
     # variables set by mdi build
-    SUITE_NAME=__SUITE_NAME__
-    SUITE_VERSION=__SUITE_VERSION__
+    export GIT_USER=__GIT_USER__
+    export SUITE_NAME=__SUITE_NAME__
+    export SUITE_VERSION=__SUITE_VERSION__
     SUITE_CONTAINER_VERSION=__SUITE_CONTAINER_VERSION__
     INSTALLER=__INSTALLER__
     export N_CPU=__N_CPU__
@@ -73,8 +74,9 @@
 
     # copy existing R library if we are extending a prior Stage 2 MDI container build
     if [ "$MDI_FORCE_APPS" = "true" ] && [ -d ${STATIC_BASE_DIR} ]; then
-        rm -fr ${STATIC_SUITE_DIR}/mdi/library
-        mv ${STATIC_BASE_DIR}/mdi/library ${STATIC_SUITE_DIR}/mdi
+        TMP_LIB_DIR=${STATIC_SUITE_DIR}/mdi-tmp-library
+        mkdir -p ${TMP_LIB_DIR}
+        ls -1d ${STATIC_BASE_DIR}/mdi/library/* | xargs -I OBJ mv OBJ ${TMP_LIB_DIR}
     fi
 
     # execute the suite-centric installation of __SUITE_NAME__:__SUITE_VERSION__
@@ -85,7 +87,7 @@
     export MDI_SYSTEM_R_LIBRARY=/usr/local/lib/R/site-library
     ./install.sh
     cd ${STATIC_SUITE_DIR}/mdi/suites/definitive/${SUITE_NAME}
-    git checkout ${SUITE_VERSION}
+    git -c advice.detachedHead=false checkout ${SUITE_VERSION}
     # TODO: checkout declared versions of any suite dependencies?
 
     # install __SUITE_NAME__:__SUITE_VERSION__ conda environments if container:stages:pipelines==true
@@ -104,8 +106,10 @@
 
         # copy existing environments if we are extending a prior Stage 1 MDI container build
         if [ -d ${STATIC_BASE_DIR} ]; then
-            rm -fr ${STATIC_SUITE_DIR}/mdi/environments
-            mv ${STATIC_BASE_DIR}/mdi/environments ${STATIC_SUITE_DIR}/mdi
+            STATIC_ENV_DIR=${STATIC_SUITE_DIR}/mdi/environments
+            mkdir -p ${STATIC_ENV_DIR}
+            rm -f ${STATIC_ENV_DIR}/*
+            ls -1d ${STATIC_BASE_DIR}/mdi/environments/* | xargs -I OBJ mv OBJ ${STATIC_ENV_DIR}
         fi
 
         # creata conda environments for all __SUITE_NAME__:__SUITE_VERSION__ pipelines (but not it's suite dependencies)
@@ -122,7 +126,7 @@
 
         # remove any unused environments carried over from any prior base installation
         ls -1d ${STATIC_SUITE_DIR}/mdi/environments/* 2>/dev/null | 
-        perl -e '%x = map {$_."\n" => 1} split(/\s+/, "'$NEEDED_ENVIRONMENTS'"); while (my $env = <>){$x{$env} or print $env}' |
+        perl -e '%x = map {$_."\n" => 1} split(/\s+/, "'"$NEEDED_ENVIRONMENTS"'"); while (my $env = <>){$x{$env} or print $env}' |
         xargs -I ENV rm -fr ENV
 
         # clean up conda pkgs directory of cached tarballs (conda clean won't work here)
