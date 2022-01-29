@@ -201,6 +201,7 @@
     ContainerBaseVersion __CONTAINER_BASE_VERSION__
     Pipelines __HAS_PIPELINES__
     Apps __HAS_APPS__
+    org.opencontainers.image.description Michigan Data Interface, __SUITE_NAME__:__SUITE_VERSION__, __CONTAINER_BASE__:__CONTAINER_BASE_VERSION__
 
 # help text displayed by 'singularity run-help __SUITE_NAME__-__SUITE_CONTAINER_VERSION__.sif'
 %help
