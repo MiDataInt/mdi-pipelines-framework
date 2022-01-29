@@ -57,7 +57,14 @@
     # install/update git, zip, and others as used by the MDI
     if [ "$INSTALLER" = "apt-get" ] || \
        [ "$INSTALLER" = "yum" ]; then
-        $INSTALLER update && $INSTALLER install -y git wget zip time
+        $INSTALLER update && $INSTALLER install -y \
+            git \
+            wget \
+            zip \
+            time \
+            nano \
+            tree \
+            curl
     else 
         echo "unknown installer: $INSTALLER"
         exit 1
@@ -112,13 +119,8 @@
         done
 
         # remove any unused environments carried over from any prior base installation
-        ls -1d ${STATIC_SUITE_DIR}/mdi/environments/* | 
-        perl -e '
-            my %needed = map { "$_\n" => 1 } split(/\s+/, "'$NEEDED_ENVIRONMENTS'");
-            while (my $env = <STDIN>){
-                $needed{$env} or print $env;
-            }
-        ' | 
+        ls -1d ${STATIC_SUITE_DIR}/mdi/environments/* 2>/dev/null | 
+        perl -e '%x = map {$_."\n" => 1} split(/\s+/, "'$NEEDED_ENVIRONMENTS'"); while (my $env = <>){$x{$env} or print $env}' |
         xargs -I ENV rm -fr ENV
 
         # clean up conda pkgs directory of cached tarballs (conda clean won't work here)
