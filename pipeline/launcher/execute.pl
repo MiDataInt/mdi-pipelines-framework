@@ -259,7 +259,7 @@ sub executeTask {
             "missing conda environment for action '$action'\n".
             "please run 'mdi $ENV{PIPELINE_NAME} conda --create' before launching the pipeline"
         );  
-        $execCommand .= "bash $launcherDir/execute.sh";
+        $execCommand .= "bash $launcherDir/lib/execute.sh";
     }
 
     # single actions or tasks replace this process and never return

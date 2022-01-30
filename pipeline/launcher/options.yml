@@ -48,7 +48,7 @@ optionFamilies:
                 type: string
                 required: false
                 default: auto
-                description: "execution environment: one of direct, container or auto (container if supported)"
+                description: "execution environment: one of direct, container, or auto (container if supported)"
             n-cpu:
                 order: 2
                 short: p

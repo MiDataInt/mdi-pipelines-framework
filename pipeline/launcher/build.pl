@@ -149,7 +149,7 @@ sub assembleContainerDef {
     );
     my $containerBase = $1;
     my $containerBaseVersion = $def =~ m/\nFrom:\s+\S+:(.+)/ ? $1 : "unspecified";
-    $def = $def.slurpContainerDef("$launcherDir/$commonDef.def");
+    $def = $def.slurpContainerDef("$launcherDir/lib/$commonDef.def");
 
     # replace placeholders with pipeline-specific values (Singularity does not offer def file variables)
     my %vars = (

@@ -7,6 +7,7 @@
 # STATIC_MDI_DIR=/srv/static/mdi is an mdi-centric, read-only MDI installation that is 
 # copied into the image and updated at build time, used by running pipelines.
 # It is where the pipelines framework and environments are drawn from. 
+# The framework is thus static at a version known to support the suite/pipeline version.
 #------------------------------------------------------------------------------
 # TASK_DIR is a user-defined, active, read-write folder bind-mounted at run time. 
 # In addition to being where pipelines deposit data files, TASK_DIR has a fixed, 
@@ -89,12 +90,12 @@
     export WORKFLOW_SH=${WORKFLOW_DIR}/workflow.sh
     export SLURP=${FRAMEWORK_DIR}/shell/slurp   
 
-    # no read-write code folder needed
+    # no additional read-write code folder needed
     # a static copy of versioned suite code is placed in bind-mounted TASK_DIR
 
 # scriplet called by execute.pl to launch the pipeline; it takes no arguments
 %runscript
-    exec bash ${LAUNCHER_DIR}/execute.sh
+    exec bash ${LAUNCHER_DIR}/lib/execute.sh
 
 # labels for the container image, displayed as 'singularity inspect __PIPELINE_NAME__-__PIPELINE_VERSION__.sif'
 %labels

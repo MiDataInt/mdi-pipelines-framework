@@ -7,13 +7,14 @@
 # STATIC_SUITE_DIR=/srv/static/SUITE_NAME is a suite-centric installation of 
 # SUITE_NAME that contains the Stage 1 environment (and Stage 2 library) builds.
 # It is a set of read-only files installed at build time, used by running tools.
+# The frameworks are thus static at a version known to support the suite version.
 #------------------------------------------------------------------------------
 # ACTIVE_MDI_DIR=/srv/active/mdi is an MDI installation including SUITE_NAME and
 # bind-mounted at run time, which is modifiable to check out patch versions, etc.
 # It provides the MDI code for running apps, supported by STATIC_SUITE_DIR,
 # including the paths required to write dynamic app session files.
 #------------------------------------------------------------------------------
-# TASK_DIR is a user-defined, active, read-write folder bind-mounted at run time. 
+# TASK_DIR is a user-defined, active, read-write folder bind-mounted at pipeline run time. 
 # In addition to being where pipelines deposit data files, TASK_DIR has a fixed, 
 # static copy of the tool suite code required to execute a pipeline.
 #------------------------------------------------------------------------------
@@ -143,6 +144,7 @@
     export HAS_PIPELINES=__HAS_PIPELINES__
     export HAS_APPS=__HAS_APPS__
     export MDI_SYSTEM_R_LIBRARY=/usr/local/lib/R/site-library
+    export MDI_IS_CONTAINER=TRUE
 
     # conda path specifications
     export SRV_DIR=/srv
@@ -169,35 +171,9 @@
     export ACTIVE_MDI_DIR=${SRV_DIR}/active/mdi    
     export MDI_DIR=${ACTIVE_MDI_DIR}
 
-# scriplet called by
-#   - install.pl/sh, to extend container-base to add suites lacking container support, argument 'extend'
-#   - execute.pl, to launch a pipeline, argument 'pipeline'
-#   - run.pl, to launch the web server, argument 'apps'
+# scriplet called by install.pl/sh, execute.pl, and server.pl to use the container
 %runscript
-    if [ "$1" = "extend" ]; then
-        exec Rscript -e "mdi::extend('$STATIC_MDI_DIR')"
-
-    elif [ "$1" = "pipeline" ]; then
-        if [ "$HAS_PIPELINES" != "true" ]; then 
-            echo "container does not have __SUITE_NAME__ pipelines installed"
-            exit 1
-        fi 
-        exec bash ${LAUNCHER_DIR}/execute.sh
-
-    elif [ "$1" = "apps" ]; then
-        if [ "$HAS_APPS" != "true" ]; then 
-            echo "container does not have __SUITE_NAME__ apps installed"
-            exit 1
-        fi 
-        ACTION=$2
-        DATA_DIR=$3
-        # HOST_DIR=$4
-        # exec Rscript -e "mdi::$ACTION('$ACTIVE_MDI_DIR', dataDir = '$DATA_DIR', hostDir = '$HOST_DIR')"
-        exec Rscript -e "mdi::$ACTION('$ACTIVE_MDI_DIR', dataDir = '$DATA_DIR', hostDir = '$STATIC_MDI_DIR')"
-
-    else
-        echo "usage error: please run this container using an MDI command"
-    fi
+    exec bash ${LAUNCHER_DIR}/lib/run-suite.sh $@
 
 # labels for the container image, displayed as 'singularity inspect __SUITE_NAME__-__SUITE_CONTAINER_VERSION__.sif'
 %labels
