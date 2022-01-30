@@ -66,6 +66,7 @@ our %optionInfo = (# [shortOption, valueString, optionGroup, groupOrder, optionH
     'ondemand'=>       ["o", undef,   "server", 1, "launch the web server in ondemand mode [run mode]"],
     'data-dir'=>       ["D", "<str>", "server", 2, "path to the desired data directory [./data]"],
     'host-dir'=>       ["H", "<str>", "server", 3, "path to a shared/public MDI installation with code and resources [.]"],
+    'r-version'=>      ["R", "<str>", "server", 4, "the R version used to install the server with Singularity, e.g., 4.1"],
 );
 our %longOptions = map { ${$optionInfo{$_}}[0] => $_ } keys %optionInfo; # for converting short options to long; long options are used internally
 #------------------------------------------------------------------------
@@ -91,7 +92,7 @@ our %commandOptions =  ( # 0=allowed, 1=required
     add        =>  {'install-packages'=>0, 'suite'=>1},
     list       =>  {},
     build      =>  {'suite'=>1, 'version'=>0},
-    server     =>  {'develop'=>0,'ondemand'=>0,'data-dir'=>0,'host-dir'=>0}, 
+    server     =>  {'develop'=>0,'ondemand'=>0,'data-dir'=>0,'host-dir'=>0,'r-version'=>0}, 
 );  
 #========================================================================
 

@@ -175,7 +175,7 @@
 #   - run.pl, to launch the web server, argument 'apps'
 %runscript
     if [ "$1" = "extend" ]; then
-        Rscript -e "mdi::extend('$STATIC_MDI_DIR')"
+        exec Rscript -e "mdi::extend('$STATIC_MDI_DIR')"
 
     elif [ "$1" = "pipeline" ]; then
         if [ "$HAS_PIPELINES" != "true" ]; then 
@@ -189,8 +189,11 @@
             echo "container does not have __SUITE_NAME__ apps installed"
             exit 1
         fi 
-        shift
-        exec bash ${ACTIVE_MDI_DIR}/mdi server $@
+        ACTION=$2
+        DATA_DIR=$3
+        # HOST_DIR=$4
+        # exec Rscript -e "mdi::$ACTION('$ACTIVE_MDI_DIR', dataDir = '$DATA_DIR', hostDir = '$HOST_DIR')"
+        exec Rscript -e "mdi::$ACTION('$ACTIVE_MDI_DIR', dataDir = '$DATA_DIR', hostDir = '$STATIC_MDI_DIR')"
 
     else
         echo "usage error: please run this container using an MDI command"

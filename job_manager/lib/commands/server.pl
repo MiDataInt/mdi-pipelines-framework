@@ -10,23 +10,116 @@ use warnings;
 # define variables
 #------------------------------------------------------------------------
 use vars qw(%options);
+my $silently = "> /dev/null 2>&1";
 #========================================================================
 
 #========================================================================
 # main execution block
 #------------------------------------------------------------------------
 sub mdiServer { 
-    my ($action, $opts) = ("", "");
+
+    # parse the requested server action
+    my $action = "run";
     if($options{'develop'}){
         $action = "develop";
     } elsif($options{'ondemand'}) {
         $action = "ondemand";
-    } else {
-        $action = "run";
     }
-    my $dataDir = $options{'data-dir'} ? ", dataDir = \"".$options{'data-dir'}."\"" : "";
-    my $hostDir = $options{'host-dir'} ? ", hostDir = \"".$options{'host-dir'}."\"" : "";
-    exec "Rscript -e 'mdi::$action(mdiDir = \"$ENV{MDI_DIR}\" $dataDir $hostDir $opts)'";
+
+    # if singularity is supported, use it to help run the server, to match handling by install
+    my $singularityLoad = getSingularityLoadCommand();
+    if($singularityLoad){
+
+        # check to see if the suite-centric call offers suite-level container support
+        if($ENV{SUITE_MODE} and $ENV{SUITE_MODE} eq "suite-centric"){
+            my $ymlFile = "$ENV{SUITE_DIR}/_config.yml";
+            my $yamls = loadYamlFromString( slurpFile($ymlFile) );
+            my $container = $$yamls{parsed}[0]{container} or return launchServerBaseContainer();
+            my $supported = $$container{supported} or return launchServerBaseContainer();
+            my $stages = $$container{stages} or return launchServerBaseContainer();
+            my $hasApps = $$stages{apps} or return launchServerBaseContainer();
+            ($$supported[0] and $$hasApps[0]) or return launchServerBaseContainer();
+            launchServerSuiteContainer();
+
+        # otherwise, use mdi-singularity-base as a helper            
+        } else {
+            launchServerBaseContainer();
+        }
+
+    # otherwise, use system R to run the server directly
+    } else {
+        my $dataDir = $options{'data-dir'} ? ", dataDir = \"".$options{'data-dir'}."\"" : "";
+        my $hostDir = $options{'host-dir'} ? ", hostDir = \"".$options{'host-dir'}."\"" : "";  
+        exec "Rscript -e 'mdi::$action(mdiDir = \"$ENV{MDI_DIR}\" $dataDir $hostDir)'";
+    }
+}
+
+# launch Singularity with suite-level container
+sub launchServerSuiteContainer {
+    my ($singularityLoad, $action) = @_;
+
+# need to get latest suite version when not specified, from the current git head
+
+    # write script to auto-detect most recent container version from containers dir
+    # container-version option allows override
+
+    my $imageFile = "$ENV{MDI_DIR}/containers/$ENV{SUITE_NAME}/$ENV{SUITE_NAME}-$rVersion.sif";
+    launchServerContainer($singularityLoad, $action, $imageFile);
+} 
+
+# launch Singularity with mdi-singularity-base
+sub launchServerBaseContainer {
+    my ($singularityLoad, $action) = @_; 
+
+    # TODO: probably a better way to automatically choose the most recent R version   
+    my $rVersion = $options{'r-version'} or 
+        throwError("option '--r-version' is required when Singularity is available on the system", $command);
+    $rVersion =~ m/^v/ or $rVersion = "v$rVersion";
+
+    my $name = "mdi-singularity-base";
+    my $imageFile = "$ENV{MDI_DIR}/containers/$name/$name-$rVersion.sif";
+    launchServerContainer($singularityLoad, $action, $imageFile);
+} 
+sub launchServerContainer {
+    my ($singularityLoad, $action, $imageFile) = @_;
+    -f $imageFile or 
+        throwError("image file not found, please (re)install the apps server:\n    $imageFile", 'server');
+    my $srvMdiDir  = "/srv/active/mdi";
+    my $srvDataDir = "/srv/active/data";
+    my $srvHostDir = "/srv/active/host";
+    my $dataDir = $options{'data-dir'} ? $srvDataDir : "NULL";
+    my $hostDir = $options{'host-dir'} ? $srvHostDir : "NULL";
+    my $bind = "--bind $ENV{MDI_DIR}:$srvMdiDir";
+    $options{'data-dir'} and $bind .= " --bind $options{'data-dir'}:$srvDataDir";
+    $options{'host-dir'} and $bind .= " --bind $options{'host-dir'}:$srvHostDir";
+
+    # I think maybe hostDir is /static/, runs in activeDir
+
+    exec "$singularityLoad; singularity run $bind $imageFile apps $action $dataDir $hostDir";
+}
+
+# discover Singularity on the system, if available
+sub getSingularityLoadCommand {
+
+    # first, see if it is already present and ready
+    my $command = "echo $silently";
+    checkForSingularity($command) and return $command; 
+    
+    # if not, attempt to use load-command from singularity.yml
+    my $ymlFile = "$ENV{MDI_DIR}/config/singularity.yml";
+    -e $ymlFile or return;
+    my $yamls = loadYamlFromString( slurpFile($ymlFile) );
+    $command = $$yamls{parsed}[0]{'load-command'};
+    $command or return;
+    $command = "$command $silently";
+    checkForSingularity($command) and return $command;
+    undef;
+}
+sub checkForSingularity { # return TRUE if a proper singularity exists in system PATH after executing $command
+    my ($command) = @_;
+    system("$command; singularity --version $silently") and return; # command did not exist, system threw an error
+    my $version = qx|$command; singularity --version|;
+    $version =~ m/^singularity.+version.+/; # may fail if not a true singularity target (e.g., on greatlakes)
 }
 #========================================================================
 
