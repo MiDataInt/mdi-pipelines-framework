@@ -198,7 +198,7 @@ sub buildAndPushContainer {
         open my $outH, ">", $$uris{defFile} or throwError($!);
         print $outH $containerDef;
         close $outH; # use --force (not $force) in build to always allow container labels to be re-written
-        system("$singularity build --fakeroot $sandbox --force $$uris{imageFile} $$uris{defFile}") and throwError(
+        system("cd $ENV{MDI_DIR}; $singularity build --fakeroot $sandbox --force $$uris{imageFile} $$uris{defFile}") and throwError(
             "container build failed"
         );        
     } elsif(!$isSuite) { # for buildSingularity, i.e., pipeline

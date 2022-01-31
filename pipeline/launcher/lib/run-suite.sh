@@ -19,13 +19,10 @@ elif [ "$CONTAINER_ACTION" = "pipeline" ]; then
     fi 
     exec bash ${LAUNCHER_DIR}/lib/execute.sh
 
-# launch the apps server, setting a flag that is passed to run.R/run_server.R
-#   suite-level containers use:
-#     static, versioned framework and suites code provided by the container (and thus don't support live version switching)
-#     active, bind-mounted data and sessions files
-#   extended base containers:
-#     provide R package libraries only, via .libPaths() set in run_server.R
-#     otherwise, all code, data, and sessions file are active via bind-mount, like any server
+# launch the apps server, passing container metadata to run.R/run_server.R
+# both suite-level containers and extended base containers:
+#   provide R package libraries only, via .libPaths() set in run_server.R
+#   bind-mount all code, data, and sessions files, to otherwise run like any MDI server
 elif [ "$CONTAINER_ACTION" = "apps" ]; then
     if [ "$HAS_APPS" != "true" ]; then 
         echo "container does not have apps installed"
