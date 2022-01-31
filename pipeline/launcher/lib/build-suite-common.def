@@ -158,7 +158,7 @@
     export STATIC_SUITE_DIR=${SRV_DIR}/static/${SUITE_NAME}
     export STATIC_MDI_DIR=${STATIC_SUITE_DIR}/mdi
     export ENVIRONMENTS_DIR=${STATIC_MDI_DIR}/environments
-    export R_LIBRARY_DIR=${STATIC_MDI_DIR}/library
+    export STATIC_R_LIBRARY=${STATIC_MDI_DIR}/library
     # export RESOURCES_DIR=${STATIC_MDI_DIR}/resources    
     export FRAMEWORK_DIR=${STATIC_MDI_DIR}/frameworks/definitive/mdi-pipelines-framework
     export JOB_MANAGER_DIR=${FRAMEWORK_DIR}/job_manager
@@ -173,7 +173,7 @@
 
 # scriplet called by install.pl/sh, execute.pl, and server.pl to use the container
 %runscript
-    exec bash ${LAUNCHER_DIR}/lib/run-suite.sh $@
+    bash ${LAUNCHER_DIR}/lib/run-suite.sh $@
 
 # labels for the container image, displayed as 'singularity inspect __SUITE_NAME__-__SUITE_CONTAINER_VERSION__.sif'
 %labels

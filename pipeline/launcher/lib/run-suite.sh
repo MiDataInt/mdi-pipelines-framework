@@ -24,7 +24,7 @@ elif [ "$CONTAINER_ACTION" = "pipeline" ]; then
 #     static, versioned framework and suites code provided by the container (and thus don't support live version switching)
 #     active, bind-mounted data and sessions files
 #   extended base containers:
-#     provide R package libraries only, via .libPaths()
+#     provide R package libraries only, via .libPaths() set in run_server.R
 #     otherwise, all code, data, and sessions file are active via bind-mount, like any server
 elif [ "$CONTAINER_ACTION" = "apps" ]; then
     if [ "$HAS_APPS" != "true" ]; then 
@@ -40,38 +40,3 @@ elif [ "$CONTAINER_ACTION" = "apps" ]; then
 else
     echo "usage error: please run this container using an MDI command"
 fi
-
-# config     = ALL_TOOLS, HOSTED, used to launch not run
-# containers = ALL_TOOLS, HOSTED
-# resources  = ALL_TOOLS, HOSTED
-
-# environments = PIPELINES, HOSTED
-
-# frameworks = ALL_TOOLS, PRIVATE, STATIC
-# suites     = ALL_TOOLS, PRIVATE, STATIC  # PIPELINES=STATIC_TASK_DIR, APPS=ACTIVE
-
-# library  = APPS, HOSTED, STATIC
-# sessions = APPS, PRIVATE, ACTIVE
-# data     = APPS, PRIVATE/MOUNTABLE, ACTIVE
-
-# remote = NA, used to launch not run
-
-# GOAL: maximize live version switching in running server (to avoid having to re-start server)
-#       most important would be to switch to earlier-version, legacy suite code to support a bookmark
-# CONTAINER PROBLEM 1: tool suite must be in a live directory
-# CONTAINER PROBLEM 2: R library may have missing package on some suite switches (could extend in active?)
-# CONTAINER PROBLEM 3: static late-version apps-framework may not support early-version tool suite
-#                      but MDI project can minimize this by limiting number of breaking changes
-
-# PREFER THIS:
-# ALTERNATIVE: containerized apps servers (unlike direct installations) do not support version switching 
-#              tool suites can then be static also
-# CONTAINER PROBLEM 1: must restart new versioned server instance to use legacy code if needed
-#                      not really too bad, since public servers use direct install, never containers
-#                      users must be able to easily run a specific suite version
-
-# above seems relevant to a suite-level container only
-# an extended base container must always live mount tool suites, they aren't in the container!
-# at which point we might as well live mount the frameworks also
-
-
