@@ -62,6 +62,7 @@ our %optionInfo = (# [shortOption, valueString, optionGroup, groupOrder, optionH
     'install-packages'=>   ["p", undef,   "install", 0, "install R packages required by Stage 2 Apps"],
     'suite'=>              ["s", "<str>", "install", 1, "a single suite to install or build, in form GIT_USER/SUITE_NAME"],
     'version'=>            ["V", "<str>", "install", 2, "the version of the suite to build, e.g. v0.0.0 [latest]"],
+    'sandbox'=>            ["S", undef,   "install", 3, "pass option '--sandbox' to singularity build"],
     'develop'=>            ["v", undef,   "server", 0, "launch the web server in developer mode"],
     'data-dir'=>           ["D", "<str>", "server", 1, "path to the desired data directory [MDI_DIR/data]"],
     'host-dir'=>           ["H", "<str>", "server", 2, "path to a shared/public MDI installation with code and resources [MDI_DIR]"],
@@ -91,7 +92,7 @@ our %commandOptions =  ( # 0=allowed, 1=required
     install    =>  {'install-packages'=>0},
     add        =>  {'install-packages'=>0, 'suite'=>1},
     list       =>  {},
-    build      =>  {'suite'=>1, 'version'=>0},
+    build      =>  {'suite'=>1, 'version'=>0, 'sandbox' => 0},
     server     =>  {'develop'=>0,'data-dir'=>0,'host-dir'=>0,'runtime'=>0,'container-version'=>0}, 
 );  
 #========================================================================

@@ -57,7 +57,7 @@ sub buildSingularity {
 
 # build a suite-level container
 sub buildSuiteContainer {
-    my ($suite) = @_;
+    my ($suite, $sandbox) = @_;
     my ($gitUser, $repoName) = split('/', $suite);
     $repoName or throwError(
         "bad value for option '--suite', expected 'GIT_USER/SUITE_NAME'"
@@ -130,7 +130,7 @@ sub buildSuiteContainer {
     });
 
     # build and push  
-    buildAndPushContainer($containerDef, $suiteMajorMinorVersion, "", "", 1)
+    buildAndPushContainer($containerDef, $suiteMajorMinorVersion, $sandbox, "", 1)
 }
 
 #------------------------------------------------------------------------------
@@ -205,8 +205,9 @@ sub buildAndPushContainer {
         print "\nSingularity container image already exists:\n    $$uris{imageFile}\nuse option --force to re-build it\n";
     }
 
-    # push container to registry
+    # push container image to registry
     # do this regardless of whether we just built it or it already existed
+    $sandbox and return();
     print "\npushing Singularity container image:\n    $$uris{imageFile}\nto:\n    $$uris{container}\n\n";
     my $isLoggedIn = qx/$singularity remote list | grep '^$$uris{registry}'/; # singularity remote status does not work unless add is used
     chomp $isLoggedIn;

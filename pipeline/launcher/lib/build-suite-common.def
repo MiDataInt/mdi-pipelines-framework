@@ -158,7 +158,7 @@
     export STATIC_SUITE_DIR=${SRV_DIR}/static/${SUITE_NAME}
     export STATIC_MDI_DIR=${STATIC_SUITE_DIR}/mdi
     export ENVIRONMENTS_DIR=${STATIC_MDI_DIR}/environments
-    export STATIC_R_LIBRARY=${STATIC_MDI_DIR}/library
+    export STATIC_R_LIBRARY=`ls -ld ${STATIC_MDI_DIR}/library/* | grep "^d" | awk '{print $NF}'`
     # export RESOURCES_DIR=${STATIC_MDI_DIR}/resources    
     export FRAMEWORK_DIR=${STATIC_MDI_DIR}/frameworks/definitive/mdi-pipelines-framework
     export JOB_MANAGER_DIR=${FRAMEWORK_DIR}/job_manager

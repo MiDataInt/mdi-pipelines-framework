@@ -19,7 +19,8 @@ sub mdiBuild {
     # pass this call to launcher, it already has support for building and versioning
     my $developerFlag = $ENV{DEVELOPER_MODE} ? "-d" : "";
     $options{'version'} or $options{'version'} = "latest";
-    exec "$rootDir/$jobManagerName $developerFlag buildSuite $options{'suite'} --version $options{'version'}";
+    $options{'sandbox'} = $options{'sandbox'} ? "--sandbox" : "";
+    exec "$rootDir/$jobManagerName $developerFlag buildSuite $options{'suite'} --version $options{'version'} $options{'sandbox'}";
 }
 #========================================================================
 

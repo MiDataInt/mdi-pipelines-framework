@@ -332,9 +332,12 @@ sub checkContainer {
 #------------------------------------------------------------------------------
 sub buildSuite {  
     my ($suite) = @_;
-    my $usage = "usage: mdi buildSuite <GIT_USER/SUITE_NAME> [--version v0.0.0]";
+    my $usage = "usage: mdi buildSuite <GIT_USER/SUITE_NAME> [--version v0.0.0] [--sandbox]";
+    my %options;
+    my $sandbox = "sandbox"; # @args from jobManager is always (--version xxxx [--sandbox])
+    $args[2] and ($args[2] eq '-s' or $args[2] eq "--$sandbox") and $options{$sandbox} = 1;   
     $suite or die "\nmissing suite\n$usage\n\n";
-    buildSuiteContainer($suite);
+    buildSuiteContainer($suite, $options{$sandbox} ? "--sandbox" : "");
     exit;
 }
 
