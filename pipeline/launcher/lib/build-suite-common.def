@@ -91,6 +91,9 @@
     git -c advice.detachedHead=false checkout ${SUITE_VERSION}
     # TODO: checkout declared versions of any suite dependencies?
 
+    # clean up downloaded R packages to reduce image size
+    rm -f /tmp/Rtmp*/downloaded_packages/*.tar.gz
+
     # install __SUITE_NAME__:__SUITE_VERSION__ conda environments if container:stages:pipelines==true
     if [ "$MDI_INSTALL_PIPELINES" = "true" ]; then
 
