@@ -116,14 +116,17 @@ sub setContainerEnvVars {
         $$assembled{report} .= "$indent$indent"."level: $ENV{CONTAINER_LEVEL}\n";
 
         # set the collection of additional bind-mount directories based on all options
-        $ENV{CONTAINER_BIND_MOUNTS} = "";
+        my %bindMounts;
         foreach my $optionName(keys %longOptions){
             my $option = $longOptions{$optionName};
             my $dir = $$option{directory} or next;
             my $bind = 1; # always bind if option has directory tag that is anything except directory:bind-mount:false
             ref($dir) eq 'HASH' and defined $$dir{'bind-mount'} and $bind = $$dir{'bind-mount'}[0];
-            $bind and $ENV{CONTAINER_BIND_MOUNTS} .= " --bind $$optionValues{$optionName}";
+            $bind or next;
+            my $key = "--bind $$optionValues{$optionName}";
+            $bindMounts{$key}++; # avoid duplicate bind paths  
         }
+        $ENV{CONTAINER_BIND_MOUNTS} = join(" ", keys %bindMounts);        
     }
     $$assembled{report} .= "...\n"; # finish the job report by closing it's yaml block
 }
