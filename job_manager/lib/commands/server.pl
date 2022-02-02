@@ -10,11 +10,13 @@ use warnings;
 # define variables
 #------------------------------------------------------------------------
 use vars qw(%options);
-my ($serverRunCommand, $singularityLoad, @containerSearchDirs);
+my ($serverCmd, $singularityLoad, @containerSearchDirs);
 my $silently = "> /dev/null 2>&1";
 my $mdiCommand = 'server';
 my $baseName = "mdi-singularity-base";
 my $baseNameGlob = "$baseName/$baseName";
+my %serverCmds = map { $_ => 1 } qw(run develop remote node);
+my $serverCmds = join(", ", keys %serverCmds);
 #========================================================================
 
 #========================================================================
@@ -22,12 +24,15 @@ my $baseNameGlob = "$baseName/$baseName";
 #------------------------------------------------------------------------
 sub mdiServer { 
 
-    # parse the requested server run command
-    $serverRunCommand = $options{'develop'} ? "develop" : "run";
+    # check the requested server command
+    $serverCmd = $options{'server-command'};
+    $serverCmds{$serverCmd} or 
+        throwError("bad value for option '--server-command': $serverCmd\n"."expected one of: $serverCmds", $mdiCommand);
 
     # process a request for running server via system R, regardless of Singularity support
-    $options{'runtime'} or $options{'runtime'} = 'auto';
-    $options{'runtime'} eq 'direct' and return launchServerDirect();
+    my $runtime = $options{'runtime'};
+    $runtime or $runtime = 'auto';
+    $runtime eq 'direct' and return launchServerDirect();
 
     # determine whether system supports Singularity
     $singularityLoad = getSingularityLoadCommand();    
@@ -37,7 +42,7 @@ sub mdiServer {
     my $containerTypes = getAppsContainerSupport();
 
     # validate a request for running server via Singularity, without possibility for system fallback
-    if($options{'runtime'} eq 'container'){
+    if($runtime eq 'container'){
         $singularityLoad or 
             throwError("--runtime 'container' requires Singularity on system or via config/singularity.yml >> load-command", $mdiCommand);            
         keys %$containerTypes or 
@@ -79,14 +84,14 @@ sub launchServerContainer {
     my $dataDir = $options{'data-dir'} ? $srvDataDir : "NULL";
     my $bind = "--bind $ENV{MDI_DIR}:$srvMdiDir";
     $options{'data-dir'} and $bind .= " --bind $options{'data-dir'}:$srvDataDir";
-    exec "$singularityLoad; singularity run $bind $imageFile apps $imageType $serverRunCommand $dataDir";
+    exec "$singularityLoad; singularity run $bind $imageFile apps $imageType $serverCmd $dataDir $options{'port'}";
 }
 
 # launch directly via system R
 sub launchServerDirect {
     my $dataDir = $options{'data-dir'} ? ", dataDir = \"".$options{'data-dir'}."\"" : "";
     my $hostDir = $options{'host-dir'} ? ", hostDir = \"".$options{'host-dir'}."\"" : "";  
-    exec "Rscript -e 'mdi::$serverRunCommand(mdiDir = \"$ENV{MDI_DIR}\" $dataDir $hostDir)'";
+    exec "Rscript -e 'mdi::$serverCmd(mdiDir = \"$ENV{MDI_DIR}\", port = $options{'port'} $dataDir $hostDir)'";
 }
 #========================================================================
 

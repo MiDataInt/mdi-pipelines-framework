@@ -31,7 +31,9 @@ elif [ "$CONTAINER_ACTION" = "apps" ]; then
     export MDI_CONTAINER_TYPE=$2
     RUN_COMMAND=$3
     DATA_DIR=$4
-    exec Rscript -e "mdi::$RUN_COMMAND('$ACTIVE_MDI_DIR', dataDir = '$DATA_DIR')"
+    SHINY_PORT=$5
+    if [ "$SHINY_PORT" = "" ]; then SHINY_PORT=3838; fi
+    exec Rscript -e "mdi::$RUN_COMMAND('$ACTIVE_MDI_DIR', dataDir = '$DATA_DIR', port = $SHINY_PORT)"
 
 # abort and report usage error
 else
