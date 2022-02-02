@@ -62,15 +62,3 @@ sub listInstalledTools {
 #========================================================================
 
 1;
-
-# ./suites/definitive/wilsontelab-mdi-tools/pipelines/_template
-# ./suites/definitive/wilsontelab-mdi-tools/pipelines/download
-
-# ./suites/developer-forks/wilsontelab-mdi-tools/pipelines/_template
-# ./suites/developer-forks/wilsontelab-mdi-tools/pipelines/download
-
-# ./suites/definitive/wilsontelab-mdi-tools/shiny/apps/_template
-# ./suites/definitive/wilsontelab-mdi-tools/shiny/apps/wgaSeq
-
-# ./suites/developer-forks/wilsontelab-mdi-tools/shiny/apps/_template
-# ./suites/developer-forks/wilsontelab-mdi-tools/shiny/apps/wgaSeq

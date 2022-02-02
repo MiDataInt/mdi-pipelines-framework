@@ -31,8 +31,3 @@ sub mdiInstall {
 #========================================================================
 
 1;
-
-    # my $installPackages = $options{'install-packages'} ? "TRUE" : "FALSE";
-    # exec "Rscript -e 'mdi::install(\"$ENV{MDI_DIR}\", ".
-    #      "installPackages = $installPackages, confirm = FALSE, addToPATH = FALSE, ".
-    #      "clone = TRUE, force = FALSE)'";

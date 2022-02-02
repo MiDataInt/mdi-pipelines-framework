@@ -24,7 +24,7 @@ our %commands = (  # [executionSub, commandHelp, mdiStage2]
 #------------------------------------------------------------------------------------------------------------
     initialize  =>  [undef,           "refresh the '$jmName' script to establish its program targets", 1], # 'mdi' handles this call
     install     =>  [\&mdiInstall,    "re-run the installation process to update suites, etc.", 1], # install and add assume a Stage 2 installation
-    add         =>  [\&mdiAdd,        "add one tool suite repository to config.yml and re-install", 1],
+    add         =>  [\&mdiAdd,        "add one tool suite repository to config/suites.yml and re-install", 1],
     list        =>  [\&mdiList,       "list all pipelines and apps available in this MDI installation", 1],
     build       =>  [\&mdiBuild,      "build one container with all of a suite's pipelines and apps", 1],
     server      =>  [\&mdiServer,     "launch the web server to use interactive Stage 2 apps",  1],
