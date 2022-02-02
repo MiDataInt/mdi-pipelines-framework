@@ -17,6 +17,7 @@ optionFamilies:
                 default: null
                 directory:
                     must-exist: true
+                    bind-mount: false # TASK_DIR is set as working directory, always bind-mounted
                 description: "the directory where output files will be placed; must already exist"
             data-name:
                 order: 2
@@ -71,6 +72,7 @@ optionFamilies:
                 default: /tmp
                 directory:
                     must-exist: false # cluster node may have tmp directories not present on login host
+                    bind-mount: true
                 description: "directory used for small temporary files (recommend SSD)"
             tmp-dir-large:
                 order: 5
@@ -80,6 +82,7 @@ optionFamilies:
                 default: /tmp
                 directory:
                     must-exist: false # cluster node may have tmp directories not present on login host
+                    bind-mount: true
                 description: "directory used for large temporary files (generally >10GB)"
     job-manager: # only required when queuing jobs with jobManager (in contrast to family 'resources')
         order: 103

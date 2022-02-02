@@ -3,7 +3,7 @@ use strict;
 use warnings;
 
 #========================================================================
-# 'add.pl' adds one tool suite repository to config.yml and re-installs the MDI
+# 'add.pl' adds one tool suite repository to config/suites.yml and re-installs the MDI
 #========================================================================
 
 #========================================================================
@@ -12,7 +12,7 @@ use warnings;
 use vars qw(%options);
 my $leader = "---
 #----------------------------------------------------------------------
-# MDI tool suites to install
+# Tool suites to install
 #----------------------------------------------------------------------
 #   - entries should point to GitHub repositories
 #   - developers should _not_ list their repo forks here
@@ -29,7 +29,7 @@ suites:\n";
 sub mdiAdd { 
     my $newSuite = stripGitUrl( $options{'suite'} );
 
-    # if needed, modify config.yml to include the requested tool suite
+    # if needed, modify suites.yml to include the requested tool suite
     my $suitesFile = "$ENV{MDI_DIR}/config/suites.yml";
     my $yamls = loadYamlFromString( slurpFile($suitesFile) );
     my $suites = $$yamls{parsed}[0]{suites};
@@ -51,10 +51,7 @@ sub mdiAdd {
     } 
 
     # run the complete installation process
-    my $installPackages = $options{'install-packages'} ? "TRUE" : "FALSE";
-    exec "Rscript -e 'mdi::install(\"$ENV{MDI_DIR}\", ".
-         "installPackages = $installPackages, confirm = FALSE, addToPATH = FALSE, ".
-         "clone = TRUE, force = FALSE)'";
+    mdiInstall();
 }
 sub stripGitUrl {
     my ($suite) = @_;
