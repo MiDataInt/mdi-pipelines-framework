@@ -84,6 +84,7 @@ sub launchServerContainer {
     my $dataDir = $options{'data-dir'} ? $srvDataDir : "NULL";
     my $bind = "--bind $ENV{MDI_DIR}:$srvMdiDir";
     $options{'data-dir'} and $bind .= " --bind $options{'data-dir'}:$srvDataDir";
+    addStage2BindMounts(\$bind); # add user bind paths from config/stage2-apps.yml
     exec "$singularityLoad; singularity run $bind $imageFile apps $imageType $serverCmd $dataDir $options{'port'}";
 }
 
@@ -91,6 +92,12 @@ sub launchServerContainer {
 sub launchServerDirect {
     my $dataDir = $options{'data-dir'} ? ", dataDir = \"".$options{'data-dir'}."\"" : "";
     my $hostDir = $options{'host-dir'} ? ", hostDir = \"".$options{'host-dir'}."\"" : "";  
+    my $R_COMMAND = qx/command -v Rscript/;
+    chomp $R_COMMAND;
+    $R_COMMAND or throwError(
+        "FATAL: R program targets not found\n", 
+        "please install or load R (or Singularity) as required on your system\n",
+        "e.g., module load R/0.0.0", 'server');
     exec "Rscript -e 'mdi::$serverCmd(mdiDir = \"$ENV{MDI_DIR}\", port = $options{'port'} $dataDir $hostDir)'";
 }
 #========================================================================
@@ -179,6 +186,28 @@ sub getTargetAppsImageFile {
         $files{"$major.$minor"} = $imageFile; # again, just keep one, we don't care where it is
     }
     $files{"$maxMajor.$maxMinor{$maxMajor}"};
+}#========================================================================
+
+#========================================================================
+# add a list of user-specified bind mounts to an apps-server container
+#------------------------------------------------------------------------
+sub addStage2BindMounts {
+    my ($bind) = @_;
+    my $ymlFile = "$ENV{MDI_DIR}/config/stage2-apps.yml";
+    -f $ymlFile or return;
+    my $yamls = loadYamlFromString( slurpFile($ymlFile) );
+    my $paths = $$yamls{parsed}[0]{paths} or return;
+    ref($paths) eq 'HASH' or return;
+    my %bound = ($ENV{MDI_DIR} => 1);
+    $options{'data-dir'} and $bound{$options{'data-dir'}}++;
+    foreach my $name(keys %$paths){
+        ref($$paths{$name}) eq 'ARRAY' or next;
+        my $dir = $$paths{$name}[0] or next;
+        -d $dir or next;
+        $bound{$dir} and next; # prevent duplicate binds
+        $$bind .= " --bind $dir";
+        $bound{$dir}++;
+    }
 }
 #========================================================================
 
