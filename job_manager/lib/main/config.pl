@@ -60,9 +60,10 @@ our %optionInfo = (# [shortOption, valueString, optionGroup, groupOrder, optionH
     '_server_mode_'=>  ["NA", undef,   "NA", "NA", 0, "internalOption"], 
 #------------------------------------------------------------------------------------------------------------
     'install-packages'=>   ["p", undef,   "install", 0, "install R packages required by Stage 2 Apps"],
-    'suite'=>              ["s", "<str>", "install", 1, "a single suite to install or build, in form GIT_USER/SUITE_NAME"],
-    'version'=>            ["V", "<str>", "install", 2, "the version of the suite to build, e.g. v0.0.0 [latest]"],
-    'sandbox'=>            ["S", undef,   "install", 3, "pass option '--sandbox' to singularity build"],
+    'forks'=>              ["F", undef,   "install", 1, "also install your developer forks of MDI GitHub repositories"],
+    'suite'=>              ["s", "<str>", "install", 2, "a single suite to install or build, in form GIT_USER/SUITE_NAME"],
+    'version'=>            ["V", "<str>", "install", 3, "the version of the suite to build, e.g. v0.0.0 [latest]"],
+    'sandbox'=>            ["S", undef,   "install", 4, "pass option '--sandbox' to singularity build"],
     'server-command'=>     ["c", "<str>", "server", 0, "command to launch the web server (run, develop, remote, node) [run]"],
     'data-dir'=>           ["D", "<str>", "server", 1, "path to the desired data directory [MDI_DIR/data]"],
     'host-dir'=>           ["H", "<str>", "server", 2, "path to a shared/public MDI installation with code and resources [MDI_DIR]"],
@@ -90,7 +91,7 @@ our %commandOptions =  ( # 0=allowed, 1=required
     #move       =>  {'move-to'=>1,'force'=>0},
 #------------------------------------------------------------------------------------------------------------
     initialize =>  {},
-    install    =>  {'install-packages'=>0},
+    install    =>  {'install-packages'=>0, 'forks'=>0},
     add        =>  {'install-packages'=>0, 'suite'=>1},
     list       =>  {},
     build      =>  {'suite'=>1, 'version'=>0, 'sandbox' => 0},
