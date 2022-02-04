@@ -85,7 +85,9 @@ sub launchServerContainer {
     my $bind = "--bind $ENV{MDI_DIR}:$srvMdiDir";
     $options{'data-dir'} and $bind .= " --bind $options{'data-dir'}:$srvDataDir";
     addStage2BindMounts(\$bind); # add user bind paths from config/stage2-apps.yml
-    exec "$singularityLoad; singularity run $bind $imageFile apps $imageType $serverCmd $dataDir $options{'port'}";
+    my $port = $options{'port'} || 3838;
+    my $singularityCommand = $ENV{SINGULARITY_COMMAND} || "run"; # for debugging, typically set to "shell"
+    exec "$singularityLoad; singularity $singularityCommand $bind $imageFile apps $imageType $serverCmd $dataDir $port";
 }
 
 # launch directly via system R
