@@ -44,8 +44,9 @@ sub getPermissionGeneral {
     chomp $permission;
     $permission = "\U$permission";
     ($permission eq 'YES' or $permission eq 'Y') and return 1;
-    $suppressDie or die "aborting with no action taken";
-    return undef;
+    $suppressDie and return undef;
+    print "aborting with no action taken\n";
+    exit 1;
 }
 #========================================================================
 
