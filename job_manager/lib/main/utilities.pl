@@ -28,13 +28,26 @@ sub getPermission {  # get permission for jobs that will duplicate a job or dele
     $options{'force'} and return 1;  # user has already given permission at command line
     print "\nWARNING!\n"."$queryMessage\n\n";
     $ENV{IS_PIPELINE_RUNNER} and return 1;
-    print "continue? <yes or no>:  ";
+    print "Continue? [y|N]: ";
     my $permission = <STDIN>;
     chomp $permission;
     $permission = "\U$permission";
     ($permission eq 'YES' or $permission eq 'Y') or return undef;
     $noForceUpdate or $options{'force'} = 1;  # granting permission is synonymous with setting --force
     return 1;      
+}
+sub getPermissionGeneral {
+    my ($msg, $suppressDie) = @_;
+    my $leader = "-" x 80;
+    print "\n$leader\n$msg\n";  
+    print "Continue? [y|N]: ";
+    my $permission = <STDIN>;
+    chomp $permission;
+    $permission = "\U$permission";
+    ($permission eq 'YES' or $permission eq 'Y') and return 1;
+    $suppressDie and return undef;
+    print "aborting with no action taken\n";
+    exit 1;
 }
 #========================================================================
 

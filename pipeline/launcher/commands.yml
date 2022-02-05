@@ -23,7 +23,7 @@ actions:
             required:
                 total-ram: null
         optionFamilies: null        
-        description: "create or list the conda environment(s) required by the pipeline" 
+        description: "create or list the conda environment(s) required by the pipeline"  
     build:
         order: 3
         universal: true      
@@ -32,8 +32,16 @@ actions:
                 total-ram: null
         optionFamilies: null        
         description: "build a pipeline Singularity image and push to a registry" 
-    status:
+    shell:
         order: 4
+        universal: true      
+        resources:
+            required:
+                total-ram: null
+        optionFamilies: null        
+        description: "open a command shell in a pipeline action's runtime environment" 
+    status:
+        order: 5
         universal: true
         resources:
             required:
@@ -41,7 +49,7 @@ actions:
         optionFamilies: null        
         description: "print the pipeline status file for an output directory"
     rollback:
-        order: 5
+        order: 6
         universal: true
         resources:
             required:

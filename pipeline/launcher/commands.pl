@@ -5,8 +5,8 @@ use warnings;
 # most terminate execution or never return
 
 # working variables
-use vars qw($pipeline $pipelineName $launcherDir $mdiDir
-            @args $config %longOptions $workflowScript);
+use vars qw($pipeline $pipelineName $pipelineSuiteDir $launcherDir $mdiDir
+            @args $config %longOptions $workflowScript %workingSuiteVersions);
 
 # switch for acting on restricted commands
 sub doRestrictedCommand {
@@ -16,7 +16,8 @@ sub doRestrictedCommand {
         # commands advertised to users
         template => \&runTemplate,
         conda    => \&runConda,
-        build    => \&runBuild,        
+        build    => \&runBuild,
+        shell    => \&runShell,
         status   => \&runStatus,
         rollback => \&runRollback,
 
@@ -147,6 +148,77 @@ sub runBuild {
     # call Singularity build action
     buildSingularity($options{$sandbox} ? "--sandbox" : "", $options{$force} ? "--force" : "");
     releaseMdiGitLock(0);
+}
+
+#------------------------------------------------------------------------------
+# open a command shell in a pipeline's runtime environment, either via conda or Singularity
+#------------------------------------------------------------------------------
+sub runShell {
+
+    # command has limited options, collect --help first
+    my $help    = "help";
+    my $action  = "action";    
+    my $runtime = "runtime";
+    my %options;   
+    $args[0] or $args[0] = ""; 
+    ($args[0] eq '-h' or $args[0] eq "--$help") and $options{$help} = 1;
+
+    # if requested, show custom action help
+    if($options{$help}){
+        my $usage;
+        my $pname = $$config{pipeline}{name}[0];   
+        my $desc = getTemplateValue($$config{actions}{shell}{description});
+        $usage .= "\n$pname shell: $desc\n";
+        $usage .=  "\nusage: mdi $pname shell [options]\n";  
+        $usage .=  "\n    -h/--$help     show this help"; 
+        $usage .=  "\n    -a/--$action   the pipeline action whose conda environment will be activated in the shell [do]";           
+        $usage .=  "\n    -m/--$runtime  execution environment: one of direct, container, or auto (container if supported) [auto]";
+        print "$usage\n\n";
+        releaseMdiGitLock(0);
+    }
+
+    # collect and set the runtime options
+    $args[2] or $args[2] = ""; 
+    foreach my $i(0, 2){
+        ($args[$i] eq '-a' or $args[$i] eq "--$action")  and $options{$action}  = $args[$i + 1];        
+        ($args[$i] eq '-m' or $args[$i] eq "--$runtime") and $options{$runtime} = $args[$i + 1];
+    }
+    setRuntimeEnvVars($options{$runtime});
+
+    # collect and set the pipeline action options
+    my $defaultAction = $$config{actions}{do} ? "do" : "";
+    $action = $options{$action} || $defaultAction;
+    $action or throwError("option '--action' is required to launch a shell");
+    my $cmd = getCmdHash($action);
+    !$cmd and showActionsHelp("unknown action: $action", 1);        
+    my $configYml = assembleCompositeConfig($cmd, $action);
+    parseAllDependencies($action);
+    my $conda = getCondaPaths($configYml);
+
+    # set the shell command based on runtime mode
+    my $shellCommand;
+    if($ENV{IS_CONTAINER}){
+        my $uris = getContainerUris($ENV{CONTAINER_MAJOR_MINOR}, $ENV{CONTAINER_LEVEL} eq 'suite');
+        my $singularity = "$ENV{SINGULARITY_LOAD_COMMAND}; singularity";
+        pullPipelineContainer($uris, $singularity);
+        my $script = "source \${CONDA_PROFILE_SCRIPT}; conda activate \${ENVIRONMENTS_DIR}/$$conda{name}; exec bash";
+        $shellCommand = "$singularity exec $$uris{imageFile} bash -c '$script'"; # implicitly binds $PWD
+    } else {
+        -d $$conda{dir} or throwError(
+            "missing conda environment for action '$action'\n".
+            "please run 'mdi $pipelineName conda --create' before opening a direct shell"
+        );  
+        my $rcFile = glob("~/.mdi.rcfile");
+        my $script = "$$conda{loadCommand}; source $$conda{profileScript}; conda activate $$conda{dir}; rm -f $rcFile\n";
+	    open my $rcH, ">", $rcFile or throwError("could not write to $rcFile: $!");
+	    print $rcH $script; # --rcfile configures environment before passing interactive shell to user; the file deletes itself
+	    close $rcH;
+	    $shellCommand = "bash --rcfile $rcFile";
+    }
+
+    # launch the shell
+    releaseMdiGitLock();
+    exec $shellCommand;
 }
 
 #------------------------------------------------------------------------------

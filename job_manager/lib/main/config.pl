@@ -24,6 +24,7 @@ our %commands = (  # [executionSub, commandHelp, mdiStage2]
 #------------------------------------------------------------------------------------------------------------
     initialize  =>  [undef,           "refresh the '$jmName' script to establish its program targets", 1], # 'mdi' handles this call
     install     =>  [\&mdiInstall,    "re-run the installation process to update suites, etc.", 1], # install and add assume a Stage 2 installation
+    alias       =>  [\&mdiAlias,      "create an alias, i.e., named shortcut, to this MDI program target", 1],
     add         =>  [\&mdiAdd,        "add one tool suite repository to config/suites.yml and re-install", 1],
     list        =>  [\&mdiList,       "list all pipelines and apps available in this MDI installation", 1],
     build       =>  [\&mdiBuild,      "build one container with all of a suite's pipelines and apps", 1],
@@ -62,14 +63,16 @@ our %optionInfo = (# [shortOption, valueString, optionGroup, groupOrder, optionH
     'install-packages'=>   ["p", undef,   "install", 0, "install R packages required by Stage 2 Apps"],
     'forks'=>              ["F", undef,   "install", 1, "also install your developer forks of MDI GitHub repositories"],
     'suite'=>              ["s", "<str>", "install", 2, "a single suite to install or build, in form GIT_USER/SUITE_NAME"],
-    'version'=>            ["V", "<str>", "install", 3, "the version of the suite to build, e.g. v0.0.0 [latest]"],
-    'sandbox'=>            ["S", undef,   "install", 4, "pass option '--sandbox' to singularity build"],
-    'server-command'=>     ["c", "<str>", "server", 0, "command to launch the web server (run, develop, remote, node) [run]"],
-    'data-dir'=>           ["D", "<str>", "server", 1, "path to the desired data directory [MDI_DIR/data]"],
-    'host-dir'=>           ["H", "<str>", "server", 2, "path to a shared/public MDI installation with code and resources [MDI_DIR]"],
-    'runtime'=>            ["m", "<str>", "server", 3, "execution environment: direct, container, or auto (container if supported) [auto]"],
-    'container-version'=>  ["C", "<str>", "server", 4, "the major.minor version of either R or a tool suite, e.g., 4.1 [latest]"],
-    'port' =>              ["P", "<int>", "server", 5, "the port that the server will listen on [3838]"],
+    'alias'=>              ["a", "<str>", "alias",   0, "the name of the alias, i.e., the command you will type [mdi]"],
+    'profile'=>            ["l", "<str>", "alias",   1, "full path to the bash profile file where the alias will be written [~/.bashrc]"],
+    'version'=>            ["V", "<str>", "build",   0, "the version of the suite to build, e.g. v0.0.0 [latest]"],
+    'sandbox'=>            ["S", undef,   "build",   1, "pass option '--sandbox' to singularity build"],
+    'server-command'=>     ["c", "<str>", "server",  0, "command to launch the web server (run, develop, remote, node) [run]"],
+    'data-dir'=>           ["D", "<str>", "server",  1, "path to the desired data directory [MDI_DIR/data]"],
+    'host-dir'=>           ["H", "<str>", "server",  2, "path to a shared/public MDI installation with code and resources [MDI_DIR]"],
+    'runtime'=>            ["m", "<str>", "server",  3, "execution environment: direct, container, or auto (container if supported) [auto]"],
+    'container-version'=>  ["C", "<str>", "server",  4, "the major.minor version of either R or a tool suite, e.g., 4.1 [latest]"],
+    'port' =>              ["P", "<int>", "server",  5, "the port that the server will listen on [3838]"],
 );
 our %longOptions = map { ${$optionInfo{$_}}[0] => $_ } keys %optionInfo; # for converting short options to long; long options are used internally
 #------------------------------------------------------------------------
@@ -92,6 +95,7 @@ our %commandOptions =  ( # 0=allowed, 1=required
 #------------------------------------------------------------------------------------------------------------
     initialize =>  {},
     install    =>  {'install-packages'=>0, 'forks'=>0},
+    alias      =>  {'alias'=>0, 'profile'=>0},
     add        =>  {'install-packages'=>0, 'suite'=>1},
     list       =>  {},
     build      =>  {'suite'=>1, 'version'=>0, 'sandbox' => 0},
