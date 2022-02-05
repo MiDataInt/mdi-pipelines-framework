@@ -9,7 +9,7 @@ my $optionTabLength = 20;
 our $separatorLength = 87;
 our $leftPad = (" ") x 2;
 our $errorHighlight = "!" x 80;
-our @optionGroups = qw(main submit status job rollback install server);  # ensure that similar options group together
+our @optionGroups = qw(main submit status job rollback install alias build server);  # ensure that similar options group together
 my %useOptionGroupDelimiter = (submit=>1, extend=>1, resubmit=>1);  # break long options lists into separate groups
 
 #========================================================================
@@ -49,7 +49,7 @@ sub reportCommandsHelp { # help on the set of available commands, organized by t
     reportCommandChunk("status and result reporting", qw(status report script));   
     reportCommandChunk("error handling",              qw(delete));           
     reportCommandChunk("pipeline management",         qw(rollback purge));  
-    reportCommandChunk("server management",           qw(initialize install add list build server));  
+    reportCommandChunk("server management",           qw(initialize install alias add list build server));  
 }
 sub reportOptionHelp { 
     my ($command) = @_;

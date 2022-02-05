@@ -164,7 +164,7 @@ sub runShell {
     ($args[0] eq '-h' or $args[0] eq "--$help") and $options{$help} = 1;
 
     # if requested, show custom action help
-    if($options{$help}){
+    if($options{$help} || !$args[0]){
         my $usage;
         my $pname = $$config{pipeline}{name}[0];   
         my $desc = getTemplateValue($$config{actions}{shell}{description});
@@ -186,8 +186,7 @@ sub runShell {
     setRuntimeEnvVars($options{$runtime});
 
     # collect and set the pipeline action options
-    $action = $options{$action};
-    $action or throwError("option '--action' is required");
+    $action = $options{$action} or throwError("option '--action' is required to launch a shell");
     my $cmd = getCmdHash($action);
     !$cmd and showActionsHelp("unknown action: $action", 1);        
     my $configYml = assembleCompositeConfig($cmd, $action);
@@ -208,11 +207,11 @@ sub runShell {
             "please run 'mdi $pipelineName conda --create' before opening a direct shell"
         );  
         my $rcFile = "$ENV{HOME}/.mdi.rcfile";
-        my $script = "$$conda{loadCommand}; source $$conda{profileScript}; conda activate $$conda{dir}; rm -f $rcFile";
-	open my $rcH, ">", $rcFile or throwError("could not write to $rcFile: $!");
-	print $rcH $script; # --rcfile configures environment before shell to user; the file deletes itself
-	close $rcH;
-	$shellCommand = "bash --rcfile $rcFile";
+        my $script = "$$conda{loadCommand}; source $$conda{profileScript}; conda activate $$conda{dir}; rm -f $rcFile\n";
+	    open my $rcH, ">", $rcFile or throwError("could not write to $rcFile: $!");
+	    print $rcH $script; # --rcfile configures environment before passing interactive shell to user; the file deletes itself
+	    close $rcH;
+	    $shellCommand = "bash --rcfile $rcFile";
     }
 
     # launch the shell
