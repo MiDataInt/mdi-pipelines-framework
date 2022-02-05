@@ -206,7 +206,7 @@ sub runShell {
             "missing conda environment for action '$action'\n".
             "please run 'mdi $pipelineName conda --create' before opening a direct shell"
         );  
-        my $rcFile = "$ENV{HOME}/.mdi.rcfile";
+        my $rcFile = glob("~/.mdi.rcfile");
         my $script = "$$conda{loadCommand}; source $$conda{profileScript}; conda activate $$conda{dir}; rm -f $rcFile\n";
 	    open my $rcH, ">", $rcFile or throwError("could not write to $rcFile: $!");
 	    print $rcH $script; # --rcfile configures environment before passing interactive shell to user; the file deletes itself

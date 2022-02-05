@@ -11,7 +11,6 @@ use warnings;
 # define variables
 #------------------------------------------------------------------------
 use vars qw(%options);
-my $aliasTag = "# written by MDI alias\n";
 #========================================================================
 
 #========================================================================
@@ -21,8 +20,8 @@ sub mdiAlias {
 
     # parse the options and apply defaults
     my $alias = $options{'alias'} || "mdi";
-    my $profileFile = $options{'profile'} || "~/.bashrc";
-    my $outLine = "alias $alias=\"$ENV{MDI_DIR}/mdi $aliasTag\"";
+    my $profileFile = glob($options{'profile'} || "~/.bashrc");
+    my $outLine = "alias $alias=\"$ENV{MDI_DIR}/mdi\" # written by MDI alias\n";
 
     # check the profile file path
     -f $profileFile or throwError("file not found:\n    $profileFile", 'alias');
@@ -30,15 +29,16 @@ sub mdiAlias {
     # get user permission to modify their profile
     getPermissionGeneral(
         "The following line:\n".
-        "    $outLine\n".  
+        "    $outLine".  
         "will be written to file:\n".
         "    $profileFile\n"
-    ) or exit;
+    );
 
     # collect the contents of the current file as an array of lines
-    my @profile;    
-    open my $inH, "<", $profileFile or die "could not read file: $profileFile: $1\n";
+    my ($replaced, @profile);    
+    open my $inH, "<", $profileFile or die "could not read file: $profileFile: $!\n";
     while (my $line = <$inH>){
+        $line =~ m/\n/ or $line = "$line\n"; # guard against incomplete final line
         $line eq $outLine and exit; # nothing to do, exit quietly
         if($line =~ m/^alias\s+$alias=/){ 
             getPermissionGeneral(
@@ -46,16 +46,19 @@ sub mdiAlias {
                 "    $line\n".
                 "to:\n".
                 "    $outLine\n"
-            ) or exit;
+            );
             push @profile, $outLine; 
+            $replaced = 1;
         } else {
             push @profile, $line;
         }
     }
     close $inH;
+    $replaced or push @profile, $outLine;  
 
     # print the new file
     print join("", @profile);
+    exit;
 }
 #========================================================================
 
