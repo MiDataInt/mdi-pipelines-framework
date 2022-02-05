@@ -70,7 +70,38 @@ sub getCmdHash {                # the name of this function, 'cmd', and the varn
 sub setContainerEnvVars {
     my ($assembled) = @_;
     my $optionValues = $$assembled{taskOptions}[0]; # all tasks use the same runtime
-    setEnvVariable('runtime', $$optionValues{runtime}); 
+    setRuntimeEnvVars($$optionValues{runtime});
+    if($ENV{IS_CONTAINER}){ # append container metadata to the task report, if applicable
+        my $uris = getContainerUris($ENV{CONTAINER_MAJOR_MINOR}, $ENV{CONTAINER_LEVEL} eq 'suite');  
+        my $indent = "    ";
+        $$assembled{report} .= $indent."singularity:\n";
+        $$assembled{report} .= "$indent$indent"."image: $$uris{container}\n";
+        $$assembled{report} .= "$indent$indent"."level: $ENV{CONTAINER_LEVEL}\n";
+
+        # set the collection of additional bind-mount directories based on all options
+        my %bindMounts;
+        foreach my $optionName(keys %longOptions){
+            my $option = $longOptions{$optionName};
+            my $dir = $$option{directory} or next;
+            my $bind = 1; # always bind if option has directory tag that is anything except directory:bind-mount:false
+            ref($dir) eq 'HASH' and defined $$dir{'bind-mount'} and $bind = $$dir{'bind-mount'}[0];
+            $bind or next;
+            my $key = "--bind $$optionValues{$optionName}";
+            $bindMounts{$key}++; # avoid duplicate bind paths  
+        }
+        $ENV{CONTAINER_BIND_MOUNTS} = join(" ", keys %bindMounts);        
+    }
+    $$assembled{report} .= "...\n"; # finish the job report by closing it's yaml block
+}
+sub setRuntimeEnvVars {
+    my ($runtime) = @_;
+    $runtime or $runtime = "auto";
+    my %runtimes = map { $_ => 1 } qw(direct container auto);
+    $runtimes{$runtime} or throwError(
+        "unrecognized value for option '--runtime': $runtime\n".
+        "valid values are 'direct', 'container', or 'auto'"
+    );  
+    setEnvVariable('runtime', $runtime); 
     if($ENV{RUNTIME} eq 'auto'){
         $ENV{SINGULARITY_LOAD_COMMAND} = getSingularityLoadCommand();
         if($ENV{SINGULARITY_LOAD_COMMAND}){
@@ -100,35 +131,13 @@ sub setContainerEnvVars {
         );        
     }
     $ENV{IS_CONTAINER} = ($ENV{RUNTIME} eq 'container');
-    
-    # append container metadata to the task report, if applicable
-    if($ENV{IS_CONTAINER}){
-        my $isSuite = $ENV{CONTAINER_LEVEL} eq 'suite';  
-        if($isSuite){
+    if($ENV{IS_CONTAINER}){ # set the required container version tag
+        if($ENV{CONTAINER_LEVEL} eq 'suite'){
             $workingSuiteVersions{$pipelineSuiteDir} =~ m/(v\d+\.\d+)\.\d+/ and $ENV{CONTAINER_MAJOR_MINOR} = $1;
         } else {
             $ENV{CONTAINER_MAJOR_MINOR} = getPipelineMajorMinorVersion();
         }
-        my $uris = getContainerUris($ENV{CONTAINER_MAJOR_MINOR}, $isSuite);  
-        my $indent = "    ";
-        $$assembled{report} .= $indent."singularity:\n";
-        $$assembled{report} .= "$indent$indent"."image: $$uris{container}\n";
-        $$assembled{report} .= "$indent$indent"."level: $ENV{CONTAINER_LEVEL}\n";
-
-        # set the collection of additional bind-mount directories based on all options
-        my %bindMounts;
-        foreach my $optionName(keys %longOptions){
-            my $option = $longOptions{$optionName};
-            my $dir = $$option{directory} or next;
-            my $bind = 1; # always bind if option has directory tag that is anything except directory:bind-mount:false
-            ref($dir) eq 'HASH' and defined $$dir{'bind-mount'} and $bind = $$dir{'bind-mount'}[0];
-            $bind or next;
-            my $key = "--bind $$optionValues{$optionName}";
-            $bindMounts{$key}++; # avoid duplicate bind paths  
-        }
-        $ENV{CONTAINER_BIND_MOUNTS} = join(" ", keys %bindMounts);        
     }
-    $$assembled{report} .= "...\n"; # finish the job report by closing it's yaml block
 }
 
 # parse the options and prepare to execute a single pipeline task
@@ -260,7 +269,7 @@ sub copyTaskCodeSuites { # create a permanent, fixed working copy of all tool su
 sub executeTask {
     my ($action, $isSingleTask, $taskId, $conda) = @_;
 
-    # validate the containter or conda environment based on runtime mode
+    # validate the container or conda environment based on runtime mode
     my $execCommand = "cd $ENV{TASK_DIR}; "; # implicitly bind-mounts TASK_DIR
     if($ENV{IS_CONTAINER}){
         my $uris = getContainerUris($ENV{CONTAINER_MAJOR_MINOR}, $ENV{CONTAINER_LEVEL} eq 'suite');

@@ -5,8 +5,8 @@ use warnings;
 # most terminate execution or never return
 
 # working variables
-use vars qw($pipeline $pipelineName $launcherDir $mdiDir
-            @args $config %longOptions $workflowScript);
+use vars qw($pipeline $pipelineName $pipelineSuiteDir $launcherDir $mdiDir
+            @args $config %longOptions $workflowScript %workingSuiteVersions);
 
 # switch for acting on restricted commands
 sub doRestrictedCommand {
@@ -16,7 +16,8 @@ sub doRestrictedCommand {
         # commands advertised to users
         template => \&runTemplate,
         conda    => \&runConda,
-        build    => \&runBuild,        
+        build    => \&runBuild,
+        shell    => \&runShell,
         status   => \&runStatus,
         rollback => \&runRollback,
 
@@ -147,6 +148,71 @@ sub runBuild {
     # call Singularity build action
     buildSingularity($options{$sandbox} ? "--sandbox" : "", $options{$force} ? "--force" : "");
     releaseMdiGitLock(0);
+}
+
+#------------------------------------------------------------------------------
+# open a command shell in a pipeline's runtime environment, either via conda or Singularity
+#------------------------------------------------------------------------------
+sub runShell {
+
+    # command has limited options, collect --help first
+    my $help    = "help";
+    my $runtime = "runtime";
+    my $action  = "action";
+    my %options;   
+    $args[0] or $args[0] = ""; 
+    ($args[0] eq '-h' or $args[0] eq "--$help") and $options{$help} = 1;
+
+    # if requested, show custom action help
+    if($options{$help}){
+        my $usage;
+        my $pname = $$config{pipeline}{name}[0];   
+        my $desc = getTemplateValue($$config{actions}{shell}{description});
+        $usage .= "\n$pname shell: $desc\n";
+        $usage .=  "\nusage: mdi $pname shell [options]\n";  
+        $usage .=  "\n    -h/--$help     show this help";    
+        $usage .=  "\n    -m/--$runtime  execution environment: one of direct, container, or auto (container if supported) [auto]";
+        $usage .=  "\n    -a/--$action   pipeline action, required if --runtime is 'direct' or containers not supported";
+        print "$usage\n\n";
+        releaseMdiGitLock(0);
+    }
+
+    # collect and set runtime options
+    $args[2] or $args[2] = ""; 
+    foreach my $i(0, 2){
+        ($args[$i] eq '-m' or $args[$i] eq "--$runtime") and $options{$runtime} = $args[$i + 1];
+        ($args[$i] eq '-a' or $args[$i] eq "--$action")  and $options{$action}  = $args[$i + 1];
+    }
+    setRuntimeEnvVars($options{$runtime});
+
+    # set the shell command based on runtime mode
+    my $shellCommand; # implicitly bind-mounts $PWD
+    if($ENV{IS_CONTAINER}){
+        my $uris = getContainerUris($ENV{CONTAINER_MAJOR_MINOR}, $ENV{CONTAINER_LEVEL} eq 'suite');
+        my $singularity = "$ENV{SINGULARITY_LOAD_COMMAND}; singularity";
+        pullPipelineContainer($uris, $singularity);
+        $shellCommand = "$singularity shell $$uris{imageFile}";
+    } else {
+        my $action = $options{$action};
+        my $cmd = getCmdHash($action);
+        !$cmd and showActionsHelp("unknown action: $action", 1);
+        my $configYml = parseAllOptions($action);
+        parseAllDependencies($action);
+        my $conda = getCondaPaths($configYml);
+        -d $$conda{dir} or throwError(
+            "missing conda environment for action '$action'\n".
+            "please run 'mdi $pipelineName conda --create' before opening a direct shell"
+        );  
+        $ENV{CONDA_LOAD_COMMAND}   = $$conda{loadCommand};
+        $ENV{CONDA_PROFILE_SCRIPT} = $$conda{profileScript};  
+        $ENV{ENVIRONMENTS_DIR}     = $$conda{baseDir};      
+        $ENV{CONDA_NAME}           = $$conda{name};
+        $shellCommand = "bash; bash $launcherDir/lib/shell.sh"; # conda activate in a sub-shell, to allow simple exit
+    }
+
+    # pass execution to shell command
+    releaseMdiGitLock();
+    exec $shellCommand;
 }
 
 #------------------------------------------------------------------------------
