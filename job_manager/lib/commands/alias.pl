@@ -1,6 +1,7 @@
 #!/usr/bin/perl
 use strict;
 use warnings;
+use File::Copy;
 
 #========================================================================
 # create an alias, i.e., named shortcut, to this MDI program target
@@ -43,9 +44,9 @@ sub mdiAlias {
         if($line =~ m/^alias\s+$alias=/){ 
             getPermissionGeneral(
                 "Alias '$alias' already exists and will be overwritten from:\n". 
-                "    $line\n".
+                "    $line".
                 "to:\n".
-                "    $outLine\n"
+                "    $outLine"
             );
             push @profile, $outLine; 
             $replaced = 1;
@@ -57,7 +58,11 @@ sub mdiAlias {
     $replaced or push @profile, $outLine;  
 
     # print the new file
-    print join("", @profile);
+    my $buFile = "$profileFile.mdiAliasBackup";
+    -e $buFile or copy($profileFile, $buFile);
+    open my $outH, ">", $profileFile or die "could not write file: $profileFile: $!\n";
+    print $outH join("", @profile);
+    close $outH;
     exit;
 }
 #========================================================================

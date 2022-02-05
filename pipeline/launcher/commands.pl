@@ -164,14 +164,14 @@ sub runShell {
     ($args[0] eq '-h' or $args[0] eq "--$help") and $options{$help} = 1;
 
     # if requested, show custom action help
-    if($options{$help} || !$args[0]){
+    if($options{$help}){
         my $usage;
         my $pname = $$config{pipeline}{name}[0];   
         my $desc = getTemplateValue($$config{actions}{shell}{description});
         $usage .= "\n$pname shell: $desc\n";
         $usage .=  "\nusage: mdi $pname shell [options]\n";  
         $usage .=  "\n    -h/--$help     show this help"; 
-        $usage .=  "\n    -a/--$action   the pipeline action whose conda environment will be activated in the shell *REQUIRED*";           
+        $usage .=  "\n    -a/--$action   the pipeline action whose conda environment will be activated in the shell [do]";           
         $usage .=  "\n    -m/--$runtime  execution environment: one of direct, container, or auto (container if supported) [auto]";
         print "$usage\n\n";
         releaseMdiGitLock(0);
@@ -186,7 +186,9 @@ sub runShell {
     setRuntimeEnvVars($options{$runtime});
 
     # collect and set the pipeline action options
-    $action = $options{$action} or throwError("option '--action' is required to launch a shell");
+    my $defaultAction = $$config{actions}{do} ? "do" : "";
+    $action = $options{$action} || $defaultAction;
+    $action or throwError("option '--action' is required to launch a shell");
     my $cmd = getCmdHash($action);
     !$cmd and showActionsHelp("unknown action: $action", 1);        
     my $configYml = assembleCompositeConfig($cmd, $action);

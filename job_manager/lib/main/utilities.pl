@@ -38,7 +38,8 @@ sub getPermission {  # get permission for jobs that will duplicate a job or dele
 }
 sub getPermissionGeneral {
     my ($msg, $suppressDie) = @_;
-    print "\n$msg\n";  
+    my $leader = "-" x 80;
+    print "\n$leader\n$msg\n";  
     print "Continue? [y|N]: ";
     my $permission = <STDIN>;
     chomp $permission;
