@@ -10,11 +10,13 @@ use warnings;
 # define variables
 #------------------------------------------------------------------------
 use vars qw(%options);
-my ($serverRunCommand, $singularityLoad, @containerSearchDirs);
+my ($serverCmd, $singularityLoad, @containerSearchDirs);
 my $silently = "> /dev/null 2>&1";
 my $mdiCommand = 'server';
 my $baseName = "mdi-singularity-base";
 my $baseNameGlob = "$baseName/$baseName";
+my %serverCmds = map { $_ => 1 } qw(run develop remote node);
+my $serverCmds = join(", ", keys %serverCmds);
 #========================================================================
 
 #========================================================================
@@ -22,12 +24,15 @@ my $baseNameGlob = "$baseName/$baseName";
 #------------------------------------------------------------------------
 sub mdiServer { 
 
-    # parse the requested server run command
-    $serverRunCommand = $options{'develop'} ? "develop" : "run";
+    # check the requested server command
+    $serverCmd = $options{'server-command'};
+    $serverCmds{$serverCmd} or 
+        throwError("bad value for option '--server-command': $serverCmd\n"."expected one of: $serverCmds", $mdiCommand);
 
     # process a request for running server via system R, regardless of Singularity support
-    $options{'runtime'} or $options{'runtime'} = 'auto';
-    $options{'runtime'} eq 'direct' and return launchServerDirect();
+    my $runtime = $options{'runtime'};
+    $runtime or $runtime = 'auto';
+    $runtime eq 'direct' and return launchServerDirect();
 
     # determine whether system supports Singularity
     $singularityLoad = getSingularityLoadCommand();    
@@ -37,7 +42,7 @@ sub mdiServer {
     my $containerTypes = getAppsContainerSupport();
 
     # validate a request for running server via Singularity, without possibility for system fallback
-    if($options{'runtime'} eq 'container'){
+    if($runtime eq 'container'){
         $singularityLoad or 
             throwError("--runtime 'container' requires Singularity on system or via config/singularity.yml >> load-command", $mdiCommand);            
         keys %$containerTypes or 
@@ -79,14 +84,23 @@ sub launchServerContainer {
     my $dataDir = $options{'data-dir'} ? $srvDataDir : "NULL";
     my $bind = "--bind $ENV{MDI_DIR}:$srvMdiDir";
     $options{'data-dir'} and $bind .= " --bind $options{'data-dir'}:$srvDataDir";
-    exec "$singularityLoad; singularity run $bind $imageFile apps $imageType $serverRunCommand $dataDir";
+    addStage2BindMounts(\$bind); # add user bind paths from config/stage2-apps.yml
+    my $port = $options{'port'} || 3838;
+    my $singularityCommand = $ENV{SINGULARITY_COMMAND} || "run"; # for debugging, typically set to "shell"
+    exec "$singularityLoad; singularity $singularityCommand $bind $imageFile apps $imageType $serverCmd $dataDir $port";
 }
 
 # launch directly via system R
 sub launchServerDirect {
     my $dataDir = $options{'data-dir'} ? ", dataDir = \"".$options{'data-dir'}."\"" : "";
     my $hostDir = $options{'host-dir'} ? ", hostDir = \"".$options{'host-dir'}."\"" : "";  
-    exec "Rscript -e 'mdi::$serverRunCommand(mdiDir = \"$ENV{MDI_DIR}\" $dataDir $hostDir)'";
+    my $R_COMMAND = qx/command -v Rscript/;
+    chomp $R_COMMAND;
+    $R_COMMAND or throwError(
+        "FATAL: R program targets not found\n", 
+        "please install or load R (or Singularity) as required on your system\n",
+        "e.g., module load R/0.0.0", 'server');
+    exec "Rscript -e 'mdi::$serverCmd(mdiDir = \"$ENV{MDI_DIR}\", port = $options{'port'} $dataDir $hostDir)'";
 }
 #========================================================================
 
@@ -174,6 +188,28 @@ sub getTargetAppsImageFile {
         $files{"$major.$minor"} = $imageFile; # again, just keep one, we don't care where it is
     }
     $files{"$maxMajor.$maxMinor{$maxMajor}"};
+}#========================================================================
+
+#========================================================================
+# add a list of user-specified bind mounts to an apps-server container
+#------------------------------------------------------------------------
+sub addStage2BindMounts {
+    my ($bind) = @_;
+    my $ymlFile = "$ENV{MDI_DIR}/config/stage2-apps.yml";
+    -f $ymlFile or return;
+    my $yamls = loadYamlFromString( slurpFile($ymlFile) );
+    my $paths = $$yamls{parsed}[0]{paths} or return;
+    ref($paths) eq 'HASH' or return;
+    my %bound = ($ENV{MDI_DIR} => 1);
+    $options{'data-dir'} and $bound{$options{'data-dir'}}++;
+    foreach my $name(keys %$paths){
+        ref($$paths{$name}) eq 'ARRAY' or next;
+        my $dir = $$paths{$name}[0] or next;
+        -d $dir or next;
+        $bound{$dir} and next; # prevent duplicate binds
+        $$bind .= " --bind $dir";
+        $bound{$dir}++;
+    }
 }
 #========================================================================
 
