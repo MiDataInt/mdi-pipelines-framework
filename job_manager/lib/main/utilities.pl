@@ -37,14 +37,14 @@ sub getPermission {  # get permission for jobs that will duplicate a job or dele
     return 1;      
 }
 sub getPermissionGeneral {
-    my ($msg, $die) = @_;
+    my ($msg, $suppressDie) = @_;
     print "\n$msg\n";  
     print "Continue? [y|N]: ";
     my $permission = <STDIN>;
     chomp $permission;
     $permission = "\U$permission";
     ($permission eq 'YES' or $permission eq 'Y') and return 1;
-    $die and die "aborting with no action taken";
+    $suppressDie or die "aborting with no action taken";
     return undef;
 }
 #========================================================================
