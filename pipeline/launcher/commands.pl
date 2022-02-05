@@ -200,15 +200,15 @@ sub runShell {
         my $uris = getContainerUris($ENV{CONTAINER_MAJOR_MINOR}, $ENV{CONTAINER_LEVEL} eq 'suite');
         my $singularity = "$ENV{SINGULARITY_LOAD_COMMAND}; singularity";
         pullPipelineContainer($uris, $singularity);
-        my $script = "source \${CONDA_PROFILE_SCRIPT}; conda activate \${ENVIRONMENTS_DIR}/$$conda{name}; bash";
-        $shellCommand = "$singularity exec $$uris{imageFile} $script";
+        my $script = "source \${CONDA_PROFILE_SCRIPT}; conda activate \${ENVIRONMENTS_DIR}/$$conda{name}; exec bash";
+        $shellCommand = "$singularity exec $$uris{imageFile} bash -c '$script'";
     } else {
         -d $$conda{dir} or throwError(
             "missing conda environment for action '$action'\n".
             "please run 'mdi $pipelineName conda --create' before opening a direct shell"
         );  
-        my $script = "$$conda{loadCommand}; source $$conda{profileScript}; conda activate $$conda{dir}; bash";
-        $shellCommand = "bash; $script"; # conda activate in a sub-shell, to allow simple exit
+        my $script = "$$conda{loadCommand}; source $$conda{profileScript}; conda activate $$conda{dir}; exec bash";
+        $shellCommand = "bash -c '$script'"; # conda activate in a sub-shell, to allow simple exit from environment
     }
 
     # pass execution to shell command
