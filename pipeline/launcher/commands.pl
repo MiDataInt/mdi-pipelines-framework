@@ -187,16 +187,23 @@ sub runShell {
 
     # set the shell command based on runtime mode
     my $shellCommand; # implicitly bind-mounts $PWD
+    my $shellScript = "\${CONDA_LOAD_COMMAND}; ".
+                      "source \${CONDA_PROFILE_SCRIPT}; ".
+                      "conda activate \${ENVIRONMENTS_DIR}/\${CONDA_NAME}; ".
+                      "exec bash";
     if($ENV{IS_CONTAINER}){
         my $uris = getContainerUris($ENV{CONTAINER_MAJOR_MINOR}, $ENV{CONTAINER_LEVEL} eq 'suite');
         my $singularity = "$ENV{SINGULARITY_LOAD_COMMAND}; singularity";
         pullPipelineContainer($uris, $singularity);
-        $shellCommand = "$singularity shell $$uris{imageFile}";
+        $shellCommand = "$singularity exec $$uris{imageFile} $shellScript";
     } else {
         my $action = $options{$action};
+        $action or throwError(
+            "option '--action' is required for '--runtime direct' or if containers are not supported"
+        );
         my $cmd = getCmdHash($action);
-        !$cmd and showActionsHelp("unknown action: $action", 1);
-        my $configYml = parseAllOptions($action);
+        !$cmd and showActionsHelp("unknown action: $action", 1);        
+        my $configYml = assembleCompositeConfig($cmd, $action);
         parseAllDependencies($action);
         my $conda = getCondaPaths($configYml);
         -d $$conda{dir} or throwError(
@@ -207,7 +214,7 @@ sub runShell {
         $ENV{CONDA_PROFILE_SCRIPT} = $$conda{profileScript};  
         $ENV{ENVIRONMENTS_DIR}     = $$conda{baseDir};      
         $ENV{CONDA_NAME}           = $$conda{name};
-        $shellCommand = "bash; bash $launcherDir/lib/shell.sh"; # conda activate in a sub-shell, to allow simple exit
+        $shellCommand = "bash; $shellScript"; # conda activate in a sub-shell, to allow simple exit
     }
 
     # pass execution to shell command
