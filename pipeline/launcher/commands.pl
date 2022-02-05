@@ -195,23 +195,27 @@ sub runShell {
     my $conda = getCondaPaths($configYml);
 
     # set the shell command based on runtime mode
-    my $shellCommand; # implicitly bind-mounts $PWD
+    my $shellCommand;
     if($ENV{IS_CONTAINER}){
         my $uris = getContainerUris($ENV{CONTAINER_MAJOR_MINOR}, $ENV{CONTAINER_LEVEL} eq 'suite');
         my $singularity = "$ENV{SINGULARITY_LOAD_COMMAND}; singularity";
         pullPipelineContainer($uris, $singularity);
         my $script = "source \${CONDA_PROFILE_SCRIPT}; conda activate \${ENVIRONMENTS_DIR}/$$conda{name}; exec bash";
-        $shellCommand = "$singularity exec $$uris{imageFile} bash -c '$script'";
+        $shellCommand = "$singularity exec $$uris{imageFile} bash -c '$script'"; # implicitly binds $PWD
     } else {
         -d $$conda{dir} or throwError(
             "missing conda environment for action '$action'\n".
             "please run 'mdi $pipelineName conda --create' before opening a direct shell"
         );  
-        my $script = "$$conda{loadCommand}; source $$conda{profileScript}; conda activate $$conda{dir}; exec bash";
-        $shellCommand = "bash -c '$script'"; # conda activate in a sub-shell, to allow simple exit from environment
+        my $rcFile = "$ENV{HOME}/.mdi.rcfile";
+        my $script = "$$conda{loadCommand}; source $$conda{profileScript}; conda activate $$conda{dir}; rm -f $rcFile";
+	open my $rcH, ">", $rcFile or throwError("could not write to $rcFile: $!");
+	print $rcH $script; # --rcfile configures environment before shell to user; the file deletes itself
+	close $rcH;
+	$shellCommand = "bash --rcfile $rcFile";
     }
 
-    # pass execution to shell command
+    # launch the shell
     releaseMdiGitLock();
     exec $shellCommand;
 }
