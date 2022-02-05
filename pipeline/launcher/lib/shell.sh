@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # this script is called to open a shell in a pipeline's environment
-# useful for developer's to explore command options, etc.
+# useful for developer's to explore command options
 
 # acivate the conda environment
 ${CONDA_LOAD_COMMAND}

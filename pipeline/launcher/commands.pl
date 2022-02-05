@@ -157,8 +157,8 @@ sub runShell {
 
     # command has limited options, collect --help first
     my $help    = "help";
+    my $action  = "action";    
     my $runtime = "runtime";
-    my $action  = "action";
     my %options;   
     $args[0] or $args[0] = ""; 
     ($args[0] eq '-h' or $args[0] eq "--$help") and $options{$help} = 1;
@@ -170,51 +170,45 @@ sub runShell {
         my $desc = getTemplateValue($$config{actions}{shell}{description});
         $usage .= "\n$pname shell: $desc\n";
         $usage .=  "\nusage: mdi $pname shell [options]\n";  
-        $usage .=  "\n    -h/--$help     show this help";    
+        $usage .=  "\n    -h/--$help     show this help"; 
+        $usage .=  "\n    -a/--$action   the pipeline action whose conda environment will be activated in the shell *REQUIRED*";           
         $usage .=  "\n    -m/--$runtime  execution environment: one of direct, container, or auto (container if supported) [auto]";
-        $usage .=  "\n    -a/--$action   pipeline action, required if --runtime is 'direct' or containers not supported";
         print "$usage\n\n";
         releaseMdiGitLock(0);
     }
 
-    # collect and set runtime options
+    # collect and set the runtime options
     $args[2] or $args[2] = ""; 
     foreach my $i(0, 2){
+        ($args[$i] eq '-a' or $args[$i] eq "--$action")  and $options{$action}  = $args[$i + 1];        
         ($args[$i] eq '-m' or $args[$i] eq "--$runtime") and $options{$runtime} = $args[$i + 1];
-        ($args[$i] eq '-a' or $args[$i] eq "--$action")  and $options{$action}  = $args[$i + 1];
     }
     setRuntimeEnvVars($options{$runtime});
 
+    # collect and set the pipeline action options
+    $action = $options{$action};
+    $action or throwError("option '--action' is required");
+    my $cmd = getCmdHash($action);
+    !$cmd and showActionsHelp("unknown action: $action", 1);        
+    my $configYml = assembleCompositeConfig($cmd, $action);
+    parseAllDependencies($action);
+    my $conda = getCondaPaths($configYml);
+
     # set the shell command based on runtime mode
     my $shellCommand; # implicitly bind-mounts $PWD
-    my $shellScript = "\${CONDA_LOAD_COMMAND}; ".
-                      "source \${CONDA_PROFILE_SCRIPT}; ".
-                      "conda activate \${ENVIRONMENTS_DIR}/\${CONDA_NAME}; ".
-                      "exec bash";
     if($ENV{IS_CONTAINER}){
         my $uris = getContainerUris($ENV{CONTAINER_MAJOR_MINOR}, $ENV{CONTAINER_LEVEL} eq 'suite');
         my $singularity = "$ENV{SINGULARITY_LOAD_COMMAND}; singularity";
         pullPipelineContainer($uris, $singularity);
-        $shellCommand = "$singularity exec $$uris{imageFile} $shellScript";
+        my $script = "source \${CONDA_PROFILE_SCRIPT}; conda activate \${ENVIRONMENTS_DIR}/$$conda{name}; bash";
+        $shellCommand = "$singularity exec $$uris{imageFile} $script";
     } else {
-        my $action = $options{$action};
-        $action or throwError(
-            "option '--action' is required for '--runtime direct' or if containers are not supported"
-        );
-        my $cmd = getCmdHash($action);
-        !$cmd and showActionsHelp("unknown action: $action", 1);        
-        my $configYml = assembleCompositeConfig($cmd, $action);
-        parseAllDependencies($action);
-        my $conda = getCondaPaths($configYml);
         -d $$conda{dir} or throwError(
             "missing conda environment for action '$action'\n".
             "please run 'mdi $pipelineName conda --create' before opening a direct shell"
         );  
-        $ENV{CONDA_LOAD_COMMAND}   = $$conda{loadCommand};
-        $ENV{CONDA_PROFILE_SCRIPT} = $$conda{profileScript};  
-        $ENV{ENVIRONMENTS_DIR}     = $$conda{baseDir};      
-        $ENV{CONDA_NAME}           = $$conda{name};
-        $shellCommand = "bash; $shellScript"; # conda activate in a sub-shell, to allow simple exit
+        my $script = "$$conda{loadCommand}; source $$conda{profileScript}; conda activate $$conda{dir}; bash";
+        $shellCommand = "bash; $script"; # conda activate in a sub-shell, to allow simple exit
     }
 
     # pass execution to shell command
