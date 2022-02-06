@@ -23,7 +23,7 @@ actions:
             required:
                 total-ram: null
         optionFamilies: null        
-        description: "create or list the conda environment(s) required by the pipeline"  
+        description: "create, update, or list the conda environment(s) required by a pipeline"  
     build:
         order: 3
         universal: true      

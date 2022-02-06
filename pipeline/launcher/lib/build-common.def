@@ -21,6 +21,10 @@
     STATIC_MDI_DIR=${STATIC_DIR}/mdi
     mkdir -p ${STATIC_MDI_DIR}/environments
     mkdir -p ${STATIC_MDI_DIR}/resources
+    rm -rf ${STATIC_MDI_DIR}/config
+    rm -rf ${STATIC_MDI_DIR}/frameworks
+    rm -rf ${STATIC_MDI_DIR}/suites
+    rm -f  ${STATIC_MDI_DIR}/mdi
     cp -r ./config      ${STATIC_MDI_DIR}/config
     cp -r ./frameworks  ${STATIC_MDI_DIR}/frameworks
     cp -r ./suites      ${STATIC_MDI_DIR}/suites
@@ -61,6 +65,12 @@
     # creata conda environments of the software required by the pipeline
     export IS_CONTAINER_BUILD=TRUE
     ${STATIC_MDI_DIR}/mdi ${PIPELINE_NAME} conda --create --force --no-mamba --version ${SUITE_VERSION} 
+    NEEDED_ENVIRONMENTS=`${STATIC_MDI_DIR}/mdi ${PIPELINE_NAME} conda --list | grep -P "^${STATIC_MDI_DIR}" | sort | uniq`
+
+    # remove any unused environments carried over from any prior base installation
+    ls -1d ${STATIC_MDI_DIR}/environments/* 2>/dev/null | 
+    perl -e '%x = map {$_."\n" => 1} split(/\s+/, "'"$NEEDED_ENVIRONMENTS"'"); while (my $env = <>){$x{$env} or print $env}' |
+    xargs -I ENV rm -fr ENV
 
     # clean up conda pkgs directory of cached tarballs (conda clean won't work here)
     rm -f ${MINICONDA_DIR}/pkgs/*.tar.bz2

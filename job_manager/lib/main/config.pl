@@ -27,6 +27,7 @@ our %commands = (  # [executionSub, commandHelp, mdiStage2]
     alias       =>  [\&mdiAlias,      "create an alias, i.e., named shortcut, to this MDI program target", 1],
     add         =>  [\&mdiAdd,        "add one tool suite repository to config/suites.yml and re-install", 1],
     list        =>  [\&mdiList,       "list all pipelines and apps available in this MDI installation", 1],
+    unlock      =>  [\&mdiUnlock,     "remove all framework and suite repository locks, to reset after error", 1],    
     build       =>  [\&mdiBuild,      "build one container with all of a suite's pipelines and apps", 1],
     server      =>  [\&mdiServer,     "launch the web server to use interactive Stage 2 apps",  1],
 ); 
@@ -98,6 +99,7 @@ our %commandOptions =  ( # 0=allowed, 1=required
     alias      =>  {'alias'=>0, 'profile'=>0},
     add        =>  {'install-packages'=>0, 'suite'=>1},
     list       =>  {},
+    unlock     =>  {},
     build      =>  {'suite'=>1, 'version'=>0, 'sandbox' => 0},
     server     =>  {'server-command'=>0,'data-dir'=>0,'host-dir'=>0,'runtime'=>0,'container-version'=>0,'port'=>0}, 
 );  

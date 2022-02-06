@@ -31,6 +31,7 @@ sub setMdiGitLock {
             "    $pipelineSuiteDir\n".
             "if you know the suite is not in use, try deleting its lock file:\n".
             "    rm -f $lockFile\n".
+            "or calling 'mdi unlock'\n".
             "$errorSeparator\n\n";
         exit 1; # do _not_ use throwError as it clears the lock file placed by someone else
     }

@@ -13,7 +13,7 @@ sub getPermission {
     my ($message, $force) = @_;
     ($optionValues{force} or $force) and return 1;
     print "$message\n";
-    print "Agree to continue? (y|n) ";
+    print "Agree to continue? [y|N] ";
     my $response = <STDIN>;
     chomp $response;
     $response = (uc(substr($response, 0, 1)) eq "Y");
