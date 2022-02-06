@@ -22,7 +22,7 @@ sub executeAction {
     # process the options for the action and request
     my $configYml = parseAllOptions($action);
     parseAllDependencies($action);
-    my $conda = getCondaPaths($configYml);
+    my $conda = getCondaPaths($configYml, $action);
 
     # collect options and dependency feeback, for log files and streams
     my $assembled = reportAssembledConfig($action, $conda, 1);

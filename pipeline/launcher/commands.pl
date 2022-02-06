@@ -99,8 +99,8 @@ sub runConda {
         $usage .= "\n$pname conda: $desc\n";
         $usage .=  "\nusage: mdi $pname conda [options]\n";
         $usage .=  "\n    -l/--$list      show the yml config file for each pipeline action";
-        $usage .=  "\n    -c/--$create    if needed, create the required conda environments";
-        $usage .=  "\n    -f/--$force     do not prompt for permission to create environments"; 
+        $usage .=  "\n    -c/--$create    if needed, create/update the required conda environments";
+        $usage .=  "\n    -f/--$force     do not prompt for permission to create/update environments"; 
         $usage .=  "\n    -M/--$noMamba  do not use Mamba, only use Conda to create environments";   
         $error and throwError($error.$usage);
         print "$usage\n\n";
@@ -193,7 +193,7 @@ sub runShell {
     !$cmd and showActionsHelp("unknown action: $action", 1);        
     my $configYml = assembleCompositeConfig($cmd, $action);
     parseAllDependencies($action);
-    my $conda = getCondaPaths($configYml);
+    my $conda = getCondaPaths($configYml, $action);
 
     # set the shell command based on runtime mode
     my $shellCommand;

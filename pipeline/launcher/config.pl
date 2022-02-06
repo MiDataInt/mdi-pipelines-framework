@@ -53,19 +53,19 @@ sub mergeGlobalFamilies { # support option and conda family sharing between acti
     my $global = "_global";
     $$actions{$global} or return; # no global families, nothing to do
     if(ref($$actions{$global}) eq "HASH"){ # check for something to do
-        foreach my $familyType(qw(optionFamilies condaFamilies)){ # control what is supported in _global, ignore all other keys
-            my $globalRef = $$actions{$global}{$familyType};
-            (ref($globalRef) eq "ARRAY" and @$globalRef and $$globalRef[0] ne 'null') or next; # make sure family is defined
+        foreach my $key(qw(environment condaFamilies optionFamilies)){ # control what is supported in _global, ignore all other keys
+            my $globalRef = $$actions{$global}{$key};
+            (ref($globalRef) eq "ARRAY" and @$globalRef and $$globalRef[0] ne 'null') or next; # make sure key is defined
             foreach my $action(keys %$actions){ # append _global to every action
                 $action eq $global and next;
-                my $actionRef = $$actions{$action}{$familyType};
-                if(!$actionRef or ref($actionRef) ne "ARRAY" or $$actionRef[0] eq 'null'){ # initialize family for each action if not present in pipeline.yml
+                my $actionRef = $$actions{$action}{$key};
+                if(!$actionRef or ref($actionRef) ne "ARRAY" or $$actionRef[0] eq 'null'){ # initialize key for each action if not present in pipeline.yml
                     $actionRef = [];
-                    $$actions{$action}{$familyType} = $actionRef;
+                    $$actions{$action}{$key} = $actionRef;
                 }
                 unshift @$actionRef, @$globalRef; # prepend _global to action
                 @$actionRef = uniqueElements(@$actionRef); # remove duplicate elements while preserving order
-                @$actionRef or delete $$actions{$action}{$familyType};
+                @$actionRef or delete $$actions{$action}{$key};
             }
         }
     }

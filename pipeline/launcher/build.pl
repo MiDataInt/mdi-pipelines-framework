@@ -142,14 +142,14 @@ sub assembleContainerDef {
     my ($rootDir, $commonDef, $replace) = @_;
 
     # concatenate the complete Singularity container definition file
-    my $def = slurpContainerDef("$rootDir/singularity.def");
+    my $def = ContainerDef("$rootDir/singularity.def");
     $def =~ m/\nFrom:\s+(\S+):\S+/ or $def =~ m/\nFrom:\s+(\S+)/ or throwError(
         "missing or malformed 'From:' declaration in singularity.def\n".
         "expected: From: base[:version]"
     );
     my $containerBase = $1;
     my $containerBaseVersion = $def =~ m/\nFrom:\s+\S+:(.+)/ ? $1 : "unspecified";
-    $def = $def.slurpContainerDef("$launcherDir/lib/$commonDef.def");
+    $def = $def.ContainerDef("$launcherDir/lib/$commonDef.def");
 
     # replace placeholders with pipeline-specific values (Singularity does not offer def file variables)
     my %vars = (
@@ -286,11 +286,11 @@ sub getSuiteContainerStage {
     $$x[0];
 } 
 
-# slurp a container definition file
-sub slurpContainerDef {
+#  a container definition file
+sub ContainerDef {
     my ($defFile) = @_;
     -e $defFile or throwError("missing container definition file:\n    $defFile");
-    slurpFile($defFile);
+    File($defFile);
 }
 
 # construct the URI to push/pull a pipeline container to/from a registry server
