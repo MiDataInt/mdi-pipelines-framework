@@ -290,7 +290,7 @@ sub getSuiteContainerStage {
 sub ContainerDef {
     my ($defFile) = @_;
     -e $defFile or throwError("missing container definition file:\n    $defFile");
-    File($defFile);
+    slurpFile($defFile);
 }
 
 # construct the URI to push/pull a pipeline container to/from a registry server
