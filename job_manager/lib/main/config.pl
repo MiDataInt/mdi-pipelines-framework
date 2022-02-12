@@ -66,7 +66,7 @@ our %optionInfo = (# [shortOption, valueString, optionGroup, groupOrder, optionH
     'suite'=>              ["s", "<str>", "install", 2, "a single suite to install or build, in form GIT_USER/SUITE_NAME"],
     'alias'=>              ["a", "<str>", "alias",   0, "the name of the alias, i.e., the command you will type [mdi]"],
     'profile'=>            ["l", "<str>", "alias",   1, "full path to the bash profile file where the alias will be written [~/.bashrc]"],
-    'temporary'=>          ["t", undef,   "alias",   2, "only set the alias in the current shell; --profile is ignored"],
+    'get'=>                ["g", undef,   "alias",   2, "only show the alias command; --profile is ignored and nothing is written"],
     'version'=>            ["V", "<str>", "build",   0, "the version of the suite to build, e.g. v0.0.0 [latest]"],
     'sandbox'=>            ["S", undef,   "build",   1, "pass option '--sandbox' to singularity build"],
     'server-command'=>     ["c", "<str>", "server",  0, "command to launch the web server (run, develop, remote, node) [run]"],
@@ -97,7 +97,7 @@ our %commandOptions =  ( # 0=allowed, 1=required
 #------------------------------------------------------------------------------------------------------------
     initialize =>  {},
     install    =>  {'install-packages'=>0, 'forks'=>0},
-    alias      =>  {'alias'=>0, 'profile'=>0, 'temporary'=>0},
+    alias      =>  {'alias'=>0, 'profile'=>0, 'get'=>0},
     add        =>  {'install-packages'=>0, 'suite'=>1},
     list       =>  {},
     unlock     =>  {},

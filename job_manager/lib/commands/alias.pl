@@ -26,7 +26,12 @@ sub mdiAlias {
     my $aliasCommand = "alias $alias=\"$ENV{MDI_DIR}/mdi\"";
     my $outLine = "$aliasCommand # written by MDI alias\n";
 
-    unless($options{'temporary'}){
+    # since we can't modify the user's shell, show them the command they could execute
+    # a user might thus be able to call `mdi alias -g` to set a temporary alias
+    if($options{'get'}){
+        print "$aliasCommand";
+
+    } else {
 
         # get user permission to modify their profile
         getPermissionGeneral(
@@ -71,11 +76,8 @@ sub mdiAlias {
         open my $outH, ">", $profileFile or die "could not write file: $profileFile: $!\n";
         print $outH join("", @profile);
         close $outH;
-
     }
-
-    # finally, always add the alias to the user's current shell
-    exec $aliasCommand;
+    exit;
 }
 #========================================================================
 
