@@ -27,9 +27,9 @@ sub mdiAlias {
     my $outLine = "$aliasCommand # written by MDI alias\n";
 
     # since we can't modify the user's shell, show them the command they could execute
-    # a user might thus be able to call `mdi alias -g` to set a temporary alias
+    # a user might thus call `mdi alias -g` to set a temporary alias
     if($options{'get'}){
-        print "$aliasCommand";
+        print "$aliasCommand\n";
 
     } else {
 
