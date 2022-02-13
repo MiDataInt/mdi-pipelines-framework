@@ -15,6 +15,7 @@ our %commands = (  # [executionSub, commandHelp, mdiStage2]
     status      =>  [\&qStatus,      "show the updated status of previously queued jobs"],
     report      =>  [\&qReport,      "show the log file of a previously queued job"],
     script      =>  [\&qScript,      "show the parsed target script for a previously queued job"],
+    ssh         =>  [\&qSsh,         "open a shell, or execute a command, on the host running a job"],    
 #------------------------------------------------------------------------------------------------------------
     delete      =>  [\&qDelete,      "kill jobs that have not yet finished running"],
 #------------------------------------------------------------------------------------------------------------
@@ -50,7 +51,7 @@ our %optionInfo = (# [shortOption, valueString, optionGroup, groupOrder, optionH
                         "                            <int>-<int>   a range of jobsIDs\n".
                         "                            <int>+        all jobIDS greater than or equal to <int>\n".
                         "                            <int>, ...    comma-delimited list of jobIDs\n".                      
-                        "                            all           all known jobIDs"],
+                        "                            all           all jobIDs (the default for safe commands)"],
 #------------------------------------------------------------------------------------------------------------  
     'count'=>       ["N", "<int>", "rollback",0, "number of sequential rollbacks to perform [1]"],
 #------------------------------------------------------------------------------------------------------------
@@ -86,8 +87,9 @@ our %commandOptions =  ( # 0=allowed, 1=required
     extend     =>  {'dry-run'=>0,'delete'=>0,'execute'=>0,'force'=>0},   
 #------------------------------------------------------------------------------------------------------------             
     status     =>  {},
-    report     =>  {'job'=>1},
-    script     =>  {'job'=>1},   
+    report     =>  {'job'=>0},
+    script     =>  {'job'=>0},   
+    ssh        =>  {'job'=>0},    
 #------------------------------------------------------------------------------------------------------------
     delete     =>  {'dry-run'=>0,'job'=>1,'force'=>0}, 
 #------------------------------------------------------------------------------------------------------------
@@ -103,7 +105,14 @@ our %commandOptions =  ( # 0=allowed, 1=required
     unlock     =>  {},
     build      =>  {'suite'=>1, 'version'=>0, 'sandbox' => 0},
     server     =>  {'server-command'=>0,'data-dir'=>0,'host-dir'=>0,'runtime'=>0,'container-version'=>0,'port'=>0}, 
-);  
+); 
+#------------------------------------------------------------------------
+# suppress the extra demarcating lines used in command execution outputs
+#------------------------------------------------------------------------
+our %suppressLinesCommands = map { $_ => 1 } qw(
+    alias 
+    ssh
+);
 #========================================================================
 
 1;

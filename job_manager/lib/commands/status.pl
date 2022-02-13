@@ -435,8 +435,9 @@ sub getJobStates { #retrieve job states for jobs in queue or running
     }
     $qstat or return;    
     my @qstat = split("\n", $qstat);
-    $qstat[2] or return; 
-    my @jobs = @qstat[2..$#qstat];
+    my $firstJobI = $qType eq 'slurm' ? 1 : 2;
+    $qstat[$firstJobI] or return; 
+    my @jobs = @qstat[$firstJobI..$#qstat];
     my $stateI = $qType eq 'slurm' ? 5 : 4;
     for my $job(@jobs){ #qstat/squeue formats are similar enough to use same parsing
         $job =~ m/^\s*(.*)$/; #strip leading white space
