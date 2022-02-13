@@ -28,8 +28,9 @@ sub qDelete { # delete all incomplete jobs from queue
 #------------------------------------------------------------------------
 sub parseJobOption {  # determine --job format and parse into jobIDs, checking against allowed job list
     my ($allowedHash, $command) = @_;
+    $options{'job'} or $options{'job'} = 'all'; # unsafe jobs required a value upstream of this call
     my $formatError = "unrecognized format for --job option:  $options{'job'}\n";
-    if(!$options{'job'} or $options{'job'} eq 'all') {  
+    if($options{'job'} eq 'all') {  
         @targetJobIDs = keys %$allowedHash;   
         $options{'no-chain'} = 1;  # no need to chain if already using all allowed jobs                        
     } elsif($options{'job'} =~ m|^(\d+)$|){  # single jobID
