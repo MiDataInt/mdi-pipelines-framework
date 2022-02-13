@@ -16,6 +16,7 @@ our %commands = (  # [executionSub, commandHelp, mdiStage2]
     report      =>  [\&qReport,      "show the log file of a previously queued job"],
     script      =>  [\&qScript,      "show the parsed target script for a previously queued job"],
 #------------------------------------------------------------------------------------------------------------
+    ssh         =>  [\&qSsh,         "open a shell, or execute a command, on the host running a job"],
     delete      =>  [\&qDelete,      "kill jobs that have not yet finished running"],
 #------------------------------------------------------------------------------------------------------------
     rollback    =>  [\&qRollback,    "revert pipeline to the most recently archived status file"],
@@ -89,6 +90,7 @@ our %commandOptions =  ( # 0=allowed, 1=required
     report     =>  {'job'=>1},
     script     =>  {'job'=>1},   
 #------------------------------------------------------------------------------------------------------------
+    ssh        =>  {'job'=>1},
     delete     =>  {'dry-run'=>0,'job'=>1,'force'=>0}, 
 #------------------------------------------------------------------------------------------------------------
     rollback   =>  {'dry-run'=>0,'force'=>0,'count'=>0}, 
@@ -103,7 +105,14 @@ our %commandOptions =  ( # 0=allowed, 1=required
     unlock     =>  {},
     build      =>  {'suite'=>1, 'version'=>0, 'sandbox' => 0},
     server     =>  {'server-command'=>0,'data-dir'=>0,'host-dir'=>0,'runtime'=>0,'container-version'=>0,'port'=>0}, 
-);  
+); 
+#------------------------------------------------------------------------
+# suppress the extra demarcating lines used in command execution outputs
+#------------------------------------------------------------------------
+our %suppressLinesCommands = map { $_ => 1 } qw(
+    alias 
+    ssh
+);
 #========================================================================
 
 1;

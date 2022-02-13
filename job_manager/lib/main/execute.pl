@@ -3,7 +3,7 @@ use warnings;
 
 # working variables
 use vars qw($jobManagerDir %commands $command @args
-            $dataYmlFile %options $separatorLength);
+            $dataYmlFile %options $separatorLength %suppressLinesCommands);
 our ($dataYmlDir, $dataYmlName, $pipelineName,
      $qDataDir, $makeDirs,
      $archiveDir, $logDir, $scriptDir,
@@ -43,11 +43,11 @@ sub getQSubDir { # subdirectories hold specific q-generated files
 #-----------------------------------------------------------------------
 sub executeCommand { # load scripts and execute command
     map { require $_ } glob("$jobManagerDir/lib/commands/*.pl");
-    $options{'_suppress-echo_'} or print "~" x $separatorLength, "\n";
+    my $noLines = $suppressLinesCommands{$command};
+    $noLines or $options{'_suppress-echo_'} or print "~" x $separatorLength, "\n";
     &{${$commands{$command}}[0]}(@args); # add remaining @args since other subs recall utility with additional arguments
-    print "~" x $separatorLength, "\n";
+    $noLines or print "~" x $separatorLength, "\n";
 }
 #========================================================================
 
 1;
-
