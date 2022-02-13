@@ -131,11 +131,9 @@ sub writeOptionFamily {
         my $opt = $$options{$option};
         my $isRequired = $$opt{required}[0];
         my $value      = defined $recs{$option} ? $recs{$option} : $$opt{default}[0];
-        $isRequired and (!defined $value or $value eq 'null') and $value = $requiredLabel;        
+        !$isRequired and !defined $value and $value = 'null';        
+        $isRequired and (!defined $value or $value eq 'null') and $value = $requiredLabel;  
         !$allOptions and $value ne $requiredLabel and next;          
-        #my $desc = getTemplateValue($$opt{description});
-        #my $type = getTemplateValue($$opt{type});
-        #$addComments and print "$indent$indent# $desc ($type)\n";
         my $left = "$indent$indent$option:";
         my $spaces = $valueIndent - length($left);
         $spaces < 1 and $spaces = 1;
