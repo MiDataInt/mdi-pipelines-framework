@@ -15,7 +15,8 @@ our %commands = (  # [executionSub, commandHelp, mdiStage2]
     status      =>  [\&qStatus,      "show the updated status of previously queued jobs"],
     report      =>  [\&qReport,      "show the log file of a previously queued job"],
     script      =>  [\&qScript,      "show the parsed target script for a previously queued job"],
-    ssh         =>  [\&qSsh,         "open a shell, or execute a command, on the host running a job"],    
+    ssh         =>  [\&qSsh,         "open a shell, or execute a command, on the host running a job"],  
+    ls          =>  [\&qLs,          "list the contents of the output directory of a specific job"],  
 #------------------------------------------------------------------------------------------------------------
     delete      =>  [\&qDelete,      "kill jobs that have not yet finished running"],
 #------------------------------------------------------------------------------------------------------------
@@ -88,8 +89,9 @@ our %commandOptions =  ( # 0=allowed, 1=required
 #------------------------------------------------------------------------------------------------------------             
     status     =>  {},
     report     =>  {'job'=>0},
-    script     =>  {'job'=>0},   
-    ssh        =>  {'job'=>0},    
+    script     =>  {'job'=>0},
+    ssh        =>  {'job'=>0},
+    ls         =>  {'job'=>0},
 #------------------------------------------------------------------------------------------------------------
     delete     =>  {'dry-run'=>0,'job'=>1,'force'=>0}, 
 #------------------------------------------------------------------------------------------------------------
@@ -110,8 +112,9 @@ our %commandOptions =  ( # 0=allowed, 1=required
 # suppress the extra demarcating lines used in command execution outputs
 #------------------------------------------------------------------------
 our %suppressLinesCommands = map { $_ => 1 } qw(
-    alias 
     ssh
+    ls    
+    alias 
 );
 #========================================================================
 

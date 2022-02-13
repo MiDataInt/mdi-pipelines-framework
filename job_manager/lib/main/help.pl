@@ -46,7 +46,7 @@ sub reportUsage { # program help, always exits
 sub reportCommandsHelp { # help on the set of available commands, organized by topic
     print "\navailable commands:\n\n";
     reportCommandChunk("job submission",              qw(submit extend));  
-    reportCommandChunk("status and result reporting", qw(status report script ssh));   
+    reportCommandChunk("status and result reporting", qw(status report script ssh ls));   
     reportCommandChunk("error handling",              qw(delete));           
     reportCommandChunk("pipeline management",         qw(rollback purge));  
     reportCommandChunk("server management",           qw(initialize install alias add list unlock build server));  
