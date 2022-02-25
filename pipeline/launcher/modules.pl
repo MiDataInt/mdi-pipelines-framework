@@ -8,7 +8,7 @@ use vars qw($mdiDir);
 my $modulesDir = "$mdiDir/modules";
 
 #------------------------------------------------------------------------------
-# import a called step module
+# import a called action module
 #   - imported action lines appear inline with pipeline.yml after module: key
 #   - imported family lines appear at the end of the file
 #------------------------------------------------------------------------------
@@ -43,10 +43,12 @@ sub addActionModule {
     
         # determine which block type we are in
         $line =~ s/^\s+//g;
-        if ($line eq 'action:') {
+        if($line =~ m/^version:/){ # ignore version key, used for internal tracking only
+            next;  
+        } elsif ($line eq 'action:') {
             $inAction = 1;
             next; # don't need to process this line; parent sets the action name
-        } elsif($indent == 0){ # e.g. optionFamilies, condaFamilies
+        } elsif($indent == 0){ # e.g., optionFamilies, condaFamilies definition sections
             $inAction = 0;
         }
 

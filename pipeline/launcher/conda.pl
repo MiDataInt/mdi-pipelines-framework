@@ -54,19 +54,9 @@ sub parseAllDependencies {
     }
 }
 sub loadSharedConda { # first load environment configs from shared files
-    my ($family_) = @_;
-    my ($family, $version) = $family_ =~ m/(.+)-(\d+\.\d+)/ ? ($1, $2) : ($family_);
-    my $dir = getSharedFile($environmentsDir, $family, 'environment'); # either shared or external
-    $dir or return;
-    -d $dir or return;
-    my $prefix = "$dir/$family";
-    if (!$version) {
-        my @files = glob("$prefix-*.yml");
-        my @versions = sort { $b <=> $a } map { $_ =~ m/$prefix-(.+)\.yml/; $1 } @files;
-        $version = $versions[0];
-    }
-    my $file = "$prefix-$version.yml";
-    -e $file or return;
+    my ($family) = @_;
+    my $file = getSharedFile($environmentsDir, "$family.yml", 'environment'); # either shared or external
+    ($file and -e $file) or return;
     loadYamlFile($file);
 }
 sub loadPipelineConda { # then load environment configs from pipeline config (overrides shared)
