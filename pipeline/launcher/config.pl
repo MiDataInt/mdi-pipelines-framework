@@ -56,8 +56,9 @@ sub mergeGlobalFamilies { # support option and conda family sharing between acti
         foreach my $key(qw(environment condaFamilies optionFamilies)){ # control what is supported in _global, ignore all other keys
             my $globalRef = $$actions{$global}{$key};
             (ref($globalRef) eq "ARRAY" and @$globalRef and $$globalRef[0] ne 'null') or next; # make sure key is defined
-            foreach my $action(keys %$actions){ # append _global to every action
-                $action eq $global and next;
+            foreach my $action(keys %$actions){ # append _global to every standard action ...
+                $action eq $global and next; # ... except _global itslef ...
+                $$actions{$action}{module} and next; # ... and never append _global to actions defined entirely by action modules
                 my $actionRef = $$actions{$action}{$key};
                 if(!$actionRef or ref($actionRef) ne "ARRAY" or $$actionRef[0] eq 'null'){ # initialize key for each action if not present in pipeline.yml
                     $actionRef = [];
