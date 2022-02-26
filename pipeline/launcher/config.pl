@@ -30,10 +30,10 @@ sub loadPipelineConfig {
         container
     ));
     $pipeline = loadYamlFile(\$pipelineYml, 2, 1, 1); # full read to support modules, etc.
-    my @optionFamilies = (loadYamlFile("$launcherDir/options.yml", 1, 1));
+    my @optionFamilies = (loadYamlFile("$launcherDir/options.yml", 1, 1)); # an expanded, multi-family, shared options file
     my %loaded = (universal => 1);
 
-    # cascade to add option families invoked by a pipeline action
+    # cascade to add shared option families invoked by a pipeline action
     foreach my $action(keys %{$$pipeline{actions}}){ 
         my $optionFamilies = $$pipeline{actions}{$action}{optionFamilies} or next;
         ref($optionFamilies) eq 'ARRAY' or next;
@@ -41,12 +41,15 @@ sub loadPipelineConfig {
             $loaded{$optionFamily} and next;
             $loaded{$optionFamily} = 1;
             my $ymlFile = getSharedFile($optionsDir, "$optionFamily.yml", 'option'); # not required since private options added later
-            $ymlFile and push @optionFamilies, loadYamlFile("$ymlFile", 1, 1);
+            $ymlFile or next;
+            my $yml = loadYamlFile("$ymlFile", 1, 1); # support both simple (single-family) and expanded (multi-family) shared option files
+            !$$yml{optionFamilies} and prependYamlKeys($yml, "optionFamilies", $optionFamily);
+            push @optionFamilies, $yml;
         }
     }
     
     # merge information into a single, final config file hash
-    mergeYAML($launcher, $pipeline, @optionFamilies);  
+    mergeYAML($launcher, $pipeline, @optionFamilies); # only uses parsed_ values
 }
 sub mergeGlobalFamilies { # support option and conda family sharing between actions
     my ($actions) = @_;

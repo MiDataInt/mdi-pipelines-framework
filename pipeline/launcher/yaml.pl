@@ -55,7 +55,7 @@ sub loadYamlFile {
     }
     close $inH;
     
-    # if modules added any lines for the end (e.g. optionFamilies, add them now)
+    # if modules added any lines for the end (e.g., optionFamilies, add them now)
     foreach my $line(@addenda) {
         push @lines, $$line[0];
         push @indents, $$line[1];
@@ -177,6 +177,15 @@ sub getYamlValue {
     # TODO: enable system calls via bash-alikes
     } else { # everything else passes as is (no distinction between number and string) 
         [$value]
+    }
+}
+
+# place all keys in parsed yaml under a set of caller provided keys
+# e.g., make input 'KEY:1' become output 'X:Y:KEY:1'
+sub prependYamlKeys {
+    my ($yml, @keys) = @_;
+    foreach my $x(@{$$yml{parsed_}}){
+        $$x[1] = join(":", @keys, $$x[1]);
     }
 }
 
