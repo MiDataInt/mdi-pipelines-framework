@@ -30,11 +30,10 @@ sub parseAllDependencies {
     # collect the conda family dependencies, in precedence order
     my %found;
     foreach my $family(@{$$cmd{condaFamilies}}){
-        $found{$family} = loadSharedConda($family, \%conda); # $family is the name of a shared file with one or more families;         
+        $found{$family} = loadSharedConda($family);
     }
     foreach my $family(@{$$cmd{condaFamilies}}){ # thus, pipeline.yml overrides shared environment files, since reversed below        
-        my $inline = loadPipelineConda($family, \%conda); # $family is the name of a single conda family
-        $found{$family} ||= $inline;
+        $found{$family} = loadPipelineConda($family) || $found{$family};
     }
     foreach my $family(@{$$cmd{condaFamilies}}){
         $found{$family} or throwError("pipeline configuration error\ncould not find conda family:\n    $family");
@@ -54,21 +53,21 @@ sub parseAllDependencies {
     }
 }
 sub loadSharedConda { # first load environment configs from shared files
-    my ($family, $cnd) = @_;
+    my ($family) = @_;
     my $file = getSharedFile($environmentsDir, "$family.yml", 'environment'); # either shared or external
     ($file and -e $file) or return;
-    addCondaFamily($cnd, loadYamlFile($file));
+    addCondaFamily(loadYamlFile($file));
 }
 sub loadPipelineConda { # then load environment configs from pipeline config (overrides shared)
-    my ($family, $cnd) = @_;
+    my ($family) = @_;
     $$config{condaFamilies} or return;
-    addCondaFamily($cnd, $$config{condaFamilies}{$family});
+    addCondaFamily($$config{condaFamilies}{$family});
 }
 sub addCondaFamily {
-    my ($cnd, $yml) = @_;
+    my ($yml) = @_;
     $yml or return;
-    $$yml{channels}     and push @{$$cnd{channels}},     @{$$yml{channels}};
-    $$yml{dependencies} and push @{$$cnd{dependencies}}, @{$$yml{dependencies}};  
+    $$yml{channels}     and push @{$conda{channels}},     @{$$yml{channels}};
+    $$yml{dependencies} and push @{$conda{dependencies}}, @{$$yml{dependencies}};  
     return 1;
 }
 #------------------------------------------------------------------------------

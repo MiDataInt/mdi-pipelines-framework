@@ -49,7 +49,7 @@ sub loadYamlFile {
         $indentLen and $indent % $indentLen and throwError("inconsistent indenting in file:\n    $file");
         $prevIndent = $indent;
 
-        # implicitly incorporate invoked modules
+        # implicitly incorporate invoked action modules
         $fillModules and $indentLen and $indent == 2 * $indentLen and $line =~ m/^module:/ and
             addActionModule($file, $line, \$prevIndent, $indentLen, \@lines, \@indents, \@addenda);  
     }
@@ -180,7 +180,7 @@ sub getYamlValue {
     }
 }
 
-# place all keys in parsed yaml under a set of caller provided keys
+# nest all keys in parsed yaml under a set of caller provided keys
 # e.g., make input 'KEY:1' become output 'X:Y:KEY:1'
 sub prependYamlKeys {
     my ($yml, @keys) = @_;
