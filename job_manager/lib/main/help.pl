@@ -29,6 +29,7 @@ sub reportUsage { # program help, always exits
         "$jmName <pipeline> <data.yml> [options]  # run all pipeline actions in data.yml\n".
         "$jmName <pipeline> <action> <data.yml> [options] # run one action from data.yml\n".
         "$jmName <pipeline> <action> <options>    # run one action, all options from command line\n".
+        "$jmName <data.yml> <command> [options]   # apply manager command to one data.yml\n".        
         "$jmName <command> [options] <data.yml ...> [options] # apply manager command to data.yml(s)\n".
         "$jmName <command> [options]              # additional manager command shortcuts\n".
         "$jmName <pipeline> <action> --help       # pipeline action help\n".

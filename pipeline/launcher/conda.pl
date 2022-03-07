@@ -28,23 +28,22 @@ sub parseAllDependencies {
     $$cmd{condaFamilies}[0] or return;
     
     # collect the conda family dependencies, in precedence order
+    my %found;
     foreach my $family(@{$$cmd{condaFamilies}}){
-        my $found;         
-        foreach my $yml(loadSharedConda($family),
-                        loadPipelineConda($family)){
-            $yml or next;
-            $found++;
-            $$yml{channels}     and push @{$conda{channels}},     @{$$yml{channels}};
-            $$yml{dependencies} and push @{$conda{dependencies}}, @{$$yml{dependencies}};            
-        }
-        $found or throwError("pipeline configuration error\ncould not find conda family:\n    $family");
+        $found{$family} = loadSharedConda($family);
     }
-    
+    foreach my $family(@{$$cmd{condaFamilies}}){ # thus, pipeline.yml overrides shared environment files, since reversed below        
+        $found{$family} = loadPipelineConda($family) || $found{$family};
+    }
+    foreach my $family(@{$$cmd{condaFamilies}}){
+        $found{$family} or throwError("pipeline configuration error\ncould not find conda family:\n    $family");
+    }
+
     # purge duplicate entries by dependency (not version)
     foreach my $key(qw(channels dependencies)){
         my %seen;
         my @out;
-        foreach my $value(reverse(@{$conda{$key}})){
+        foreach my $value(reverse(@{$conda{$key}})){ # thus, pipeline.yml overrides a shared environment file
             my ($item, $version) = split('=', $value, 2);
             $seen{$item} and next;
             $seen{$item}++;            
@@ -54,27 +53,23 @@ sub parseAllDependencies {
     }
 }
 sub loadSharedConda { # first load environment configs from shared files
-    my ($family_) = @_;
-    my ($family, $version) = $family_ =~ m/(.+)-(\d+\.\d+)/ ? ($1, $2) : ($family_);
-    my $dir = getSharedFile($environmentsDir, $family, 'environment'); # either shared or external
-    $dir or return;
-    -d $dir or return;
-    my $prefix = "$dir/$family";
-    if (!$version) {
-        my @files = glob("$prefix-*.yml");
-        my @versions = sort { $b <=> $a } map { $_ =~ m/$prefix-(.+)\.yml/; $1 } @files;
-        $version = $versions[0];
-    }
-    my $file = "$prefix-$version.yml";
-    -e $file or return;
-    loadYamlFile($file);
+    my ($family) = @_;
+    my $file = getSharedFile($environmentsDir, "$family.yml", 'environment'); # either shared or external
+    ($file and -e $file) or return;
+    addCondaFamily(loadYamlFile($file));
 }
 sub loadPipelineConda { # then load environment configs from pipeline config (overrides shared)
     my ($family) = @_;
     $$config{condaFamilies} or return;
-    $$config{condaFamilies}{$family};
+    addCondaFamily($$config{condaFamilies}{$family});
 }
-
+sub addCondaFamily {
+    my ($yml) = @_;
+    $yml or return;
+    $$yml{channels}     and push @{$conda{channels}},     @{$$yml{channels}};
+    $$yml{dependencies} and push @{$conda{dependencies}}, @{$$yml{dependencies}};  
+    return 1;
+}
 #------------------------------------------------------------------------------
 # get the path to an environment directory, based on either:
 #    - an environment name forced by config key 'action:<action>:environment', or
