@@ -334,6 +334,8 @@ sub applyVariablesToYamlValue {
         $target = "\\\$$varName";  
     }
     $value =~ s/$target/$sub/g;    
+    $value =~ s/__OPEN_BRACE__/\{/g; # enable multiple different variables per line
+    $value =~ s/__CLOSED_BRACE__/\}/g;
 
     # repeat until no more variables are found in the string
     return applyVariablesToYamlValue($value, $vars);
