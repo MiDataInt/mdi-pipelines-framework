@@ -116,7 +116,9 @@ sub applyVariablesToYamlValue {
     } else {
         $target = "\\\$$varName";  
     }
-    $value =~ s/$target/$ENV{$varName}/g;    
+    $value =~ s/$target/$ENV{$varName}/g;   
+    $value =~ s/__OPEN_BRACE__/\{/g; # enable multiple different variables per line
+    $value =~ s/__CLOSED_BRACE__/\}/g;
     return applyVariablesToYamlValue($value);
 }
 
