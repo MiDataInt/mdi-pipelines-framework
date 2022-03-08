@@ -13,14 +13,16 @@ use vars qw($mdiDir $suitesDir);
 # return the path to a requested shared component file
 sub getSharedFile {
     my ($suiteSharedDir, $sharedTarget, $sharedType, $throwError) = @_;
+    my $ymlTarget = $sharedTarget;
+    $ymlTarget =~ m/\.yml$/ or $ymlTarget = "$sharedTarget.yml";
 
     # simple case, shared file is in the calling pipeline    
-    my $sharedFile = "$suiteSharedDir/$sharedTarget"; # could be a file or a directory
+    my $sharedFile = "$suiteSharedDir/$ymlTarget"; # could be a file or a directory
     -e $sharedFile and return $sharedFile;
 
     # syntax for calling an external shared file: suite//path/to/file
     if($sharedTarget =~ m|//|){ 
-        my ($suite, $target) = split('//', $sharedTarget);
+        my ($suite, $target) = split('//', $ymlTarget);
         $sharedFile = getExternalSharedFile($suite, $target, $sharedType);
         $sharedFile and return $sharedFile;
     } 
@@ -30,12 +32,12 @@ sub getSharedFile {
     undef;
 }
 sub getExternalSharedFile {
-    my ($suite, $sharedTarget, $sharedType) = @_;
+    my ($suite, $ymlTarget, $sharedType) = @_;
     my $suiteDir = "$suitesDir/$suite";
     -d $suiteDir or return;
     setExternalSuiteVersion($suiteDir, $suite);
     my $suiteSharedDir = "$suiteDir/shared/$sharedType"."s";
-    my $sharedFile = "$suiteSharedDir/$sharedTarget.yml";
+    my $sharedFile = "$suiteSharedDir/$ymlTarget";
     -e $sharedFile and return $sharedFile;
     undef;
 }
