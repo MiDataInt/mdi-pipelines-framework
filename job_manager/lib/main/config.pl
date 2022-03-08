@@ -9,8 +9,9 @@ my $jmName = $ENV{JOB_MANAGER_NAME} ? $ENV{JOB_MANAGER_NAME} : $jobManagerName;
 # commands
 #------------------------------------------------------------------------
 our %commands = (  # [executionSub, commandHelp, mdiStage2]
-    submit      =>  [\&qSubmit,      "queue all required data analysis jobs on the HPC server"],      
-    extend      =>  [\&qExtend,      "queue only new or deleted/unsatisfied jobs"],   
+    mkdir       =>  [\&qMkdir,       "create output directories needed by a job configuration file"],
+    submit      =>  [\&qSubmit,      "queue all required data analysis jobs on the HPC server"],
+    extend      =>  [\&qExtend,      "queue only new or deleted/unsatisfied jobs"],
 #------------------------------------------------------------------------------------------------------------
     status      =>  [\&qStatus,      "show the updated status of previously queued jobs"],
     report      =>  [\&qReport,      "show the log file of a previously queued job"],
@@ -85,7 +86,8 @@ our %longOptions = map { ${$optionInfo{$_}}[0] => $_ } keys %optionInfo; # for c
 our %commandOptions =  ( # 0=allowed, 1=required
     submit     =>  {'dry-run'=>0,'delete'=>0,'execute'=>0,'force'=>0,
                     '_suppress-echo_'=>0,'_extending_'=>0},
-    extend     =>  {'dry-run'=>0,'delete'=>0,'execute'=>0,'force'=>0},   
+    extend     =>  {'dry-run'=>0,'delete'=>0,'execute'=>0,'force'=>0}, 
+    mkdir      =>  {'force'=>0}, 
 #------------------------------------------------------------------------------------------------------------             
     status     =>  {},
     report     =>  {'job'=>0},

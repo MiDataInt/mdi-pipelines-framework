@@ -57,7 +57,8 @@ sub showActionsHelp {
 #------------------------------------------------------------------------------
 sub showOptionsHelp {
     my ($error, $useValues, $suppressExit) = @_;
-    $error and print "\n".$errorSeparator."\n$error\n".$errorSeparator."\n";
+    my $parsedError = $error ? "\n".$errorSeparator."\n$error\n".$errorSeparator."\n" : "";
+    $parsedError and print $parsedError;
     my $pName = $$config{pipeline}{name}[0];
     my $pDesc = getTemplateValue($$config{pipeline}{description});
     print "\n$pName: $pDesc\n\n";
@@ -102,6 +103,7 @@ sub showOptionsHelp {
         }
         $useValues or print "\n";
     }
+    $parsedError and print $parsedError;
     $suppressExit or releaseMdiGitLock(1);
 }
 sub getFamilyOrder {
