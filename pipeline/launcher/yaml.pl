@@ -26,15 +26,16 @@ use constant {
 my $errorSeparator = "!" x 80; # since this script may be called separately from others
 
 # read a single simplified YAML file
-sub loadYamlFile {
-    my ($file, $priority, $returnParsed, $fillModules, $suppressNull) = @_;
+sub loadYamlFile { # despite the name, also loads YAMl from a string reference
+    my ($yml, $priority, $returnParsed, $fillModules, $suppressNull) = @_;
+    my $errorFile = ref($yml) ? "" : ":\n    $yml";
 
-    # first pass: read simplified lines from files
-    open my $inH, "<", $file or throwError("could not open:\n    $file:\n$!");    
+    # first pass: read simplified lines from YAML
+    open my $inH, "<", $yml or throwError("could not open YAML$errorFile:\n$!");    
     my ($prevIndent, $indentLen, @lines, @indents, @addenda) = (0);
     while (my $line = <$inH>) {
 
-        # read the config line internal to the file
+        # read the config line internal to the YAML
         $line = trimYamlLine($line) or next; # ignore blank lines
         $line =~ m/^(\s*)/;
         my $indent = length $1;
@@ -43,15 +44,15 @@ sub loadYamlFile {
         push @indents, $indent;
         !defined $indentLen and $indent > 0 and $indentLen = $indent;
         $indent <= $prevIndent or $indent == $prevIndent + $indentLen or throwError(
-            "bad indentation in yml file:\n    $file\n".
+            "bad indentation in yml$errorFile\n".
             "please use a constant number of spaces for progressive indentation"
         );
-        $indentLen and $indent % $indentLen and throwError("inconsistent indenting in file:\n    $file");
+        $indentLen and $indent % $indentLen and throwError("inconsistent indenting in yml$errorFile");
         $prevIndent = $indent;
 
         # implicitly incorporate invoked action modules
         $fillModules and $indentLen and $indent == 2 * $indentLen and $line =~ m/^module:/ and
-            addActionModule($file, $line, \$prevIndent, $indentLen, \@lines, \@indents, \@addenda);  
+            addActionModule($yml, $line, \$prevIndent, $indentLen, \@lines, \@indents, \@addenda);  
     }
     close $inH;
     
@@ -62,7 +63,7 @@ sub loadYamlFile {
     }
 
     # record the indent levels of all lines
-    $indentLen or $indentLen = 4; # for files that have no indented elements
+    $indentLen or $indentLen = 4; # for YAML that has no indented elements
     my @levels = map { $_ / $indentLen } @indents;  
 
     # adjust non-indented yaml array format to indented (i.e., expect indent of "-" items under a dictionary)

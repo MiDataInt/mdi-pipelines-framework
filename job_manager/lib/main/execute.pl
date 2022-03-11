@@ -24,9 +24,9 @@ sub checkConfigFile { # make sure data targets file was specified and exists
     $scriptDir  = getQSubDir('script', 1);
     $statusFile = "$qDataDir/$dataYmlName.status";  # status file lives in top-level hidden directory
     $archiveStem = "$archiveDir/$dataYmlName.status";
-    my $yml = slurpFile($dataYmlFile);
-    $yml =~ m/pipeline:\s*(\S+):/ or $yml =~ m/pipeline:\s*(\S+)/ or throwError("missing pipeline declaration:\n    $dataYmlFile");
-    $pipelineName = $1; # could be suite/pipeline or just pipeline (but :version is truncated)
+    my $yamls = loadYamlFromString( slurpFile($dataYmlFile) );
+    ($$yamls{parsed} and @{$$yamls{parsed}}) or throwError("invalid YAML:\n    $dataYmlFile");    
+    $$yamls{parsed};
 }
 sub getQSubDir { # subdirectories hold specific q-generated files
     my ($dirName, $makeSubDirs) = @_;

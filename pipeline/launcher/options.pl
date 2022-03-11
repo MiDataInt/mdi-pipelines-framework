@@ -6,7 +6,7 @@ use File::Spec;
 # subs for loading available options and their requested values
 
 # working variables
-use vars qw($mdiDir $pipeline
+use vars qw($mdiDir $pipeline $jobConfigYml
             $config $isSingleAction $target @args
             @universalOptionFamilies %allOptionFamilies
             %longOptions %shortOptions %optionArrays
@@ -134,6 +134,7 @@ sub assembleCompositeConfig {
         $dataYmlDir = File::Spec->rel2abs( dirname($dataYmlFile) );
         shift @args;
     }
+    extractPipelineJobConfigYml($dataYmlFile); # sets $jobConfigYml
 
     # initialize the composite config with developer-level recommended resources for the action
     my %resourcesYml;
@@ -155,7 +156,7 @@ sub assembleCompositeConfig {
         $dataYmlDir ? "$dataYmlDir/$$config{pipeline}{name}[0].yml"  : undef,
         
         # data config level
-        $dataYmlFile
+        \$jobConfigYml
         
         # call level, from command line added last, later
     );
@@ -189,14 +190,14 @@ sub fillResourceRecommendations {
     }  
 }
 
-# read a config from disk; could be from one of multiple levels (server, pipeline, data)
+# read a job config from disk; could be from one of multiple levels (server, pipeline, data)
 sub loadOptionsConfigFile { 
     my ($configFile, $priority) = @_;
     
     # load the config
     my $nullConfig = {parsed_ => []};
     $configFile or return $nullConfig; 
-    -e $configFile or return $nullConfig; 
+    ref $configFile or -e $configFile or return $nullConfig; 
     my $yaml = loadYamlFile($configFile, $priority, 1, undef, 1);
     
     # check that we are reading a file intended for us

@@ -6,7 +6,7 @@ use Cwd(qw(abs_path));
 #========================================================================
 # main execution block
 #========================================================================
-use vars qw($jobManagerDir $jobManagerName %commands @options);
+use vars qw($jobManagerDir $jobManagerName %commands @options $pipelineName);
 our ($command, @args) = @ARGV;
 our ($dataYmlFile, $pipelineOptions);
 #------------------------------------------------------------------------
@@ -29,7 +29,7 @@ sub jobManagerMain {
     }
     $pipelineOptions = join(" ", @pipelineOptions); # option values provided to override data.yml    
     
-    # job manager requires a data.yml config file for job queuing (i.e. when not acting as a surrogate)
+    # job manager requires a data.yml config file for job queuing (i.e., when not acting as a surrogate)
     @dataYmlFiles == 0 and throwError("'$jobManagerName $command' requires a <data.yml> configuration file");
     
     # if multiple config files, recall the job manager once for each file, with the same options
@@ -43,9 +43,14 @@ sub jobManagerMain {
     } 
     
     # finish a terminal call on a single file
-    ($dataYmlFile) = @dataYmlFiles;    
-    checkConfigFile(); 
-    executeCommand();  # request is valid, proceed with execution
+    # execute the command once for every chained pipeline YAML chunk in data.yml
+    ($dataYmlFile) = @dataYmlFiles;
+    my $parsedYamls = checkConfigFile();
+    foreach my $ymlChunk(@$parsedYamls){ 
+        $pipelineName = $$ymlChunk{pipeline} or next; # [suiteName/]pipelineName[:suiteVersion]
+        $pipelineName =~ m/(\S+):/ and $pipelineName = $1; # strip ':suiteVersion', only [suiteName/]pipelineName persists
+        executeCommand();  # request is valid, proceed with execution
+    }
 }
 #========================================================================
 
