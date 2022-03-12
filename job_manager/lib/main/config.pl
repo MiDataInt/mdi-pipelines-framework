@@ -20,6 +20,7 @@ our %commands = (  # [executionSub, commandHelp, mdiStage2]
     report      =>  [\&qReport,      "show the log file of a previously queued job"], # non-destructive job-specific actions
     script      =>  [\&qScript,      "show the parsed target script for a previously queued job"],
     ssh         =>  [\&qSsh,         "open a shell, or execute a command, on the host running a job"],  
+    top         =>  [\&qTop,         "run the 'top' system monitor on the host running a job"],  
     ls          =>  [\&qLs,          "list the contents of the output directory of a specific job"],  
     #--------------------------------------------------------------------------------------------------------
     delete      =>  [\&qDelete,      "kill job(s) that have not yet finished running"], # destructive job-specific actions
@@ -97,6 +98,7 @@ our %commandOptions =  ( # 0=allowed, 1=required
     report     =>  {'job'=>0},
     script     =>  {'job'=>0},
     ssh        =>  {'job'=>0},
+    top        =>  {'job'=>0},
     ls         =>  {'job'=>0},
 #------------------------------------------------------------------------------------------------------------
     delete     =>  {'dry-run'=>0,'job'=>1,'force'=>0}, 
@@ -120,6 +122,7 @@ our %commandOptions =  ( # 0=allowed, 1=required
 our %suppressLinesCommands = map { $_ => 1 } qw(
     mkdir
     ssh
+    top
     ls    
     alias 
 );
