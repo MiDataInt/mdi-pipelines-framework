@@ -9,7 +9,7 @@ use warnings;
 #========================================================================
 # define variables
 #------------------------------------------------------------------------
-use vars qw(%options %allJobs %targetJobIDs $taskID $pipelineOptions);
+use vars qw(%options %allJobs %jobStates %targetJobIDs $taskID $pipelineOptions);
 #========================================================================
 
 #========================================================================
@@ -50,8 +50,21 @@ sub getJobLogFileContents {
     $options{'no-chain'} = 1; 
 
     # get a single target job, or a single task of an array job
-    getJobStatusInfo(); 
-    parseJobOption(\%allJobs, $mdiCommand); 
+    if($runningOnly){
+        updateStatusQuietly();
+        my %runningJobs;
+        foreach my $jobId(keys %allJobs){
+            $jobStates{$jobId} and $jobStates{$jobId} eq 'R' and $runningJobs{$jobId} = $allJobs{$jobId};
+        }
+        if(!scalar(keys %runningJobs)){
+            print "\nno running jobs, nothing to do\n\n";
+            exit;
+        }
+        parseJobOption(\%runningJobs, 1); 
+    } else {
+        getJobStatusInfo();
+        parseJobOption(\%allJobs, 1); 
+    }
     my @jobIDs = keys %targetJobIDs; 
     @jobIDs == 1 or throwError($tooManyJobs, $mdiCommand); 
     my $jobID = $jobIDs[0];

@@ -46,10 +46,21 @@ sub getPermissionGeneral {
     $permission = "\U$permission";
     ($permission eq 'YES' or $permission eq 'Y') and return 1;
     $suppressDie and return undef;
-    print "aborting with no action taken\n";
+    print "aborting with no action taken\n\n";
+    exit 1;
+}
+sub getUserSelection {
+    my ($msg, $default) = @_;
+    my $leader = "-" x 80;
+    print "\n$leader\n$msg\n";  
+    print "Please enter your selection by its number (e.g., 1): ";
+    my $selection = <STDIN>;
+    chomp $selection;
+    !$selection and defined $default and $selection = $default;
+    $selection and return $selection;
+    print "aborting with no action taken\n\n";
     exit 1;
 }
 #========================================================================
 
 1;
-

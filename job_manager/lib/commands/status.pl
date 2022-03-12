@@ -28,7 +28,7 @@ our %statusFields = (  # column format of status files
     user=>14,          # the system user who queued the job
     qType=>15          # scheduler that queued the job, used to parse file names; could be 'local', i.e. different than qType
 );           
-our (%jobIDs, %successors, %deletable, %inError, %exists, %extendable, %allJobs);
+our (%jobIDs, %successors, %deletable, %inError, %exists, %extendable, %allJobs, %jobStates);
 my @filterOperators = qw(= != ~ !~ > <);  # status filtering by equality or string matching
 my @outputColumns = qw (job_name array job_ID exit_status start_time wall_time maxvmem job predecessors user);
 my $i = 0;
@@ -97,7 +97,8 @@ sub updateStatusFiles { # update the job status of all jobIDs found in report fi
     %exists = ();
     %extendable = ();
     %allJobs = ();
-    getJobStates(\my%jobStates);
+    %jobStates = ();
+    getJobStates(\%jobStates);
     open my $statusFileH, "<", $statusFile or return;
     $options{'_q_remote_'} or print "updating $statusFile\n";              
     my (@fileLines, @echoLines, %echoLines);

@@ -18,7 +18,7 @@ sub qClear { # clear all jobs in error state
     $options{'no-chain'} = 1;  # report action restricted to requested jobs
     checkLock();
     updateStatusQuietly();
-    parseJobOption(\%inError, 'clear');  
+    parseJobOption(\%inError);  
     clearErrorState();
 }
 #========================================================================

@@ -17,7 +17,7 @@ use vars qw(%options $logDir %allJobs %targetJobIDs $taskID $separatorLength);
 sub qReport {  
     $options{'no-chain'} = 1;  # report action restricted to requested jobs
     getJobStatusInfo(); 
-    parseJobOption(\%allJobs, 'report'); 
+    parseJobOption(\%allJobs); 
     showLogs();   
 } 
 #========================================================================

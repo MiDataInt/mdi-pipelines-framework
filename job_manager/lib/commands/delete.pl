@@ -18,7 +18,7 @@ our (@targetJobIDs, %targetJobIDs, $taskID);  # --job options parsing provided b
 sub qDelete { # delete all incomplete jobs from queue
     #checkLock();
     updateStatusQuietly();
-    parseJobOption(\%deletable, 'delete');  
+    parseJobOption(\%deletable);  
     deleteTargetJobs();    
 }
 #========================================================================
@@ -27,12 +27,29 @@ sub qDelete { # delete all incomplete jobs from queue
 # find target jobIDs from option --job and successors
 #------------------------------------------------------------------------
 sub parseJobOption {  # determine --job format and parse into jobIDs, checking against allowed job list
-    my ($allowedHash, $command) = @_;
-    $options{'job'} or $options{'job'} = 'all'; # unsafe jobs required a value upstream of this call
+    my ($allowedHash, $prompt) = @_;
+    $options{'job'} or $options{'job'} = $prompt ? 'prompt' : 'all'; # unsafe jobs required a value upstream of this call
     my $formatError = "unrecognized format for --job option:  $options{'job'}\n";
     if($options{'job'} eq 'all') {  
         @targetJobIDs = keys %$allowedHash;   
-        $options{'no-chain'} = 1;  # no need to chain if already using all allowed jobs                        
+        $options{'no-chain'} = 1;  # no need to chain if already using all allowed jobs
+    } elsif($options{'job'} eq 'prompt'){  # convenience to prevent use from having to type job numbers
+        if(scalar(keys %$allowedHash) < 2){
+            @targetJobIDs = keys %$allowedHash; 
+        } else {
+            my $i = 1;
+            my $message = "Please select the target job from the following list:\n\n";
+            my %selections;
+            foreach my $jobId(sort { $a <=> $b } keys %$allowedHash){
+                my $job = $$allowedHash{$jobId};
+                $message .= join("\t", "", $i, $jobId, $$job[$#$job])."\n";
+                $selections{$i} = $jobId;
+                $i++;
+            }
+            my $selection = getUserSelection($message);
+            @targetJobIDs = $selections{$selection};              
+        }
+        $options{'no-chain'} = 1;  # no need to chain if already using all allowed jobs
     } elsif($options{'job'} =~ m|^(\d+)$|){  # single jobID
         $$allowedHash{$1} and @targetJobIDs = ($1);  
     } elsif($options{'job'} =~ m|^(\d+)\[(\d+)\]$|) {  # task of an array job
