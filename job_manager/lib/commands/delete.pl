@@ -98,7 +98,7 @@ sub deleteTargetJobs { # delete all jobs in a list in LIFO order
         } else {
             my $deleteMessage = "deleting incomplete jobs";
             $options{'force'} and print "$deleteMessage\n";
-            getPermission($deleteMessage) or exit;
+            getPermission($deleteMessage) or return;
             my $delimiter = $qType eq "PBS" ? " " : ",";
             my $command   = $qType eq "slurm" ? "scancel" : "qdel";
             my $jobIDList = join ($delimiter, @jobIDs);

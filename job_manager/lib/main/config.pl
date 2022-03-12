@@ -9,22 +9,26 @@ my $jmName = $ENV{JOB_MANAGER_NAME} ? $ENV{JOB_MANAGER_NAME} : $jobManagerName;
 # commands
 #------------------------------------------------------------------------
 our %commands = (  # [executionSub, commandHelp, mdiStage2]
-    mkdir       =>  [\&qMkdir,       "create output directories needed by a job configuration file"],
-    submit      =>  [\&qSubmit,      "queue all required data analysis jobs on the HPC server"],
-    extend      =>  [\&qExtend,      "queue only new or deleted/unsatisfied jobs"],
 #------------------------------------------------------------------------------------------------------------
-    status      =>  [\&qStatus,      "show the updated status of previously queued jobs"],
-    report      =>  [\&qReport,      "show the log file of a previously queued job"],
+# commands that manage Stage 1 pipeline execution and depend on data.yml(s)
+    mkdir       =>  [\&qMkdir,       "create the output directory(s) needed by a job configuration file"], # mkdir, submit, and extend must parse data.yml
+    submit      =>  [\&qSubmit,      "queue all required data analysis jobs on the HPC server"],           # they create files on the system
+    extend      =>  [\&qExtend,      "queue only new or deleted/unsatisfied jobs"],
+    #--------------------------------------------------------------------------------------------------------
+    status      =>  [\&qStatus,      "show the updated status of all previously queued jobs"], # non-destructive job-file actions
+    #--------------------------------------------------------------------------------------------------------
+    report      =>  [\&qReport,      "show the log file of a previously queued job"], # non-destructive job-specific actions
     script      =>  [\&qScript,      "show the parsed target script for a previously queued job"],
     ssh         =>  [\&qSsh,         "open a shell, or execute a command, on the host running a job"],  
     ls          =>  [\&qLs,          "list the contents of the output directory of a specific job"],  
-#------------------------------------------------------------------------------------------------------------
-    delete      =>  [\&qDelete,      "kill jobs that have not yet finished running"],
-#------------------------------------------------------------------------------------------------------------
-    rollback    =>  [\&qRollback,    "revert pipeline to the most recently archived status file"],
-    purge       =>  [\&qPurge,       "remove all status, script and log files associated with the jobs"],
+    #--------------------------------------------------------------------------------------------------------
+    delete      =>  [\&qDelete,      "kill job(s) that have not yet finished running"], # destructive job-specific actions
+    #--------------------------------------------------------------------------------------------------------
+    rollback    =>  [\&qRollback,    "revert the job history to a previously archived status file"], # destructive job-file actions
+    purge       =>  [\&qPurge,       "clear all status, script and log files associated with the job set"],
     #move        =>  [\&qMove,        "move/rename <data.yml> and its associated script and status files"],
 #------------------------------------------------------------------------------------------------------------
+# commands that manage the MDI installation, run the Stage 2 server, etc.
     initialize  =>  [undef,           "refresh the '$jmName' script to establish its program targets", 1], # 'mdi' handles this call
     install     =>  [\&mdiInstall,    "re-run the installation process to update suites, etc.", 1], # install and add assume a Stage 2 installation
     alias       =>  [\&mdiAlias,      "create an alias, i.e., named shortcut, to this MDI program target", 1],
@@ -118,6 +122,13 @@ our %suppressLinesCommands = map { $_ => 1 } qw(
     ls    
     alias 
 );
+#------------------------------------------------------------------------
+# identify commands that execute once for each pipeline block of data.yml
+#------------------------------------------------------------------------
+our %pipelineLevelCommands = map { $_ => 1 } qw(
+    submit    
+    extend 
+); # mkdir handled differently...
 #========================================================================
 
 1;

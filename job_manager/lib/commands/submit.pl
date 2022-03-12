@@ -21,7 +21,8 @@ use vars qw($rootDir $libDir $jobManagerName $pipelineName $pipelineOptions
             $dataYmlFile $statusFile
             $scriptDir $logDir
             $timePath $memoryCorrection);
-my (@statusInfo, @jobInfos, @jobIds, $jobsAdded, %threads);
+my (@statusInfo, @jobInfos, @jobIds, $jobsAdded, %threads, 
+    $dependJobId, $lastJobId);
 my $currentThreadN = -1;
 my $nJobsExpected = 0;
 my $ymlError = "!" x 20;
@@ -36,6 +37,7 @@ sub qSubmit {
     checkDeleteExtend(); # includes quiet status update
     my $yamls = getConfigFromLauncher();
     parseAndSubmitJobs($qInUse, $yamls);
+    $dependJobId = $lastJobId; # propagate to next YAML chunk in data.yml
     provideFeedback($qInUse);  
 }
 #------------------------------------------------------------------------
@@ -185,13 +187,11 @@ sub assembleTargetScript {
     if ($threads{$thread}) { # previous job exists on this job's thread
         my $threadJobIds = $threads{$thread}{jobIds};
         my $predJobId = $$threadJobIds[$#$threadJobIds];  
-        $ENV{JOB_PREDECESSORS} = $predJobId;
-        $sgeDepend = "\n#\$ -hold_jid $predJobId";
-        $pbsDepend = "\n#PBS -W depend=afterok:$predJobId";
-        $slurmDepend = "\n#SBATCH --dependency=afterok:$predJobId";
+        addJobDependency($predJobId, \$sgeDepend, \$pbsDepend, \$slurmDepend);
     } else {
         $currentThreadN++;
-        $threads{$thread}{order} = $currentThreadN;
+        $threads{$thread}{order} = $currentThreadN; # first job on thread may have dependency from prior chunk of data.yml
+        $dependJobId and addJobDependency($dependJobId, \$sgeDepend, \$pbsDepend, \$slurmDepend);
     }
     push @{$threads{$thread}{jobIs}}, $jobI;    
 
@@ -260,6 +260,13 @@ echo \"...\"
 [ \"\$EXIT_STATUS\" -gt 0 ] && EXIT_STATUS=100
 exit \$EXIT_STATUS
 ")
+}
+sub addJobDependency {
+    my ($predJobId, $sgeDepend, $pbsDepend, $slurmDepend) = @_;
+    $ENV{JOB_PREDECESSORS} = $predJobId;
+    $$sgeDepend   = "\n#\$ -hold_jid $predJobId";
+    $$pbsDepend   = "\n#PBS -W depend=afterok:$predJobId";
+    $$slurmDepend = "\n#SBATCH --dependency=afterok:$predJobId";
 }
 sub getTargetScriptFile {
     my ($qInUse, $jobName) = @_;
@@ -385,6 +392,7 @@ sub submitQueue { # submit to cluster scheduler
     }
     $jobId or throwError("error recovering submitted jobID");
     $jobsAdded = 1; # a boolean flag
+    $lastJobId = $jobId;
     return $jobId;
 }
 #========================================================================

@@ -21,7 +21,7 @@ sub qPurge {
                        "   1) kill pending jobs, if any\n".
                        "   2) revert the status list to the empty state\n".                       
                        "   3) delete all script and log files\n";           
-    $options{'dry-run'} or (getPermission($queryMessage) or exit);
+    $options{'dry-run'} or (getPermission($queryMessage) or return);
     $options{'job'} = 'all';
     qDelete();
     print "~" x $separatorLength, "\n";

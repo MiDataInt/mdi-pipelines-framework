@@ -4,7 +4,7 @@ use warnings;
 # working variables
 use vars qw($jobManagerDir %commands $command @args
             $dataYmlFile %options $separatorLength %suppressLinesCommands);
-our ($dataYmlDir, $dataYmlName, $pipelineName,
+our ($dataYmlDir, $dataYmlName,
      $qDataDir, $makeDirs,
      $archiveDir, $logDir, $scriptDir,
      $statusFile, $archiveStem);
