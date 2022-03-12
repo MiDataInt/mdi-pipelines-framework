@@ -199,7 +199,7 @@ sub loadOptionsConfigFile {
     $configFile or return $nullConfig; 
     ref $configFile or -e $configFile or return $nullConfig; 
     my $yaml = loadYamlFile($configFile, $priority, 1, undef, 1);
-    
+
     # check that we are reading a file intended for us
     if (defined $$yaml{pipeline}) { # server level config files do not declare a single pipeline; others should
         my $yamlPipeline = ref($$yaml{pipeline}) eq 'HASH' ? $$yaml{pipeline}{name}[0] : $$yaml{pipeline}[0];
@@ -280,7 +280,7 @@ sub mergeYamlVariables { # first, collect the values of variables, obeying confi
     my %vars;
     foreach my $configFile(@_){
         $configFile or next;
-        -e $configFile or next;
+        ref($configFile) or -e $configFile or next;
         open my $inH, "<", $configFile or throwError("could not open:\n    $configFile\n$!");
         my $inVariablesSection;
         while (my $line = <$inH>) {
@@ -480,8 +480,10 @@ sub validateOptionValues {
 
             # check for valid directories and existence of input files  
             if ($$option{directory} and $$option{directory}{'must-exist'}[0]) {
-                foreach my $dir(@{$optionArrays{$longOption}}){
-                    -d $dir or showOptionsHelp("'$longOption' does not exist or is not a directory\n    $dir");
+                unless($ENV{SUPPRESS_OUTPUT_DIR_CHECK} and $longOption eq 'output-dir'){ # allow mkdir to query output directories without failing
+                    foreach my $dir(@{$optionArrays{$longOption}}){
+                        -d $dir or showOptionsHelp("'$longOption' does not exist or is not a directory\n    $dir");
+                    }
                 }
             }
             if ($$option{file} and $$option{file}{'must-exist'}[0]) {

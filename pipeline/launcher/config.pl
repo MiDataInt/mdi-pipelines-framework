@@ -82,8 +82,8 @@ sub mergeGlobalFamilies { # support option and conda family sharing between acti
 # this simply assembles a set of YAML lines, variable substitution is not handled yet
 #------------------------------------------------------------------------------
 sub extractPipelineJobConfigYml {
-    my ($ymlFile) = @_;
-    $jobConfigYml and return;
+    my ($ymlFile, $force) = @_;
+    !$force and $jobConfigYml and return;
     ($ymlFile and $ymlFile =~ m/\.yml$/) or return;
     $jobConfigYml = "\n".slurpFile($ymlFile);
     $jobConfigYml =~ s/\n\.\.\.\s+/\n/g; # for convenience, remove all unrequired YAML end lines
@@ -96,7 +96,6 @@ sub extractPipelineJobConfigYml {
             $chunkPipelineName =~ m/\/(\S+)/ and $chunkPipelineName = $1; # strip 'suiteName/', only pipelineName persists
             if($pipelineName eq $chunkPipelineName){ # execute only the first YAML chunk for the requested pipeline
                 $jobConfigYml = "---\n$prefixYml\n$ymlChunk\n";
-                # $yaml = loadYamlFile(\$yml, undef, undef, undef, 1);
                 last;
             }
         } else { # a YAML chunk without a root 'pipeline' key is prefixed to all subsequent pipeline YAML chunks

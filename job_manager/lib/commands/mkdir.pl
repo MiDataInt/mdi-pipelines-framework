@@ -19,6 +19,7 @@ my (%paths, @paths);
 #------------------------------------------------------------------------
 sub qMkdir { 
     $pipelineOptions = "";
+    $ENV{SUPPRESS_OUTPUT_DIR_CHECK} = 1;
 
     # loop every pipeline execution chunk in data.yml
     foreach my $ymlChunk(@$parsedYamls){ 

@@ -109,7 +109,7 @@ doRestrictedCommand($target);
 # act on one or more actions taken from a requested pipeline chunk in a data config file
 our $isSingleAction;
 if ($target =~ m/\.yml$/){ 
-    extractPipelineJobConfigYml($target);
+    extractPipelineJobConfigYml($target, 1);
     my $yaml = loadYamlFile(\$jobConfigYml, undef, undef, undef, 1);
     my %requestedActions = map { $_ => 1 } $$yaml{execute} ? @{$$yaml{execute}} : ();
     my $cmds = $$config{actions}; # execute all requested actions in their proper order

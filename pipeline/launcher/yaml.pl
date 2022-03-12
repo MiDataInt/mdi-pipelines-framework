@@ -34,7 +34,6 @@ sub loadYamlFile { # despite the name, also loads YAMl from a string reference
     open my $inH, "<", $yml or throwError("could not open YAML$errorFile:\n$!");    
     my ($prevIndent, $indentLen, @lines, @indents, @addenda) = (0);
     while (my $line = <$inH>) {
-
         # read the config line internal to the YAML
         $line = trimYamlLine($line) or next; # ignore blank lines
         $line =~ m/^(\s*)/;

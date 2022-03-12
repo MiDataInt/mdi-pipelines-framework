@@ -118,6 +118,7 @@ our %commandOptions =  ( # 0=allowed, 1=required
 # suppress the extra demarcating lines used in command execution outputs
 #------------------------------------------------------------------------
 our %suppressLinesCommands = map { $_ => 1 } qw(
+    mkdir
     ssh
     ls    
     alias 

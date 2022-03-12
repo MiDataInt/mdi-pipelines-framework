@@ -103,7 +103,7 @@ sub showOptionsHelp {
         }
         $useValues or print "\n";
     }
-    $parsedError and print $parsedError;
+    $parsedError and print "$parsedError\n";
     $suppressExit or releaseMdiGitLock(1);
 }
 sub getFamilyOrder {
