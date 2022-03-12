@@ -41,7 +41,7 @@ sub checkDeleteExtend {
         $options{'force'} or updateStatusQuietly();
     } 
 }  
-sub checkExtendability { # don't resubmit jobs that were previosly satisfied = queued, running or completed
+sub checkExtendability { # don't resubmit jobs that were previously satisfied = queued, running or completed
     my ($command) = @_;
     $exists{$command} or return 1;      # unknown jobs are always submittable
     $extendable{$command} and return 1; # extendable jobs are always submittable

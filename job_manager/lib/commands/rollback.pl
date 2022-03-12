@@ -21,7 +21,7 @@ sub qRollback {
                        "   1) kill pending jobs, if any\n".
                        "   2) revert the status list to the last archive\n".                       
                        "   3) delete script and log files created since the last archive\n";
-    $options{'dry-run'} or (getPermission($queryMessage) or exit);
+    $options{'dry-run'} or (getPermission($queryMessage) or return);
     $options{'job'} = 'all'; # this is deleting all jobs, not just those being rolled back!
     qDelete();
     $options{'count'} or $options{'count'} = 1;
@@ -39,7 +39,7 @@ sub qRollback {
             $options{'dry-run'} or qx/mv $archiveFile $statusFile/;
         } else {
             print "  no remaining archive for $statusFile\n";
-            exit;
+            return;
         }
     }
     print "  $archiveFile\n";

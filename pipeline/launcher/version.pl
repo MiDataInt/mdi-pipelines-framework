@@ -6,7 +6,8 @@ use Time::HiRes qw(usleep);
 # through calls to git tag and git checkout
 
 # working variables
-use vars qw($target @args $config $pipelineDir $pipelineSuite $pipelineSuiteDir);
+use vars qw($target @args $config $jobConfigYml
+            $pipelineDir $pipelineSuite $pipelineSuiteDir);
 my $silently = "> /dev/null 2>&1"; # bash suffix to suppress git messages
 my $main       = 'main';
 my $latest     = "latest";
@@ -48,7 +49,8 @@ sub getJobFileVersionRequest {
                   $target  and $target  =~ m/\.yml$/ and $ymlFile = $target;  # call format: pipeline <data.yml> ...
     !$ymlFile and $args[0] and $args[0] =~ m/\.yml$/ and $ymlFile = $args[0]; # call format: pipeline action <data.yml> ...
     $ymlFile or return;
-    my $yaml = loadYamlFile($ymlFile, undef, undef, undef, 1);
+    extractPipelineJobConfigYml($ymlFile);
+    my $yaml = loadYamlFile(\$jobConfigYml, undef, undef, undef, 1);
     $$yaml{pipeline} or throwError("malformed data.yml: missing pipeline declaration\n    $ymlFile\n");
     $$yaml{pipeline}[0] =~ m/.+:(.+)/ or return; # format \[pipelineSuite/\]pipelineName\[:suiteVersion\]
     $1;

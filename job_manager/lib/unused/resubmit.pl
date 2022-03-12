@@ -81,7 +81,7 @@ sub getResubmitPermission {  # ensure permission to requeue known non-extendable
     foreach my $oldJobID(@$oldJobIDs){
         unless($extendable{$oldJobID}){
             getPermission($queryMessage) and return 1;  
-            print "'q resubmit' exiting\n";
+            print "'resubmit' exiting\n";
             exit;
         }
     }

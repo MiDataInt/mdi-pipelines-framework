@@ -6,9 +6,10 @@ use Cwd(qw(abs_path));
 #========================================================================
 # main execution block
 #========================================================================
-use vars qw($jobManagerDir $jobManagerName %commands @options);
+use vars qw($jobManagerDir $jobManagerName %commands @options 
+            %pipelineLevelCommands $parsedYamls);
 our ($command, @args) = @ARGV;
-our ($dataYmlFile, $pipelineOptions);
+our ($dataYmlFile, $pipelineOptions, $pipelineName);
 #------------------------------------------------------------------------
 map { $_ !~ m/main.pl$/ and require $_ } glob("$jobManagerDir/lib/main/*.pl");
 #------------------------------------------------------------------------
@@ -21,7 +22,7 @@ sub jobManagerMain {
 
     my @pipelineOptions = setOptions();
     checkRequiredOptions();    
-    $isStage2 and executeCommand(); # shortcut to stage2 mdi:XXX execution
+    $isStage2 and return executeCommand(); # shortcut to stage2 mdi:XXX execution
     my @dataYmlFiles; # our target file(s) that specific data jobs
     while (defined $pipelineOptions[0] and $pipelineOptions[0] =~ m/\.yml$/) {
         my $dataYmlFile = shift @pipelineOptions;
@@ -29,7 +30,7 @@ sub jobManagerMain {
     }
     $pipelineOptions = join(" ", @pipelineOptions); # option values provided to override data.yml    
     
-    # job manager requires a data.yml config file for job queuing (i.e. when not acting as a surrogate)
+    # job manager requires a data.yml config file for job queuing (i.e., when not acting as a surrogate)
     @dataYmlFiles == 0 and throwError("'$jobManagerName $command' requires a <data.yml> configuration file");
     
     # if multiple config files, recall the job manager once for each file, with the same options
@@ -43,9 +44,21 @@ sub jobManagerMain {
     } 
     
     # finish a terminal call on a single file
-    ($dataYmlFile) = @dataYmlFiles;    
-    checkConfigFile(); 
-    executeCommand();  # request is valid, proceed with execution
+    # for pipeline-level commands, execute the command once for every chained pipeline YAML chunk in data.yml
+    ($dataYmlFile) = @dataYmlFiles;
+    $parsedYamls = checkConfigFile();
+    if($pipelineLevelCommands{$command}){
+        foreach my $ymlChunk(@$parsedYamls){ 
+            $$ymlChunk{pipeline} or next;
+            $pipelineName = $$ymlChunk{pipeline}[0] or next; # [suiteName/]pipelineName[:suiteVersion]
+            $pipelineName =~ m/(\S+):/ and $pipelineName = $1; # strip ':suiteVersion', only [suiteName/]pipelineName persists
+            executeCommand();
+        }
+
+    # for job-file-level commands, only one execution is needed
+    } else {
+        executeCommand();
+    }
 }
 #========================================================================
 

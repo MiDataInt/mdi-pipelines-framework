@@ -4,6 +4,7 @@ use warnings;
 # subs for handle configuration .yml files
 
 # working variables
+our $jobConfigYml;
 use vars qw($launcherDir $pipelineDir $optionsDir
             $configFile $config
             %optionArrays %nTasks %conda
@@ -11,7 +12,7 @@ use vars qw($launcherDir $pipelineDir $optionsDir
             $pipelineSuiteVersions %workingSuiteVersions);
 
 #------------------------------------------------------------------------------
-# load a composite, i.e. assembled version of a pipeline's configuration
+# load a composite, i.e., assembled version of a pipeline's configuration
 #------------------------------------------------------------------------------
 sub loadPipelineConfig {
     
@@ -77,7 +78,35 @@ sub mergeGlobalFamilies { # support option and conda family sharing between acti
 }
 
 #------------------------------------------------------------------------------
-# print configuration to log stream, i.e. all option values/dependencies for all tasks
+# parse data.yml to compile the YAML block for one requested pipeline (with potentially multiple actions)
+# this simply assembles a set of YAML lines, variable substitution is not handled yet
+#------------------------------------------------------------------------------
+sub extractPipelineJobConfigYml {
+    my ($ymlFile, $force) = @_;
+    !$force and $jobConfigYml and return;
+    ($ymlFile and $ymlFile =~ m/\.yml$/) or return;
+    $jobConfigYml = "\n".slurpFile($ymlFile);
+    $jobConfigYml =~ s/\n\.\.\.\s+/\n/g; # for convenience, remove all unrequired YAML end lines
+    $jobConfigYml =~ s/\n---\s+/\n__BEGIN_YML_CHUNK__\n/g; # and replace all YAML begin lines
+    my ($prefixYml, $yaml) = ("");
+    foreach my $ymlChunk(split("__BEGIN_YML_CHUNK__", $jobConfigYml)){
+        if($ymlChunk =~ m/\npipeline:\s*(\S+)/){
+            my $chunkPipelineName = $1;
+            $chunkPipelineName =~ m/(\S+):/  and $chunkPipelineName = $1; # strip ':suiteVersion', only [suiteName/]pipelineName persists
+            $chunkPipelineName =~ m/\/(\S+)/ and $chunkPipelineName = $1; # strip 'suiteName/', only pipelineName persists
+            if($pipelineName eq $chunkPipelineName){ # execute only the first YAML chunk for the requested pipeline
+                $jobConfigYml = "---\n$prefixYml\n$ymlChunk\n";
+                last;
+            }
+        } else { # a YAML chunk without a root 'pipeline' key is prefixed to all subsequent pipeline YAML chunks
+            $prefixYml = "$prefixYml\n$ymlChunk\n";
+        }
+    }
+    $jobConfigYml or throwError("job configuration file has no definitions for pipeline '$pipelineName':\n    $ymlFile\n");
+}
+
+#------------------------------------------------------------------------------
+# print configuration to log stream, i.e., all option values/dependencies for all tasks
 #     this output is read by job manager to make scheduler queuing decisions
 # expand options get the set of option values for each required task
 #------------------------------------------------------------------------------

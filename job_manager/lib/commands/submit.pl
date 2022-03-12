@@ -21,7 +21,8 @@ use vars qw($rootDir $libDir $jobManagerName $pipelineName $pipelineOptions
             $dataYmlFile $statusFile
             $scriptDir $logDir
             $timePath $memoryCorrection);
-my (@statusInfo, @jobInfos, @jobIds, $jobsAdded, %threads);
+my (@statusInfo, @jobInfos, @jobIds, $jobsAdded, %threads, 
+    $dependJobId, $lastJobId);
 my $currentThreadN = -1;
 my $nJobsExpected = 0;
 my $ymlError = "!" x 20;
@@ -36,6 +37,7 @@ sub qSubmit {
     checkDeleteExtend(); # includes quiet status update
     my $yamls = getConfigFromLauncher();
     parseAndSubmitJobs($qInUse, $yamls);
+    $dependJobId = $lastJobId; # propagate to next YAML chunk in data.yml
     provideFeedback($qInUse);  
 }
 #------------------------------------------------------------------------
@@ -54,10 +56,10 @@ sub getConfigFromLauncher {
     loadYamlFromString($parsedYaml); # potentially a series of configs for multiple jobs
 }
 sub getJobManagerCommand {
-    my ($pipelineCommand) = @_;
-    $pipelineCommand or $pipelineCommand = '';
+    my ($pipelineAction) = @_;
+    $pipelineAction or $pipelineAction = '';
     my $developerFlag = $ENV{DEVELOPER_MODE} ? "-d" : "";
-    "$rootDir/$jobManagerName $developerFlag $pipelineName $pipelineCommand $dataYmlFile $pipelineOptions";
+    "$rootDir/$jobManagerName $developerFlag $pipelineName $pipelineAction $dataYmlFile $pipelineOptions";
 }
 sub provideFeedback {  # exit feedback
     my ($qInUse) = @_;
@@ -101,10 +103,10 @@ sub parseAndSubmitJobs {
 # create a compact version of the config to use as a job identification key
 sub assembleJobConfig {
     my ($parsed) = @_;
-    my $pipelineCommand = $$parsed{execute}[0];
-    my $config = "$pipelineName $pipelineCommand";    
-    my $optionFamilies = $$parsed{$pipelineCommand};
-    $optionFamilies or throwError("missing key '$pipelineCommand' in parsed config");
+    my $pipelineAction = $$parsed{execute}[0];
+    my $config = "$pipelineName $pipelineAction";    
+    my $optionFamilies = $$parsed{$pipelineAction};
+    $optionFamilies or throwError("missing key '$pipelineAction' in parsed config");
     foreach my $optionFamily(sort keys %$optionFamilies){
         $nonSpecificFamilies{$optionFamily} and next;
         my $options = $$optionFamilies{$optionFamily};
@@ -119,8 +121,8 @@ sub assembleJobConfig {
 # check for the presence of a required singularity container
 sub checkSingularityContainer {
     my ($parsed) = @_;
-    my $pipelineCommand = $$parsed{execute}[0];
-    my $cfg = $$parsed{$pipelineCommand};
+    my $pipelineAction = $$parsed{execute}[0];
+    my $cfg = $$parsed{$pipelineAction};
     $$cfg{singularity} or return; # pipeline does not support containers
     my $runtime = $$cfg{resources}{runtime}[0];
     $runtime eq "auto" or $runtime eq "container" or return; # user enforcing direct execution, regardless of container support
@@ -144,9 +146,9 @@ sub assembleTargetScript {
     my ($qInUse, $parsed, $jobI) = @_; # jobI, not taskI
     
     # get required values based on config
-    my $pipelineCommand = $$parsed{execute}[0];
+    my $pipelineAction = $$parsed{execute}[0];
     my $nTasks = $$parsed{nTasks}[0];
-    my $options = $$parsed{$pipelineCommand};
+    my $options = $$parsed{$pipelineAction};
     my $dataName = $nTasks == 1 ? "_$$options{output}{'data-name'}[0]" : "";
     my $nCpu = $$options{resources}{'n-cpu'}[0]; # thus, resources options really cannot be arrayed
     my $ramPerCpu = $$options{resources}{'ram-per-cpu'}[0]; # does this need to be made lower case, etc?
@@ -168,7 +170,7 @@ sub assembleTargetScript {
     }
     my $pipelineShort = $pipelineName;
     $pipelineShort =~ m|.\S+/(\S+)| and $pipelineShort = $1; # strip suite name prefix in jobName
-    my $jobName = "$pipelineShort\_$pipelineCommand$dataName";
+    my $jobName = "$pipelineShort\_$pipelineAction$dataName";
     $jobName =~ s/\s+/_/g;
     $qInUse eq 'PBS' and $jobName = substr($jobName, 0, 15);
     my $logDir = getLogDir($qInUse);
@@ -176,7 +178,7 @@ sub assembleTargetScript {
     my $slurmLogFile = $ENV{IS_ARRAY_JOB} ? "$logDir/%x.o%A-%a" : "$logDir/%x.o%j";
     
     # set job manager command
-    my $jobManagerCommand = getJobManagerCommand($pipelineCommand);
+    my $jobManagerCommand = getJobManagerCommand($pipelineAction);
     $jobManagerCommand =~ s/\s+$//;
     $jobManagerCommand =~ s/ / \\\n/g;
     
@@ -185,13 +187,11 @@ sub assembleTargetScript {
     if ($threads{$thread}) { # previous job exists on this job's thread
         my $threadJobIds = $threads{$thread}{jobIds};
         my $predJobId = $$threadJobIds[$#$threadJobIds];  
-        $ENV{JOB_PREDECESSORS} = $predJobId;
-        $sgeDepend = "\n#\$ -hold_jid $predJobId";
-        $pbsDepend = "\n#PBS -W depend=afterok:$predJobId";
-        $slurmDepend = "\n#SBATCH --dependency=afterok:$predJobId";
+        addJobDependency($predJobId, \$sgeDepend, \$pbsDepend, \$slurmDepend);
     } else {
         $currentThreadN++;
-        $threads{$thread}{order} = $currentThreadN;
+        $threads{$thread}{order} = $currentThreadN; # first job on thread may have dependency from prior chunk of data.yml
+        $dependJobId and addJobDependency($dependJobId, \$sgeDepend, \$pbsDepend, \$slurmDepend);
     }
     push @{$threads{$thread}{jobIs}}, $jobI;    
 
@@ -260,6 +260,13 @@ echo \"...\"
 [ \"\$EXIT_STATUS\" -gt 0 ] && EXIT_STATUS=100
 exit \$EXIT_STATUS
 ")
+}
+sub addJobDependency {
+    my ($predJobId, $sgeDepend, $pbsDepend, $slurmDepend) = @_;
+    $ENV{JOB_PREDECESSORS} = $predJobId;
+    $$sgeDepend   = "\n#\$ -hold_jid $predJobId";
+    $$pbsDepend   = "\n#PBS -W depend=afterok:$predJobId";
+    $$slurmDepend = "\n#SBATCH --dependency=afterok:$predJobId";
 }
 sub getTargetScriptFile {
     my ($qInUse, $jobName) = @_;
@@ -385,6 +392,7 @@ sub submitQueue { # submit to cluster scheduler
     }
     $jobId or throwError("error recovering submitted jobID");
     $jobsAdded = 1; # a boolean flag
+    $lastJobId = $jobId;
     return $jobId;
 }
 #========================================================================

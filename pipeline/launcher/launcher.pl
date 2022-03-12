@@ -31,7 +31,7 @@ if($pipelineName eq "valuesYaml"){
     $pipelineName = $$yml{pipeline}[0];
 }
 
-# pipelineName could be a pipeline name only, or be directed to a specific repository as suite/pipeline
+# pipelineName could be a pipeline name only, or be directed to a specific repository as suite/pipeline (but not :version)
 # target could be a single pipeline action, or a config file with target actions listed in the 'execute' key
 my @pipelineName = reverse(split('/', $pipelineName, 2)); # thus [name, maybe a suite]
 my $pipeline;
@@ -73,6 +73,7 @@ our $modulesDir      = "$sharedDir/modules";
 
 # load launcher scripts
 map { $_ =~ m/launcher\.pl$/ or require $_ } glob("$launcherDir/*.pl");
+use vars qw($jobConfigYml);
 
 # lock the suite repository - only one MDI process can use it at a time since branches may change
 # hereafter, use throwError() or releaseMdiGitLock() to end this launcher process (not exit or die)
@@ -105,10 +106,11 @@ our @universalTemplateFamilies = sort {
 # act on and typically terminate execution if target is a restricted command
 doRestrictedCommand($target);
 
-# act on potentially multiple actions taken from a data config file
+# act on one or more actions taken from a requested pipeline chunk in a data config file
 our $isSingleAction;
-if ($target =~ m/\.yml$/) { 
-    my $yaml = loadYamlFile($target, undef, undef, undef, 1);
+if ($target =~ m/\.yml$/){ 
+    extractPipelineJobConfigYml($target, 1);
+    my $yaml = loadYamlFile(\$jobConfigYml, undef, undef, undef, 1);
     my %requestedActions = map { $_ => 1 } $$yaml{execute} ? @{$$yaml{execute}} : ();
     my $cmds = $$config{actions}; # execute all requested actions in their proper order
     my @orderedActions = sort { $$cmds{$a}{order}[0] <=> $$cmds{$b}{order}[0] } keys %$cmds;
@@ -116,7 +118,7 @@ if ($target =~ m/\.yml$/) {
     my @argsCache = @args;
     foreach my $actionCommand(@orderedActions){
         $$cmds{$actionCommand}{universal}[0] and next; # only execute pipeline actions
-        $requestedActions{$actionCommand} or next;     # only execute actions requested in data.yml
+        $requestedActions{$actionCommand} or next;     # only execute actions requested in data.yml chunk
         executeAction($actionCommand);
         @args = @argsCache; # reset args for next action
     }
