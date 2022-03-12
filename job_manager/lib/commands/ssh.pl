@@ -16,9 +16,10 @@ use vars qw(%options %allJobs %targetJobIDs $taskID $pipelineOptions);
 # main execution block
 #------------------------------------------------------------------------
 sub qSsh { 
+    my ($mdiCommand) = @_;
 
     # read required information from job log file
-    my $mdiCommand = "ssh";
+    $mdiCommand or $mdiCommand = "ssh";
     my $logFileYamls = getJobLogFileContents($mdiCommand, 1);
     my %jmData;
     foreach my $yaml(@$logFileYamls){

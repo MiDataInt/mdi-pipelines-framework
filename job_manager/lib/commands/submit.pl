@@ -33,6 +33,7 @@ my %nonSpecificFamilies = map { $_ => 1 } qw (resources help workflow job-manage
 # main execution block
 #------------------------------------------------------------------------
 sub qSubmit {
+    (@statusInfo, @jobInfos, @jobIds, $jobsAdded, %threads) = ();
     my ($qInUse) = checkScheduler();
     checkDeleteExtend(); # includes quiet status update
     my $yamls = getConfigFromLauncher();
