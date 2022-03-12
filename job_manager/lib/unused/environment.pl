@@ -18,7 +18,7 @@ my $envDelimiter = " = ";
 sub qEnvironment {
     $options{'no-chain'} = 1;  # report action restricted to requested jobs 
     getJobStatusInfo();
-    parseJobOption(\%allJobs, 'environment');  
+    parseJobOption(\%allJobs);  
     showEnvironments();
 } 
 #========================================================================

@@ -26,7 +26,7 @@ sub qResubmit {
     checkDeleteResubmit();
     checkSyntax('resubmit');
     %targetJobIDs = ();
-    parseJobOption(\%allJobs, 'resubmit'); 
+    parseJobOption(\%allJobs); 
     $options{'_suppress-echo_'} or print "job_name                    array  job_ID   job_#  depends on job_#\n";
     resubmitJobs();
     provideFeedback();  
