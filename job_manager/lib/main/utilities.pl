@@ -50,16 +50,24 @@ sub getPermissionGeneral {
     exit 1;
 }
 sub getUserSelection {
-    my ($msg, $default) = @_;
+    my ($msg, $default, $noPrompt, @allowed) = @_;
     my $leader = "-" x 80;
-    print "\n$leader\n$msg\n";  
-    print "Please enter your selection by its number (e.g., 1): ";
+    print STDERR "\n$leader\n$msg";  
+    $noPrompt or print STDERR "\nPlease enter your selection by its number (e.g., 1): ";
     my $selection = <STDIN>;
     chomp $selection;
     $selection eq "" and defined $default and $selection = $default;
-    $selection eq "" or return $selection;
-    print "aborting with no action taken\n\n";
-    exit 1;
+    if($selection eq ""){
+        print STDERR "\naborting with no action taken\n\n";
+        exit 1;
+    } elsif(@allowed) {
+        my %allowed = map { $_ => 1} @allowed;
+        $allowed{$selection} and return $selection;
+        print STDERR "\nunrecognized selection\naborting with no action taken\n\n";
+        exit 1;
+    } else {
+        return $selection;
+    }
 }
 #========================================================================
 

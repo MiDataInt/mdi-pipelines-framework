@@ -247,6 +247,7 @@ echo \"    host: \$HOSTNAME\"
 echo \"    started: \"`date +'%a %D %R'`
 
 # cascade call to pipeline launcher
+export GIT_LOCK_WAIT_SECONDS=600
 TIME_FORMAT=\"---\njob-manager:\n    exit_status: %x\n    walltime: %E\n    seconds: %e\n    maxvmem: %MK\n    swaps: %W\"
 $timePath -f \"\n\$TIME_FORMAT\" \\
 $jobManagerCommand \$TASK_ID

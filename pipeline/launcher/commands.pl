@@ -310,14 +310,39 @@ sub runOptions {
     my @optionsOut = sort { lc($$a{short}[0]) cmp lc($$b{short}[0]) or
                                $$b{short}[0]  cmp    $$a{short}[0] or
                                $$a{long}[0]   cmp    $$b{long}[0] } values %longOptions;
+    my (%shortOptions, %longOptions);
     foreach my $option(@optionsOut){
         if(!$required or $$option{required}[0]){
             my $required = $$option{required}[0] ? "*REQUIRED*" : "";
             my $shortOut = $$option{short}[0];
             $shortOut = (!$shortOut or $shortOut eq 'null') ? "" : "-$$option{short}[0]";
-            print join("\t", $shortOut, "--$$option{long}[0]", $required), "\n";
+            my $line = join("\t", $shortOut, "--$$option{long}[0]", $required)."\n";
+            print $line;
+            $shortOut and push @{$shortOptions{$shortOut}}, $line;
+            push @{$longOptions{$$option{long}[0]}}, $line;
         }   
     }
+
+    # report any conflicts in short options flag usage
+    my ($isConflicts, @conflictedOptions);
+    foreach my $shortOption(sort { $a cmp $b } keys %shortOptions){
+        @{$shortOptions{$shortOption}} > 1 and push @conflictedOptions, @{$shortOptions{$shortOption}};
+    }
+    if(@conflictedOptions){
+        print "\n!!!!!!!! The following options have conflicting single-letter codes !!!!!!!!\n";
+        print join("", @conflictedOptions), "\n";
+        $isConflicts++;
+    } 
+    @conflictedOptions = ();
+    foreach my $longOption(sort { $a cmp $b } keys %longOptions){
+        @{$longOptions{$longOption}} > 1 and push @conflictedOptions, @{$longOptions{$longOption}};
+    }
+    if(@conflictedOptions){
+        print "\n!!!!!!!! The following options have conflicting names !!!!!!!!\n";
+        print join("", @conflictedOptions), "\n";
+        $isConflicts++;
+    }   
+    !$isConflicts and print "\nNo option name conflicts were found.\n\n"; 
     releaseMdiGitLock(0);
 }
 

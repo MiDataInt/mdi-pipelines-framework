@@ -38,7 +38,7 @@ sub qSsh {
 #========================================================================
 
 #========================================================================
-# get the contents of the log file for a specific job, from option --job
+# get the contents of the log file for a specific job and task, from option --job
 #------------------------------------------------------------------------
 sub getJobLogFileContents {
     my ($mdiCommand, $runningOnly) = @_;
@@ -71,15 +71,16 @@ sub getJobLogFileContents {
 
     # get and check the job/task log file
     my ($qType, $array, $inScript, $command, $instrsFile, $scriptFile, $jobName) = @{$targetJobIDs{$jobID}};
+    !$taskID and $array and $array =~ m/,/ and $taskID = promptForTaskSelection($jobID, $array);
     my $logFiles;
-    if(defined $taskID){
+    if($taskID){
         $logFiles = [ getArrayTaskLogFile($qType, $jobID, $taskID, $jobName) ];
     } else {
         $logFiles = getLogFiles($qType, $jobName, $jobID, $array);
     }
     @$logFiles == 1 or throwError($tooManyJobs, $mdiCommand); 
     my $logFile = @$logFiles[0];  
-    -e $logFile or throwError("job log file not found\n$error", $mdiCommand); 
+    -e $logFile or throwError("job log file not found\n$error", $mdiCommand);   
 
     # extract the job manager status reports from the job/task log file
     my $yamls = loadYamlFromString( slurpFile($logFile) );

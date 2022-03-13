@@ -18,7 +18,7 @@ our (@targetJobIDs, %targetJobIDs, $taskID);  # --job options parsing provided b
 sub qDelete { # delete all incomplete jobs from queue
     #checkLock();
     updateStatusQuietly();
-    parseJobOption(\%deletable, 1, 1);  
+    parseJobOption(\%deletable, 1, 1); # one or more jobs (tasks not needed, delete operates at job level) 
     deleteTargetJobs();    
 }
 #========================================================================
@@ -28,34 +28,35 @@ sub qDelete { # delete all incomplete jobs from queue
 #------------------------------------------------------------------------
 sub parseJobOption {  # determine --job format and parse into jobIDs, checking against allowed job list
     my ($allowedHash, $prompt, $includeOptionAll) = @_;
-    $options{'job'} or $options{'job'} = $prompt ? 'prompt' : 'all'; # unsafe jobs required a value upstream of this call
-    my $formatError = "unrecognized format for --job option:  $options{'job'}\n";
-    if($options{'job'} eq 'all') {  
+    my $job = $options{'job'};
+    $job or $job = $prompt ? 'prompt' : 'all'; # unsafe jobs required a value upstream of this call
+    my $formatError = "unrecognized format for --job option:  $job\n";
+    if($job eq 'all') {  
         @targetJobIDs = keys %$allowedHash;   
         $options{'no-chain'} = 1;  # no need to chain if already using all allowed jobs
-    } elsif($options{'job'} eq 'prompt'){  # convenience to prevent use from having to type job numbers
+    } elsif($job eq 'prompt'){  # convenience to prevent use from having to type job numbers
         if(scalar(keys %$allowedHash) < 2){ # no need to prompt
             @targetJobIDs = keys %$allowedHash; 
         } else {
             @targetJobIDs = promptForJobSelection($allowedHash, $includeOptionAll);          
         }
         $options{'no-chain'} = 1;  # no need to chain if already using all allowed jobs
-    } elsif($options{'job'} =~ m|^(\d+)$|){  # single jobID
+    } elsif($job =~ m|^(\d+)$|){  # single jobID
         $$allowedHash{$1} and @targetJobIDs = ($1);  
-    } elsif($options{'job'} =~ m|^(\d+)\[(\d+)\]$|) {  # task of an array job
+    } elsif($job =~ m|^(\d+)\[(\d+)\]$|) {  # task of an array job
         $$allowedHash{$1} and @targetJobIDs = ($1) and $taskID = $2;
-    } elsif($options{'job'} =~ m|^(\d+)\*$|) {  # terminal wild-card
+    } elsif($job =~ m|^(\d+)\*$|) {  # terminal wild-card
         my $jobIDRef = $1;
         foreach my $jobID(keys %$allowedHash){ $jobID =~ m|^$jobIDRef| and push @targetJobIDs, $jobID }          
-    } elsif($options{'job'} =~ m|^(\d+)\+$|) {  # greater than or equal to provided jobID
+    } elsif($job =~ m|^(\d+)\+$|) {  # greater than or equal to provided jobID
         my $jobIDRef = $1;
         foreach my $jobID(keys %$allowedHash){ $jobID >= $jobIDRef and push @targetJobIDs, $jobID }
-    } elsif($options{'job'} =~ m|,|) {  
-        foreach my $jobID(split(",", $options{'job'})){ 
+    } elsif($job =~ m|,|) {  
+        foreach my $jobID(split(",", $job)){ 
             $jobID =~ m|^\d+$| or die $formatError;
             $$allowedHash{$jobID} and push @targetJobIDs, $jobID;
         }    
-    } elsif($options{'job'} =~ m|^(\d+)-(\d+)$|) {  
+    } elsif($job =~ m|^(\d+)-(\d+)$|) {  
         my ($start, $end) = ($1, $2);
         if($end < $start){
             my $beginDigits = length($start) - length($end);
@@ -86,8 +87,19 @@ sub promptForJobSelection {
         $selections{$i} = $jobId;
         $i++;
     }
-    my $selection = getUserSelection($message);
+    my $selection = getUserSelection($message, undef, undef, keys %selections);
     $selections{$selection} eq 'all' ? keys %$allowedHash : $selections{$selection};
+}
+sub promptForTaskSelection {
+    my ($jobId, $array, $includeOptionAll) = @_;
+    my @taskIds = split(",", $array);
+    my $minTaskId = $taskIds[0];
+    my $maxTaskId = $taskIds[$#taskIds];
+    my $optionAll = $includeOptionAll ? "0 for all tasks, or " : "";
+    my $selection = getUserSelection(
+        "Please select the target task for job $jobId ($optionAll"."array index $minTaskId-$maxTaskId): ",
+        undef, 1, $includeOptionAll ? (0..$maxTaskId) : (1..$maxTaskId)
+    );
 }
 sub addSuccessorJobs {  # extend the user provided list by descending into job dependency chains
     my ($allowedHash) = @_;

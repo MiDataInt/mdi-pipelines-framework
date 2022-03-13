@@ -32,7 +32,7 @@ sub setExternalSuiteVersion {
     if(!$pipelineSuiteVersions or !$$pipelineSuiteVersions{$suite}){
         $version = $latest; # apply the default directive when pipeline does not enforce external suite version
     } else {
-        $version = $$pipelineSuiteVersions{$suite};
+        $version = $$pipelineSuiteVersions{$suite}[0];
     }
     $version = convertSuiteVersion($suiteDir, $version);
     setSuiteVersion($suiteDir, $version, $suite);

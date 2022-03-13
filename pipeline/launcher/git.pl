@@ -5,7 +5,6 @@ use warnings;
 # use a lock file to secure private repo access for the duration of a call to launcher
 
 use vars qw($mdiDir $pipelineSuite $pipelineSuiteDir $errorSeparator);
-my $maxLockWaitUSec = 30 * 1000 * 1000; # i.e., 30 seconds
 
 # do not place the lock file in $pipelineSuiteDir since branch changes could wipe it out
 # all calls to xxxMdiGitLock are guaranteed to have a valid $pipelineSuite
@@ -16,6 +15,7 @@ sub getMdiLockFile {
 sub setMdiGitLock { 
     my $lockFile = getMdiLockFile();
     my $cumLockWaitUSec = 0;
+    my $maxLockWaitUSec = ($ENV{GIT_LOCK_WAIT_SECONDS} || 30) * 1000 * 1000; # i.e., 30 seconds default, mdi submit sets this higher for array jobs
     while(-e $lockFile and $cumLockWaitUSec <= $maxLockWaitUSec){ # wait for others to release their lock
         $cumLockWaitUSec or print "waiting for lock to clear";
         print ".";

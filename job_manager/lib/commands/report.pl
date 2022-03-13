@@ -17,9 +17,19 @@ use vars qw(%options $logDir %allJobs %targetJobIDs $taskID $separatorLength);
 sub qReport {  
     $options{'no-chain'} = 1;  # report action restricted to requested jobs
     getJobStatusInfo(); 
-    parseJobOption(\%allJobs, 1, 1); 
+    setReportJobAndTask();
     showLogs();   
 } 
+sub setReportJobAndTask {
+    parseJobOption(\%allJobs, 1, 1); # get one or more target jobs
+    my @jobIDs = keys %targetJobIDs; 
+    if(!$options{'job'} and @jobIDs == 1){ # if a single array job selected from menu, prompt for a task too
+        my $jobID = $jobIDs[0];
+        my ($qType, $array) = @{$targetJobIDs{$jobID}};
+        $array and $array =~ m/,/ and $taskID = promptForTaskSelection($jobID, $array, 1);
+        $taskID or $taskID = undef;
+    }    
+}
 #========================================================================
      
 #========================================================================
