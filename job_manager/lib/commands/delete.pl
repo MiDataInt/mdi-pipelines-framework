@@ -18,7 +18,7 @@ our (@targetJobIDs, %targetJobIDs, $taskID);  # --job options parsing provided b
 sub qDelete { # delete all incomplete jobs from queue
     #checkLock();
     updateStatusQuietly();
-    parseJobOption(\%deletable);  
+    parseJobOption(\%deletable, 1, 1);  
     deleteTargetJobs();    
 }
 #========================================================================
@@ -27,27 +27,17 @@ sub qDelete { # delete all incomplete jobs from queue
 # find target jobIDs from option --job and successors
 #------------------------------------------------------------------------
 sub parseJobOption {  # determine --job format and parse into jobIDs, checking against allowed job list
-    my ($allowedHash, $prompt) = @_;
+    my ($allowedHash, $prompt, $includeOptionAll) = @_;
     $options{'job'} or $options{'job'} = $prompt ? 'prompt' : 'all'; # unsafe jobs required a value upstream of this call
     my $formatError = "unrecognized format for --job option:  $options{'job'}\n";
     if($options{'job'} eq 'all') {  
         @targetJobIDs = keys %$allowedHash;   
         $options{'no-chain'} = 1;  # no need to chain if already using all allowed jobs
     } elsif($options{'job'} eq 'prompt'){  # convenience to prevent use from having to type job numbers
-        if(scalar(keys %$allowedHash) < 2){
+        if(scalar(keys %$allowedHash) < 2){ # no need to prompt
             @targetJobIDs = keys %$allowedHash; 
         } else {
-            my $i = 1;
-            my $message = "Please select the target job from the following list:\n\n";
-            my %selections;
-            foreach my $jobId(sort { $a <=> $b } keys %$allowedHash){
-                my $job = $$allowedHash{$jobId};
-                $message .= join("\t", "", $i, $jobId, $$job[$#$job])."\n";
-                $selections{$i} = $jobId;
-                $i++;
-            }
-            my $selection = getUserSelection($message);
-            @targetJobIDs = $selections{$selection};              
+            @targetJobIDs = promptForJobSelection($allowedHash, $includeOptionAll);          
         }
         $options{'no-chain'} = 1;  # no need to chain if already using all allowed jobs
     } elsif($options{'job'} =~ m|^(\d+)$|){  # single jobID
@@ -80,6 +70,24 @@ sub parseJobOption {  # determine --job format and parse into jobIDs, checking a
         die $formatError;
     }
     addSuccessorJobs($allowedHash);
+}
+sub promptForJobSelection {
+    my ($allowedHash, $includeOptionAll) = @_;
+    my ($i, %selections) = (0);
+    my $message = "Please select the target job from the following list:\n\n";
+    if($includeOptionAll){
+        $message .= join("\t", "", $i, 'all available jobs')."\n";
+        $selections{$i} = 'all';
+    }
+    $i++;
+    foreach my $jobId(sort { $a <=> $b } keys %$allowedHash){
+        my $job = $$allowedHash{$jobId};
+        $message .= join("\t", "", $i, $jobId, $$job[$#$job])."\n";
+        $selections{$i} = $jobId;
+        $i++;
+    }
+    my $selection = getUserSelection($message);
+    $selections{$selection} eq 'all' ? keys %$allowedHash : $selections{$selection};
 }
 sub addSuccessorJobs {  # extend the user provided list by descending into job dependency chains
     my ($allowedHash) = @_;

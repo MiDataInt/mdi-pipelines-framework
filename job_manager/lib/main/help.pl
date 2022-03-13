@@ -16,11 +16,11 @@ my %useOptionGroupDelimiter = (submit=>1, extend=>1, resubmit=>1);  # break long
 # provide help feedback on command line
 #------------------------------------------------------------------------
 sub throwError {
-    my ($message, $command) = @_;
-    reportUsage("$errorHighlight\n$message\n$errorHighlight", $command, 1);
+    my ($message, $command, $noRepeatError) = @_;
+    reportUsage("$errorHighlight\n$message\n$errorHighlight", $command, 1, $noRepeatError);
 }
 sub reportUsage { # program help, always exits 
-    my ($message, $command, $die) = @_;
+    my ($message, $command, $die, $noRepeatError) = @_;
     print "\n>>> Michigan Data Interface (MDI) <<<\n";
     print $message ? "\n$message\n\n" : "\n";
     my $jmName = "$leftPad$jmName";
@@ -41,6 +41,7 @@ sub reportUsage { # program help, always exits
     } else {
         reportCommandsHelp();
     }
+    $die and !$noRepeatError and print $message ? "$message\n\n" : "\n";
     my $exitStatus = $die ? 1 : 0;
     exit $exitStatus; 
 }

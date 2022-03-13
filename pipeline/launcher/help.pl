@@ -48,6 +48,7 @@ sub showActionsHelp {
         print  "$leftPad"."$name$spaces$desc\n";
     }
     print  "\n"; 
+    $error and print $errorSeparator."\n$error\n".$errorSeparator."\n\n";   
     $exit and releaseMdiGitLock(1);
 }
 

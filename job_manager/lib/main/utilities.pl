@@ -56,8 +56,8 @@ sub getUserSelection {
     print "Please enter your selection by its number (e.g., 1): ";
     my $selection = <STDIN>;
     chomp $selection;
-    !$selection and defined $default and $selection = $default;
-    $selection and return $selection;
+    $selection eq "" and defined $default and $selection = $default;
+    $selection eq "" or return $selection;
     print "aborting with no action taken\n\n";
     exit 1;
 }

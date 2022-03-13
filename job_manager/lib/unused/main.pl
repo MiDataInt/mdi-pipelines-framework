@@ -249,12 +249,12 @@ sub setOptions { # parse and check validity of options string
         push @options, $optionList;    
         if($optionList =~ m/^\-\-(.+)/){ # long option formatted request
             my $longOption = $1;
-            defined $optionInfo{$longOption} or reportUsage("'$longOption' is not a recognized q option", undef, 1); 
+            defined $optionInfo{$longOption} or reportUsage("'--$longOption' is not a recognized q option", undef, 1); 
             setOption($longOption);
         } elsif ($optionList =~ m/^\-(.+)/){ # short option formatted request
             foreach my $shortOption(split('', $1)){
                 my $longOption = $longOptions{$shortOption};
-                defined $longOption or reportUsage("'$shortOption' is not a recognized q option", undef, 1);  
+                defined $longOption or reportUsage("'-$shortOption' is not a recognized q option", undef, 1);  
                 setOption($longOption);
             }
         } else {
