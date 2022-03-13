@@ -190,7 +190,7 @@ sub runShell {
     $action = $options{$action} || $defaultAction;
     $action or throwError("option '--action' is required to launch a shell");
     my $cmd = getCmdHash($action);
-    !$cmd and showActionsHelp("unknown action: $action", 1);        
+    !$cmd and showActionsHelp("unknown action for pipeline $pipelineName: $action", 1);        
     my $configYml = assembleCompositeConfig($cmd, $action);
     parseAllDependencies($action);
     my $conda = getCondaPaths($configYml, $action);

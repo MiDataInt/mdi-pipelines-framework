@@ -387,7 +387,7 @@ sub checkAndSetOption {
     if (defined $$options{$optionName}) { # set known options
         setOption($$options{$optionName});
     } elsif($isSingleAction){ # no option errors in multi-action mode, it may apply to another action
-        showOptionsHelp("'$optionName' is not a recognized option for action '$subjectAction'");
+        showOptionsHelp("'--$optionName' is not a recognized option for action '$subjectAction'");
     }   
 }
 sub setOption { 

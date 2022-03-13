@@ -27,13 +27,13 @@ sub setOptions { # parse and check validity of options string
         if($optionList =~ m/^\-\-(.+)/){ # long option formatted request
             my $longOption = $1;
             defined $optionInfo{$longOption} or
-                throwError("'$longOption' is not a recognized option for command '$command'"); 
+                throwError("'--$longOption' is not a recognized option for command '$command'"); 
             setOption($longOption);
         } elsif ($optionList =~ m/^\-(.+)/){ # short option formatted request
             foreach my $shortOption(split('', $1)){
                 my $longOption = $longOptions{$shortOption};
                 defined $longOption or
-                    throwError("'$shortOption' is not a recognized option for command '$command'"); 
+                    throwError("'-$shortOption' is not a recognized option for command '$command'"); 
                 setOption($longOption);
             }
         } else {

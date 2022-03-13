@@ -46,10 +46,17 @@
     PIPELINE_NAME=__PIPELINE_NAME__
     INSTALLER=__INSTALLER__
 
-    # install git, conda and zip, as used by the MDI
+    # install common system utilities used by the MDI, many pipelines, or developers
     if [ "$INSTALLER" = "apt-get" ] || \
        [ "$INSTALLER" = "yum" ]; then
-        $INSTALLER update && $INSTALLER install -y git wget zip
+        $INSTALLER update && $INSTALLER install -y \
+            git \
+            wget \
+            zip \
+            time \
+            nano \
+            tree \
+            curl
     else 
         echo "unknown installer: $INSTALLER"
         exit 1

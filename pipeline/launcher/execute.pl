@@ -17,7 +17,7 @@ sub executeAction {
     
     # set the actions list and working action
     my $cmd = getCmdHash($action);
-    !$cmd and showActionsHelp("unknown action: $action", 1);
+    !$cmd and showActionsHelp("unknown action for pipeline $pipelineName: $action", 1);
 
     # process the options for the action and request
     my $configYml = parseAllOptions($action);
