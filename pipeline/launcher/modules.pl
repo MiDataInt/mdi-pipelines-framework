@@ -4,8 +4,7 @@ use warnings;
 # subs for handling import of action modules into a pipeline's config
 
 # working variables
-use vars qw($mdiDir);
-my $modulesDir = "$mdiDir/modules";
+use vars qw($mdiDir $modulesDir $pipelineSuite);
 
 #------------------------------------------------------------------------------
 # import a called action module
@@ -15,7 +14,7 @@ my $modulesDir = "$mdiDir/modules";
 sub addActionModule {
     my ($file, $line, $prevIndent, $parentIndentLen, $lines, $indents, $addenda) = @_;
     $line =~ m/\s*module:\s+(\S+)/ or throwError("malformed module call:\n    $file:\n    $line");
-    my $moduleFile = getSharedFile($modulesDir, "$1/module.yml", 'module', 1);
+    my ($moduleFile) = getSharedFile($modulesDir, "$1/module.yml", 'module', 1);
     $moduleFile =~ m|suites/.+/(.+)/shared/modules| or throwError("malformed module file path:\n    $moduleFile:\n    $line");
     my $moduleSuite = $1;
 

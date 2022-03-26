@@ -312,7 +312,7 @@ sub addJob { # act on the assembled job
 }
 sub padSubmitEchoColumns {  # ensure pretty parsing of echoed status table
     my(@in) = @_;
-    my @columnWidths = (30, 1, 7, 5, 20);
+    my @columnWidths = (40, 1, 7, 5, 20);
     foreach my $i(0..4){
         my $value = $in[$i];
         my $outWidth = $columnWidths[$i];    
@@ -342,7 +342,7 @@ sub submitJob{ # disperse the job as indicated by $qInUse
 }
 sub submitLocal { # run the script in shell if queue is suppressed
     my ($targetScript, $jobName, $job) = @_;
-    my $separatorLength = $options{'dry-run'} ? 0 : 75;
+    my $separatorLength = $options{'dry-run'} ? 0 : 100;
     $options{'dry-run'} or print "=" x $separatorLength, "\n";
     $options{'_suppress-echo_'} or print "$jobName\n"; 
     $options{'dry-run'} or print "~" x $separatorLength, "\n";

@@ -6,7 +6,7 @@ use vars qw($jobManagerName %commands %commandOptions %optionInfo);
 my $jmName = $ENV{JOB_MANAGER_NAME} ? $ENV{JOB_MANAGER_NAME} : $jobManagerName;
 my $commandTabLength = 12; 
 my $optionTabLength = 20;
-our $separatorLength = 87;
+our $separatorLength = 100;
 our $leftPad = (" ") x 2;
 our $errorHighlight = "!" x 80;
 our @optionGroups = qw(main submit status job rollback install alias build server);  # ensure that similar options group together

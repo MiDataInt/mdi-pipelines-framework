@@ -9,7 +9,7 @@ my $jmName = $ENV{JOB_MANAGER_NAME} ? $ENV{JOB_MANAGER_NAME} : 'mdi';
 my $actionTabLength = 15;
 my $optionTabLength = 20;
 our $leftPad = (" ") x 2;
-our $errorSeparator = "!" x 80;
+our $errorSeparator = "!" x 100;
 
 #------------------------------------------------------------------------------
 # show a listing of the actions available for a pipeline
@@ -75,7 +75,9 @@ sub showOptionsHelp {
         $familySeen{$family}++;
         my $options = getFamilyOptions($family);
         scalar(keys %$options) or next;
-        print "$family options:\n";        
+        $family =~ m|.+//(.+)| and $family = $1;
+        print "$family:\n";  
+        # print "$family options:\n";       
         foreach my $longOption(sort { getOptionOrder($a, $options) <=> getOptionOrder($b, $options) }
                                      keys %$options){
             my $option = $$options{$longOption};

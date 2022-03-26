@@ -11,7 +11,7 @@ use warnings;
 use vars qw(%options $statusFile $archiveStem $archiveDir $qType 
             $schedulerDir $memoryCorrection $masterFileName);
 our %statusFields = (  # column format of status files
-    jobName=>0,        # text name of the job as provided by user and/or assembled by q; space-padded to 30-char length
+    jobName=>0,        # text name of the job as provided by user and/or assembled by q; space-padded to 40-char length
     jobID=>1,          # the jobID as assigned by qsub, or the same as 'job' if --execute was in force
     array=>2,          # comma-delimited list of array task IDs, empty if not an array job
     job=>3,            # a job id used internally for job dependency tracking; numbering starts at 1
@@ -40,11 +40,11 @@ my %sortColumns = (job_name=>'jobName',array=>'array',job_ID=>'jobID',exit_statu
                    job=>'job',predecessors=>'predecessors');  
 my (@statusFilters, $sortColumn, $sortOrder, $sortIndex);      
 my $exitWidth = $options{'chain'} ? 11 : 3;
-my %columnWidths = (job_name=>30,array=>1,job_ID=>9,exit_status=>$exitWidth,start_time=>18,wall_time=>9,maxvmem=>7,job=>4,predecessors=>24);  
+my %columnWidths = (job_name=>40,array=>1,job_ID=>9,exit_status=>$exitWidth,start_time=>18,wall_time=>9,maxvmem=>7,job=>4,predecessors=>24);  
 my %padChars = (job_name=>'-',array=>' ',job_ID=>' ',exit_status=>' ',start_time=>' ',wall_time=>' ',maxvmem=>' ',job=>' ',predecessors=>' ');  
 my %emptyChars = (job_name=>'-',array=>' ',job_ID=>' ',exit_status=>'-',start_time=>'-',wall_time=>'-',maxvmem=>'-',job=>' ',predecessors=>' ');  
 my @statusHeaders = (
-    'job_name                  ',
+    'job_name                            ',
     'array',                
     'job_ID   ', # extra spaces added intentionally for table parsing
     'exit_status',

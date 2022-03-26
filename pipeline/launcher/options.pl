@@ -106,8 +106,13 @@ sub getAllOptionFamilies {
     my @actionOptionFamilies = ($cmd and $$cmd{optionFamilies}) ? @{$$cmd{optionFamilies}} : ();
     my $order = 1; # order the family presentation the same way as the calling config file
     foreach my $family(@actionOptionFamilies){
-        $$config{optionFamilies}{$family} or next;
-        $$config{optionFamilies}{$family}{order} = [$order];
+        my $x = $$config{optionFamilies}{$family};
+        if(!$x){
+            $family =~ m|//(.+)| and $family = $1;
+            $x = $$config{optionFamilies}{$family};
+        }
+        $x or next;
+        $$x{order} = [$order];
         $order++;
     }
     (@actionOptionFamilies, @universalOptionFamilies); # universal option ordering is preset
@@ -115,6 +120,10 @@ sub getAllOptionFamilies {
 sub getFamilyOptions { # pipeline takes precedence over universal options, i.e can override if needed
     my ($family) = @_;
     my $options = $$config{optionFamilies}{$family};
+    if(!$options){
+        $family =~ m|//(.+)| and $family = $1;
+        $options = $$config{optionFamilies}{$family};
+    }
     $options or return {};     
     $$options{options} || {};
 }

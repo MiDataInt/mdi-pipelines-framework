@@ -80,17 +80,20 @@ function runWorkflowStep {
     STEP_NAME=$2
     STEP_SCRIPT=$3
     getWorkflowStatus    
+    STEP_SUMMARY="$PIPELINE_NAME $PIPELINE_ACTION, step $STEP_NUMBER = $STEP_NAME"
     if [ "$LAST_SUCCESSFUL_STEP" -lt "$STEP_NUMBER" ]; then
         if [[ "$STEP_SCRIPT" == /* ]]; then
             TARGET_SCRIPT=$STEP_SCRIPT # an absolute script path was provided
         else
             TARGET_SCRIPT=$ACTION_DIR/$STEP_SCRIPT # path interpreted relative to current action step
         fi
+        echo
+        echo "executing: $STEP_SUMMARY"
         source $TARGET_SCRIPT # NB: script is responsible for calling checkPipe to validate execution success
         setWorkflowStatus $STEP_NUMBER $STEP_NAME $STEP_SCRIPT
     else
-        echo "already succeeded: $PIPELINE_ACTION"", step $STEP_NUMBER, $STEP_NAME, $STEP_SCRIPT"
-        echo
+        echo    
+        echo "already succeeded: $STEP_SUMMARY"
     fi    
 }
 #--------------------------------------------------------------------
@@ -102,11 +105,12 @@ function checkWorkflowStep {
     STEP_NAME=$2
     STEP_SCRIPT=$3
     getWorkflowStatus    
+    STEP_SUMMARY="$PIPELINE_NAME $PIPELINE_ACTION, step $STEP_NUMBER = $STEP_NAME"
     if [ "$LAST_SUCCESSFUL_STEP" -lt "$STEP_NUMBER" ]; then
         STEP_SATISFIED=""    
     else
-        echo "already succeeded: $PIPELINE_ACTION"", step $STEP_NUMBER, $STEP_NAME"
-        echo
+        echo    
+        echo "already succeeded: $STEP_SUMMARY"
         STEP_SATISFIED="TRUE"        
     fi    
 }
