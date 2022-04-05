@@ -32,12 +32,12 @@ sub mdiInstall {
     $ENV{N_CPU} = $options{'n-cpu'} ? $options{'n-cpu'} : 1;
     if($installLevel == 2 and $ENV{N_CPU} == 1){
         getPermissionGeneral(
-            "You are about to install the Stage 2 Apps server with only 1 CPU.\n\n".
-            "It is strongly recommended to set option --n-cpu to use as many CPUs".
-            "as reasonable to speed installation of the many required R packages."
+            "You are about to install the Stage 2 Apps server using only 1 CPU.\n\n".
+            "It is strongly recommended to set option --n-cpu to use as many CPUs\n".
+            "as reasonable to speed installation of the many required R packages.\n"
         )
     }
-    exec "bash $installScriptPath $installLevel";
+    exec "N_CPU=$ENV{N_CPU} bash $installScriptPath $installLevel";
 }
 #========================================================================
 
