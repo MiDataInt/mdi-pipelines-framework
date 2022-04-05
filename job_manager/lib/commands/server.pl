@@ -13,7 +13,7 @@ use vars qw(%options);
 my ($serverCmd, $singularityLoad, @containerSearchDirs);
 my $silently = "> /dev/null 2>&1";
 my $mdiCommand = 'server';
-my $baseName = "mdi-singularity-base";
+my $baseName = "mdi-singularity-base"; # disabled, see below
 my $baseNameGlob = "$baseName/$baseName";
 my %serverCmds = map { $_ => 1 } qw(run develop remote node);
 my $serverCmds = join(", ", keys %serverCmds);
@@ -38,7 +38,11 @@ sub mdiServer {
     $singularityLoad = getSingularityLoadCommand();    
 
     # determine if and how the MDI installation supports Singularity
-    @containerSearchDirs = ($ENV{MDI_DIR}, $options{'host-dir'} ? $options{'host-dir'} : ());    
+    #   NOTE 2022-04-05: disabled support for mdi-singularity-base due to stddef.h compile issues
+    @containerSearchDirs = (
+        $ENV{MDI_DIR}, 
+        ($options{'host-dir'} and $options{'host-dir'} ne "NULL") ? $options{'host-dir'} : ()
+    );    
     my $containerTypes = getAppsContainerSupport();
 
     # validate a request for running server via Singularity, without possibility for system fallback
@@ -61,6 +65,21 @@ sub mdiServer {
 # process different paths to launching the server
 #------------------------------------------------------------------------
 
+# launch directly via system R
+sub launchServerDirect {
+    my $dataDir = $options{'data-dir'} ? ", dataDir = \"".$options{'data-dir'}."\"" : "";
+    my $hostDir = $options{'host-dir'} ? ", hostDir = \"".$options{'host-dir'}."\"" : "";  
+    my $R_COMMAND = qx/command -v Rscript/;
+    chomp $R_COMMAND;
+    $R_COMMAND or throwError(
+        "FATAL: R program targets not found\n". 
+        "please install or load R as required on your system\n".
+        "    e.g., module load R/0.0.0\n".
+        "and be sure you have installed the MDI apps interface on the remote server", 
+        'server');
+    exec "Rscript -e 'mdi::$serverCmd(mdiDir = \"$ENV{MDI_DIR}\", port = $options{'port'} $dataDir $hostDir)'";
+}
+
 # launch via Singularity with suite-level container
 sub launchServerSuiteContainer {
     my $imageFile = getTargetAppsImageFile("$ENV{SUITE_NAME}/$ENV{SUITE_NAME}");
@@ -68,10 +87,12 @@ sub launchServerSuiteContainer {
 } 
 
 # launch via Singularity with extended mdi-singularity-base container
+#   NOTE 2022-04-05: disabled support for mdi-singularity-base due to stddef.h compile issues
 sub launchServerBaseContainer {
-    my ($baseImageFiles) = @_;
-    my $imageFile = getTargetAppsImageFile($baseNameGlob, $baseImageFiles);
-    launchServerContainer('base', $imageFile);
+    throwError("ERROR: support for mdi-singularity-base is disabled", $mdiCommand);
+    # my ($baseImageFiles) = @_;
+    # my $imageFile = getTargetAppsImageFile($baseNameGlob, $baseImageFiles);
+    # launchServerContainer('base', $imageFile);
 } 
 
 # common container run action
@@ -90,18 +111,6 @@ sub launchServerContainer {
     exec "$singularityLoad; singularity $singularityCommand $bind $imageFile apps $imageType $serverCmd $dataDir $port";
 }
 
-# launch directly via system R
-sub launchServerDirect {
-    my $dataDir = $options{'data-dir'} ? ", dataDir = \"".$options{'data-dir'}."\"" : "";
-    my $hostDir = $options{'host-dir'} ? ", hostDir = \"".$options{'host-dir'}."\"" : "";  
-    my $R_COMMAND = qx/command -v Rscript/;
-    chomp $R_COMMAND;
-    $R_COMMAND or throwError(
-        "FATAL: R program targets not found\n", 
-        "please install or load R (or Singularity) as required on your system\n",
-        "e.g., module load R/0.0.0", 'server');
-    exec "Rscript -e 'mdi::$serverCmd(mdiDir = \"$ENV{MDI_DIR}\", port = $options{'port'} $dataDir $hostDir)'";
-}
 #========================================================================
 
 #========================================================================
@@ -110,7 +119,7 @@ sub launchServerDirect {
 sub getSingularityLoadCommand {
     my $command = "echo $silently"; # first, see if it is already present and ready
     checkForSingularity($command) and return $command; 
-    my $mdiDir = $options{'host-dir'} ? $options{'host-dir'} : $ENV{MDI_DIR};
+    my $mdiDir = ($options{'host-dir'} and $options{'host-dir'} ne "NULL") ? $options{'host-dir'} : $ENV{MDI_DIR};
     my $ymlFile = "$mdiDir/config/singularity.yml"; # if not, attempt load-command from singularity.yml
     -e $ymlFile or return;
     my $yamls = loadYamlFromString( slurpFile($ymlFile) );
@@ -130,12 +139,15 @@ sub checkForSingularity { # return TRUE if a proper singularity exists in system
 
 #========================================================================
 # discover modes for apps server container support, if any
+# containers must have been previously installed
+#------------------------------------------------------------------------
+#   NOTE 2022-04-05: disabled support for mdi-singularity base due to stddef.h compile issues
 #------------------------------------------------------------------------
 sub getAppsContainerSupport {
     my %types;
     suiteSupportsAppContainer() and $types{suite}++;
-    my @containers = getAvailableAppsContainers($baseNameGlob);
-    @containers and $types{base} = \@containers;
+    # my @containers = getAvailableAppsContainers($baseNameGlob);
+    # @containers and $types{base} = \@containers;
     \%types;
 }
 sub suiteSupportsAppContainer {
@@ -152,14 +164,14 @@ sub getAvailableAppsContainers {
     my ($glob) = @_;
     my @files;
     foreach my $dir(@containerSearchDirs){
-        push @files, glob("$dir/containers/$glob-*.sif");
+        push @files, glob("$dir/containers/$glob-*.sif"); # mdi-singularity-base-v4.1.sif
     }
     @files;
 }
 #========================================================================
 
 #========================================================================
-# get the requested/latest container version available without pulling (install does that)
+# get the requested/latest container version available _without_ pulling (install does that)
 #------------------------------------------------------------------------
 sub getTargetAppsImageFile {
     my ($glob, $imageFiles) = @_;

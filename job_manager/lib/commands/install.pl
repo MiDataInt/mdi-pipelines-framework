@@ -29,6 +29,14 @@ sub mdiInstall {
 
     # pass the call to 'install.sh' script from repo MiDataInt/mdi
     my $installLevel = $options{'install-packages'} ? 2 : 1;
+    $ENV{N_CPU} = $options{'n-cpu'} ? $options{'n-cpu'} : 1;
+    if($installLevel == 2 and $ENV{N_CPU} == 1){
+        getPermissionGeneral(
+            "You are about to install the Stage 2 Apps server with only 1 CPU.\n\n".
+            "It is strongly recommended to set option --n-cpu to use as many CPUs".
+            "as reasonable to speed installation of the many required R packages."
+        )
+    }
     exec "bash $installScriptPath $installLevel";
 }
 #========================================================================
