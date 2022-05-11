@@ -20,7 +20,7 @@ sub setMdiGitLock {
     my $gitLockFile = getSuiteGitLockFile(); # placed by git
     my $cumLockWaitUSec = 0;
     my $maxLockWaitUSec = ($ENV{GIT_LOCK_WAIT_SECONDS} || 30) * 1000 * 1000; # i.e., 30 seconds default, mdi submit sets this higher for array jobs
-    while((-e $mdiLockFile or -e $gitLockFile)and 
+    while((-e $mdiLockFile or -e $gitLockFile) and 
           $cumLockWaitUSec <= $maxLockWaitUSec){ # wait for others to release their lock
         $cumLockWaitUSec or print STDERR "#waiting for suite lock(s) to clear";
         print ".";

@@ -246,8 +246,11 @@ echo \"job-manager:\"
 echo \"    host: \$HOSTNAME\"
 echo \"    started: \"`date +'%a %D %R'`
 
-# cascade call to pipeline launcher
+# make array tasks wait different times before starting to minimize lock collisions
+if [ \"\$TASK_NUMBER\" != \"\" ]; then sleep \$((TASK_NUMBER * 3)); fi
 export GIT_LOCK_WAIT_SECONDS=600
+
+# cascade call to pipeline launcher
 TIME_FORMAT=\"---\njob-manager:\n    exit_status: %x\n    walltime: %E\n    seconds: %e\n    maxvmem: %MK\n    swaps: %W\"
 $timePath -f \"\n\$TIME_FORMAT\" \\
 $jobManagerCommand \$TASK_ID
