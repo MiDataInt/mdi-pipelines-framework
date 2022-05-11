@@ -16,7 +16,7 @@ sub getSharedFile {
     my $ymlTarget = $sharedTarget;
     $ymlTarget =~ m/\.yml$/ or $ymlTarget = "$sharedTarget.yml";
 
-    # simple case, shared file is in the calling pipeline    
+    # simple case, shared file is in the calling pipeline 
     my $sharedFile = "$suiteSharedDir/$ymlTarget"; # could be a file or a directory
     -e $sharedFile and return $sharedFile;
 

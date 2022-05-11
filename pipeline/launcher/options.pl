@@ -106,8 +106,13 @@ sub getAllOptionFamilies {
     my @actionOptionFamilies = ($cmd and $$cmd{optionFamilies}) ? @{$$cmd{optionFamilies}} : ();
     my $order = 1; # order the family presentation the same way as the calling config file
     foreach my $family(@actionOptionFamilies){
-        $$config{optionFamilies}{$family} or next;
-        $$config{optionFamilies}{$family}{order} = [$order];
+        my $x = $$config{optionFamilies}{$family};
+        if(!$x){
+            $family =~ m|//(.+)| and $family = $1;
+            $x = $$config{optionFamilies}{$family};
+        }
+        $x or next;
+        $$x{order} = [$order];
         $order++;
     }
     (@actionOptionFamilies, @universalOptionFamilies); # universal option ordering is preset
@@ -115,6 +120,10 @@ sub getAllOptionFamilies {
 sub getFamilyOptions { # pipeline takes precedence over universal options, i.e can override if needed
     my ($family) = @_;
     my $options = $$config{optionFamilies}{$family};
+    if(!$options){
+        $family =~ m|//(.+)| and $family = $1;
+        $options = $$config{optionFamilies}{$family};
+    }
     $options or return {};     
     $$options{options} || {};
 }
@@ -197,7 +206,11 @@ sub loadOptionsConfigFile {
     # load the config
     my $nullConfig = {parsed_ => []};
     $configFile or return $nullConfig; 
-    ref $configFile or -e $configFile or return $nullConfig; 
+    if(ref($configFile)){
+        $$configFile or return $nullConfig;
+    } else {
+        -e $configFile or return $nullConfig;
+    }
     my $yaml = loadYamlFile($configFile, $priority, 1, undef, 1);
 
     # check that we are reading a file intended for us
@@ -280,7 +293,11 @@ sub mergeYamlVariables { # first, collect the values of variables, obeying confi
     my %vars;
     foreach my $configFile(@_){
         $configFile or next;
-        ref($configFile) or -e $configFile or next;
+        if(ref($configFile)){
+            $$configFile or next;
+        } else {
+            -e $configFile or next;
+        }
         open my $inH, "<", $configFile or throwError("could not open:\n    $configFile\n$!");
         my $inVariablesSection;
         while (my $line = <$inH>) {
@@ -451,7 +468,7 @@ sub validateOptionArrays {
     # DATA_NAME cannot have spaces
     foreach my $value(@{$optionArrays{'data-name'}}){
         $value =~ m/\s/ and throwError("--data-name cannot have spaces:\n    $value");
-        $value =~ m/\./ and throwError("--data-name cannot have periods:\n    $value");
+        # $value =~ m/\./ and throwError("--data-name cannot have periods:\n    $value");
     }
 }
 # check for the existence and proper data types for all expected options
@@ -465,7 +482,7 @@ sub validateOptionValues {
             # check for required values or fill defaults if not required or present
             my $valueExists = defined ${$optionArrays{$longOption}}[0];       
             if($$option{required}[0]){
-                $valueExists or showOptionsHelp("option '$longOption' is required for action '$action'");
+                $valueExists or showOptionsHelp("option '--$longOption' is required for action '$action'");
             } elsif(!$valueExists and defined $$option{default}[0]){ # options can carry 0 or zero-length strings
                 $optionArrays{$longOption} = [ applyVariablesToYamlValue($$option{default}[0]) ];
             }
@@ -474,21 +491,25 @@ sub validateOptionValues {
             my $type = substr($$option{type}[0], 0, 3);
             if ($type eq 'int') {
                 foreach my $value(@{$optionArrays{$longOption}}){
-                    $value ne 'null' and $value =~ m|\D| and showOptionsHelp("'$longOption' must be an integer");
+                    $value ne 'null' and $value =~ m|\D| and showOptionsHelp("'--$longOption' must be an integer");
                 }
             }
 
             # check for valid directories and existence of input files  
             if ($$option{directory} and $$option{directory}{'must-exist'}[0]) {
                 unless($ENV{SUPPRESS_OUTPUT_DIR_CHECK} and $longOption eq 'output-dir'){ # allow mkdir to query output directories without failing
-                    foreach my $dir(@{$optionArrays{$longOption}}){
-                        -d $dir or showOptionsHelp("'$longOption' does not exist or is not a directory\n    $dir");
+                    foreach my $glob(@{$optionArrays{$longOption}}){
+                        foreach my $dir(glob($glob)){
+                            -d $dir or showOptionsHelp("'--$longOption' does not exist or is not a directory\n    $dir");
+                        }   
                     }
                 }
             }
             if ($$option{file} and $$option{file}{'must-exist'}[0]) {
-                foreach my $file(@{$optionArrays{$longOption}}){
-                    -e $file or $file eq 'null' or showOptionsHelp("'$longOption' file does not exist\n    $file");
+                foreach my $glob(@{$optionArrays{$longOption}}){
+                    foreach my $file(glob($glob)){
+                        -e $file or $file eq 'null' or showOptionsHelp("'--$longOption' file does not exist\n    $file");
+                    }   
                 }
             }  
         }

@@ -24,7 +24,7 @@ our ($masterFile, $masterDir, $masterFileName,
 #------------------------------------------------------------------------
 my $commandTabLength = 12; 
 my $optionTabLength = 20;
-our $separatorLength = 87;
+our $separatorLength = 100;
 my @optionGroups = qw(main submit status job rollback lock auto protect publish move);  # ensure that similar options group together
 my %useOptionGroupDelimiter = (submit=>1, extend=>1, resubmit=>1);  # break long options lists into separate groups
 #------------------------------------------------------------------------

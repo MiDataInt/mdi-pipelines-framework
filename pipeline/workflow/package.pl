@@ -11,43 +11,63 @@ use File::Path qw(remove_tree);
 #---------------------------------------------------------------
 # preparative work
 #---------------------------------------------------------------
+# initalize first environment variables
+my $jobManagerDir  = $ENV{JOB_MANAGER_DIR};
+my $pipelineDir    = $ENV{PIPELINE_DIR};
+my $pipelineAction = $ENV{PIPELINE_ACTION};
+
 # load the pipeline config, which might contain the instructions for this script
-require "$ENV{JOB_MANAGER_DIR}/lib/main/yaml.pl"; # supports loading multiple YAML from same file
-my $pipeline = loadYamlFromString( slurpFile("$ENV{PIPELINE_DIR}/pipeline.yml"), 1 );
+require "$jobManagerDir/lib/main/yaml.pl"; # supports loading multiple YAML from same file
+my $pipeline = loadYamlFromString( slurpFile("$pipelineDir/pipeline.yml"), 1 );
 my $config = $$pipeline{parsed}[0]{package};
 
 # check for something to do
-$config or exit; # pipeline does not export data to Stage 2
-$$config{packageAction} or exit;
-$$config{packageAction}[0] eq $ENV{PIPELINE_ACTION} or exit; # not the action that exports data
-print "writing Stage 2 package file\n";
+$config or exit; # pipeline or action does not export data to Stage 2
+$config = $$config{$pipelineAction} or exit;
+
+# initialize additional environment variables
+my $pipelineName    = $ENV{PIPELINE_NAME};
+my $taskLogFile     = $ENV{TASK_LOG_FILE};
+my $taskPipelineDir = $ENV{TASK_PIPELINE_DIR};
+my $dataName        = $ENV{DATA_NAME};
+my $dataFilePrefix  = $ENV{DATA_FILE_PREFIX};
+print "\nwriting Stage 2 package file for $pipelineName $pipelineAction\n";
 
 # load the user option values currently in force
-my $options = loadYamlFromString( slurpFile("$ENV{TASK_LOG_FILE}"), 1 );
-my $jobConfig  = $$options{parsed}[0];
+# other needed environment variables (e.g., those set in code) must be added to pipeline config
+my $options = loadYamlFromString( slurpFile("$taskLogFile"), 1 );
+my $jobConfig  = $$options{parsed}[0]; # job-level option values common to all tasks (first YAML block in task log)
+
+#---------------------------------------------------------------
+# concatenate any job log files for downstream use by apps (e.g., summary counts, etc.)
+#---------------------------------------------------------------
+my $packagePrefix = "$dataFilePrefix.$pipelineName.$pipelineAction.mdi.package";
+!-d $packagePrefix and mkdir $packagePrefix;
+my $concatenatedLogFileName = "$dataName.$pipelineName.concatenatedLogs";
+my $concatenatedLogFile = "$packagePrefix/$concatenatedLogFileName";
+my $logFileGlob = "$taskPipelineDir/*/logs/*.log.txt"; # all actions, all steps
+system("cat $logFileGlob 2>/dev/null > $concatenatedLogFile");
 
 #---------------------------------------------------------------
 # assemble the output yaml that becomes the package manifest
 #---------------------------------------------------------------
-my $taskConfig = getTaskConfig($$options{parsed}[1]);
+my $taskConfig = getTaskConfig($$options{parsed}[1]); # argument carries any task-level option values, e.g., a task data name
 my @files; # filled by getOutputFiles
 my %contents = (
-    uploadType => [$$config{uploadType} ? $$config{uploadType}[0] : $ENV{PIPELINE_NAME}],
-    pipeline   => [$ENV{PIPELINE_NAME}],
-    action     => [$ENV{PIPELINE_ACTION}],
-    task       => $taskConfig,
-    files      => getOutputFiles(),
-    entropy    => [randomString()] # ensure a unique MD5 hash for every package file
+    uploadType  => [$$config{uploadType} ? $$config{uploadType}[0] : "$pipelineName-$pipelineAction"],
+    pipeline    => [$pipelineName],
+    action      => [$pipelineAction],
+    task        => $taskConfig,
+    files       => getOutputFiles(),
+    entropy     => [randomString()] # ensure a unique MD5 hash for every package file
 );
 
 #---------------------------------------------------------------
 # write config and assembly package zip
 #---------------------------------------------------------------
-my $packagePrefix = "$ENV{DATA_FILE_PREFIX}.mdi.package";
 my $packageFile = "$packagePrefix.zip";
 unlink $packageFile;
 print "$packageFile\n";
-!-d $packagePrefix and mkdir $packagePrefix;
 printYAML(\%contents, "$packagePrefix/package.yml");
 foreach my $file(@files){
     copy($file, $packagePrefix);
@@ -62,10 +82,10 @@ print "\n";
 sub getTaskConfig {
     my ($taskConfig) = @_;
     $taskConfig or return $jobConfig;
-    my $cmd = $$jobConfig{$ENV{PIPELINE_ACTION}};
+    my $cmd = $$jobConfig{$pipelineAction};
     foreach my $optionFamily(keys %$cmd){
         foreach my $option(keys %{$$cmd{$optionFamily}}){
-            defined $$taskConfig{task}{$option} and
+            defined $$taskConfig{task}{$option} and # set task-specific option values by reference
                 $$cmd{$optionFamily}{$option} = $$taskConfig{task}{$option};
         }
     }
@@ -88,7 +108,11 @@ sub getOutputFiles {
     # add automatic files
     $$files{statusFile} = {
         type => ['status-file'],
-        file => [ parsePackageFile("$ENV{TASK_PIPELINE_DIR}/$ENV{DATA_NAME}.$ENV{PIPELINE_NAME}.status") ] # to match workflow.sh
+        file => [ parsePackageFile("$taskPipelineDir/$dataName.$pipelineName.status") ] # to match workflow.sh
+    };
+    $$files{concatenatedLogFile} = {
+        type => ['log-file'],
+        file => [ $concatenatedLogFileName ] 
     };
     return $files;
 }

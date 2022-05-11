@@ -160,7 +160,7 @@ sub processActionTask {
             my $nValues = scalar( @{$optionArrays{$longOption}} );
             $nValues > 1 and $taskReport .= "    $longOption: $$optionValues{$longOption}\n"; 
         }
-        $taskReport .= "...\n\n";
+        $taskReport .= "...\n";
     }
     $optionArrays{quiet}[0] or print $taskReport;        
 
@@ -218,7 +218,14 @@ sub manageTaskEnvironment { # set all task environment variables (listed in tool
     $ENV{SN_FORCEALL} = $ENV{SN_FORCEALL} ? '--forceall' : "";
 
     # parse our script target and the framework scripts that help it run
-    $ENV{ACTION_DIR}    = $$cmd{module} ? "$ENV{MODULES_DIR}/$$cmd{module}[0]" : "$ENV{PIPELINE_DIR}/$action";
+    if($$cmd{module}){ # an action module
+        my $actionModule = $$cmd{module}[0];
+        $ENV{ACTION_DIR} = $actionModule =~ m|(.+)//(.+)| ? 
+            "$ENV{SUITES_DIR}/$1/shared/modules/$2" : # external shared module
+            "$ENV{MODULES_DIR}/$actionModule";        # internal shared module, i.e., from the calling tool suite
+    } else { # an unshared, pipeline-specific action
+        $ENV{ACTION_DIR} = "$ENV{PIPELINE_DIR}/$action";
+    }
     $ENV{ACTION_SCRIPT} = $$cmd{script} || "Workflow.sh";
     $ENV{ACTION_SCRIPT} = "$ENV{ACTION_DIR}/$ENV{ACTION_SCRIPT}";
     $ENV{SCRIPT_DIR}    = "$ENV{ACTION_DIR}"; # set some legacy aliases  
@@ -253,10 +260,10 @@ sub copyTaskCodeSuites { # create a permanent, fixed working copy of all tool su
             copyCodeDir($pipelineDir, $ENV{PIPELINE_DIR}, $isDryRun);
             copyCodeDir($modulesDir,  $ENV{MODULES_DIR}, $isDryRun);
         } else { # external modules always come from definitive code suites
-            my $modulesPath = "$suiteName/shared/modules";
+            my $modulesPath    = "$suiteName/shared/modules";
             my $modulesDirSrc  = "$suitesDir/$modulesPath";
             my $modulesDirDest = "$ENV{SUITES_DIR}/$modulesPath";
-            copyCodeDir($modulesDirSrc,  $ENV{modulesDirDest}, $isDryRun);
+            copyCodeDir($modulesDirSrc, $modulesDirDest, $isDryRun);
         }
     }
     $isDryRun or -e $ENV{ACTION_SCRIPT} or throwError(

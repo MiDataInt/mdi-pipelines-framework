@@ -61,6 +61,7 @@ sub loadSharedConda { # first load environment configs from shared files
 sub loadPipelineConda { # then load environment configs from pipeline config (overrides shared)
     my ($family) = @_;
     $$config{condaFamilies} or return;
+    $family =~ m|//(.+)| and $family = $1;
     addCondaFamily($$config{condaFamilies}{$family});
 }
 sub addCondaFamily {
@@ -190,11 +191,30 @@ sub showCreateCondaEnvironments {
         if ($create) {
             createCondaEnvironment($cnd, 1, $force, $noMamba);            
         } else {
-            if (-e $$cnd{showFile}) {
-                print "$$cnd{showFile}\n";
-                print slurpFile($$cnd{showFile});               
-            } else {
-                print "not created yet\n";
+            if($$cnd{type} eq 'named'){ # name forced by developer
+                my $env = checkNamedEnvironment($cnd);
+                if($$env{exists}){
+                    print "$$cnd{showFile}\n";
+                    if($$env{is_current}){
+                        print "environment exists and is up to date\n";
+                        print $$env{expected};
+                    } else {
+                        print "environment exists but is out of date\n";
+                        print "---\ncurrent contents\n";
+                        print $$env{current};
+                        print "---\nexpected contents\n";
+                        print $$env{expected};
+                    }
+                } else {
+                    print "not created yet\n";
+                }
+            } else { # automated name suitable for generalized environment sharing
+                if (-e $$cnd{showFile}) {
+                    print "$$cnd{showFile}\n";
+                    print slurpFile($$cnd{showFile});               
+                } else {
+                    print "not created yet\n";
+                }              
             }
         }
         print "---------------------------------\n";
@@ -205,12 +225,11 @@ sub createCondaEnvironment { # handles both create and update actions
     my ($cnd, $showExists, $force, $noMamba) = @_;
 
     # determine how to handle this call based on environment type
-    my ($envExists, $condaAction, $outYml) = (-d $$cnd{dir});
+    my ($condaAction, $outYml);
     if($$cnd{type} eq 'named'){ # name forced by developer
-        if($envExists){
-            $outYml = getCondaEnvironmentYml(); # check whether update is needed
-            my $inYml = slurpFile( $$cnd{showFile} );
-            if($outYml eq $inYml){
+        my $env = checkNamedEnvironment($cnd);
+        if($$env{exists}){
+            if($$env{is_current}){
                 $showExists and print "environment exists and is up to date\n";
                 return;  
             }
@@ -218,8 +237,9 @@ sub createCondaEnvironment { # handles both create and update actions
         } else {
             $condaAction = 'create';         
         }
+        $outYml = $$env{expected};        
     } else { # automated name suitable for generalized environment sharing
-        if($envExists){
+        if(-d $$cnd{dir}){
             $showExists and print "environment already exists\n";
             return; # hashed name demands that the environment has all depedencies             
         }
@@ -281,6 +301,25 @@ conda deactivate
     }
     move($$cnd{initFile}, $$cnd{showFile});
 }
+
+#------------------------------------------------------------------------------
+# determine if a named conda environment matches the current pipeline specifications
+#------------------------------------------------------------------------------
+sub checkNamedEnvironment {
+    my ($cnd) = @_;
+    my $expected = getCondaEnvironmentYml();
+    -d $$cnd{dir} or return { 
+        exists   => 0,
+        expected => $expected
+    };
+    my $current = slurpFile( $$cnd{showFile} );
+    {
+        exists      => 1,
+        expected    => $expected, 
+        current     => $current,               
+        is_current  => $current eq $expected
+    }
+}
 sub getCondaEnvironmentYml {
     my $indent = "    ";
     my $yml = "---\n"; # do NOT put name or prefix in file (should work, but doesn't)
@@ -289,7 +328,8 @@ sub getCondaEnvironmentYml {
         $yml .= "$key:\n";
         $yml .= join("\n", map { "$indent- $_" } @{$conda{$key}})."\n";
     }
-    $yml .= "\n";
+    # $yml .= "\n";
+    $yml
 }
 
 1;

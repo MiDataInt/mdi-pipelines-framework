@@ -66,7 +66,7 @@ our (%conda, %longOptions, %shortOptions, %optionArrays, %optionValues);
 # various pipeline-dependent paths; these are used by the framework to find code
 # they are not the values used by running pipelines, which are modified to account for code copying
 our $pipelineDir = $$pipeline{directory};
-our $sharedDir = "$pipelineDir/../../shared";
+our $sharedDir = "$pipelineSuiteDir/shared";
 our $environmentsDir = "$sharedDir/environments";
 our $optionsDir      = "$sharedDir/options";
 our $modulesDir      = "$sharedDir/modules";

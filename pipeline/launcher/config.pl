@@ -44,7 +44,8 @@ sub loadPipelineConfig {
             my $ymlFile = getSharedFile($optionsDir, "$optionFamily.yml", 'option'); # not required since private options added later
             $ymlFile or next;
             my $yml = loadYamlFile("$ymlFile", 1, 1); # support both simple (single-family) and expanded (multi-family) shared option files
-            !$$yml{optionFamilies} and prependYamlKeys($yml, "optionFamilies", $optionFamily);
+            # !$$yml{optionFamilies} and 
+            prependYamlKeys($yml, "optionFamilies", $optionFamily);
             push @optionFamilies, $yml;
         }
     }
@@ -159,7 +160,8 @@ sub assembleActionYaml {
     foreach my $family(sort { getFamilyOrder($a) <=> getFamilyOrder($b) } getAllOptionFamilies($cmd)){
         $familySeen{$family} and next;
         $familySeen{$family}++;
-        my $options = getFamilyOptions($family);        
+        my $options = getFamilyOptions($family);   
+        $family =~ m|//(.+)| and $family = $1;     
         %$options and $$report .= "$indent$family:\n";
         foreach my $longOption(sort { getOptionOrder($a, $options) <=> getOptionOrder($b, $options) }
                                      keys %$options){

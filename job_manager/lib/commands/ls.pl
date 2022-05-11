@@ -20,11 +20,16 @@ sub qLs {
     # read required information from job log file
     my $mdiCommand = "ls";
     my $logFileYamls = getJobLogFileContents($mdiCommand);
-    my $taskDir;
+    my ($taskId, $taskDir) = (1);
+    foreach my $yaml(@$logFileYamls){
+        my $task = $$yaml{'task'} or next;
+        $taskId  = $$task{'task-id'}[0];
+    }
     foreach my $yaml(@$logFileYamls){
         my $action = $$yaml{'execute'} or next;
-        my $outputDir = $$yaml{$$action[0]}{'output'}{'output-dir'}[0];
-        my $dataName  = $$yaml{$$action[0]}{'output'}{'data-name'}[0];
+        my $output = $$yaml{$$action[0]}{'output'};
+        my $outputDir = $$output{'output-dir'}[$taskId - 1] || $$output{'output-dir'}[0];
+        my $dataName  = $$output{'data-name'} [$taskId - 1] || $$output{'data-name'}[0];
         $taskDir = "$outputDir/$dataName";
     }
 

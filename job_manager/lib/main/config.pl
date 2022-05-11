@@ -70,8 +70,9 @@ our %optionInfo = (# [shortOption, valueString, optionGroup, groupOrder, optionH
     '_server_mode_'=>  ["NA", undef,   "NA", "NA", 0, "internalOption"], 
 #------------------------------------------------------------------------------------------------------------
     'install-packages'=>   ["p", undef,   "install", 0, "install R packages required by Stage 2 Apps"],
-    'forks'=>              ["F", undef,   "install", 1, "also install your developer forks of MDI GitHub repositories"],
-    'suite'=>              ["s", "<str>", "install", 2, "a single suite to install or build, in form GIT_USER/SUITE_NAME"],
+    'n-cpu'=>              ["u", "<int>", "install", 1, "No. of CPUs for app server installation when --install-packages is set [1]"],
+    'forks'=>              ["F", undef,   "install", 2, "also install your developer forks of MDI GitHub repositories"],
+    'suite'=>              ["s", "<str>", "install", 3, "a single suite to install or build, in form GIT_USER/SUITE_NAME"],
     'alias'=>              ["a", "<str>", "alias",   0, "the name of the alias, i.e., the command you will type [mdi]"],
     'profile'=>            ["l", "<str>", "alias",   1, "full path to the bash profile file where the alias will be written [~/.bashrc]"],
     'get'=>                ["g", undef,   "alias",   2, "only show the alias command; --profile is ignored and nothing is written"],
@@ -108,7 +109,7 @@ our %commandOptions =  ( # 0=allowed, 1=required
     #move       =>  {'move-to'=>1,'force'=>0},
 #------------------------------------------------------------------------------------------------------------
     initialize =>  {},
-    install    =>  {'install-packages'=>0, 'forks'=>0},
+    install    =>  {'install-packages'=>0, 'n-cpu'=>0,'forks'=>0},
     alias      =>  {'alias'=>0, 'profile'=>0, 'get'=>0},
     add        =>  {'install-packages'=>0, 'suite'=>1},
     list       =>  {},

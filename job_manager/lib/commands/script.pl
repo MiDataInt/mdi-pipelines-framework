@@ -17,7 +17,7 @@ use vars qw(%options $scriptDir %allJobs %targetJobIDs $separatorLength);
 sub qScript {
     $options{'no-chain'} = 1;  # report action restricted to requested jobs  
     getJobStatusInfo();
-    parseJobOption(\%allJobs, 1, 1);  
+    setReportJobAndTask();
     showScripts();
 } 
 #========================================================================
