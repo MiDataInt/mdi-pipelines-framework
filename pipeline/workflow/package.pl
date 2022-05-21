@@ -52,7 +52,7 @@ system("cat $logFileGlob 2>/dev/null > $concatenatedLogFile");
 # assemble the output yaml that becomes the package manifest
 #---------------------------------------------------------------
 my $taskConfig = getTaskConfig($$options{parsed}[1]); # argument carries any task-level option values, e.g., a task data name
-my @files; # filled by getOutputFiles
+my (@files, $prevPackageFile, @previousFiles); # filled by getOutputFiles
 my %contents = (
     uploadType  => [$$config{uploadType} ? $$config{uploadType}[0] : "$pipelineName-$pipelineAction"],
     pipeline    => [$pipelineName],
@@ -71,6 +71,11 @@ print "$packageFile\n";
 printYAML(\%contents, "$packagePrefix/package.yml");
 foreach my $file(@files){
     copy($file, $packagePrefix);
+}
+foreach my $file(@previousFiles){
+    my $outFile = "$packagePrefix/$file";
+    -e $outFile and next; # current action files take precedence
+    system("unzip -p $prevPackageFile $file > $outFile");
 }
 system("zip -jr $packagePrefix.zip $packagePrefix");
 remove_tree($packagePrefix);
@@ -114,6 +119,19 @@ sub getOutputFiles {
         type => ['log-file'],
         file => [ $concatenatedLogFileName ] 
     };
+
+    # add any files from earlier actions, if this a package extension
+    if($$config{extends}){
+        $prevPackageFile = "$dataFilePrefix.$pipelineName.$$config{extends}[0].mdi.package.zip";
+        my $yml = qx/unzip -p $prevPackageFile package.yml/;
+        my $prevPackage = loadYamlFromString( $yml, 1 );
+        my $prevFiles = $$prevPackage{parsed}[0]{files};
+        foreach my $fileType(keys %$prevFiles){
+            $$files{$fileType} and next; # current action files take precedence
+            push @previousFiles, $$prevFiles{$fileType}{file}[0];    
+            $$files{$fileType} = $$prevFiles{$fileType};
+        }
+    }
     return $files;
 }
 sub parsePackageFile { # get the file name as recorded in package.yml

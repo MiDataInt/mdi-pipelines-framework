@@ -21,7 +21,7 @@ sub setPipelineSuiteVersion {
     my ($version) = @_;
     $version or $version = getRequestedSuiteVersion();
     $version = convertSuiteVersion($pipelineSuiteDir, $version);
-    setSuiteVersion($pipelineSuiteDir, $version, $pipelineSuite);
+    setSuiteVersion($pipelineSuiteDir, $version, $pipelineSuite);   
 }
 
 # parse and set the version for each newly encountered external suite that is invoked in pipeline.yml
@@ -40,6 +40,7 @@ sub setExternalSuiteVersion {
 
 # examine user options for the requested pipeline suite version
 sub getRequestedSuiteVersion {
+    $ENV{DEVELOPER_MODE} and return getSuiteCurrentHead($pipelineSuiteDir); # developer mode leaves repos as we find them
     my $version = getCommandLineVersionRequest();      # command line options take precedence
     $version or $version = getJobFileVersionRequest(); # otherwise, search data.yml for a version setting
     $version; # otherwise, will default to latest
@@ -88,6 +89,12 @@ sub getSuiteLatestVersion {
     my $minor = $#{$versions[$major]};
     my $patch = $#{$versions[$major][$minor]};
     "v$major.$minor.$patch";
+}
+sub getSuiteCurrentHead {
+    my ($suiteDir) = @_; 
+    my $head = qx\cd $suiteDir; git rev-parse --abbrev-ref HEAD\;
+    chomp($head);
+    $head;
 }
 
 # use git to check out the proper version of a pipelines suite
