@@ -18,9 +18,9 @@ function checkPredecessors {  # check whether predecessors timed out
     fi
 }
 function getTaskID {  # $TASK_ID is not set if this is not an array job
-    if [ "$IS_ARRAY_JOB" = "" ]; then
-        TASK_NUMBER=""
-        TASK_ID=""        
+    if [[ "$PBS_ARRAYID" = "" && "$SGE_TASK_ID" = "" && "$SLURM_ARRAY_TASK_ID" = "" ]]; then
+        TASK_NUMBER=1
+        TASK_ID=""     
     elif [ ${PBS_ARRAYID+1} ]; then
         TASK_NUMBER=$PBS_ARRAYID
         TASK_ID="--task-id $PBS_ARRAYID"

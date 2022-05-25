@@ -47,6 +47,7 @@ sub setMdiGitLock {
 
 sub releaseMdiGitLock { # always called at the end of every launcher run
     my ($exitStatus) = @_; # omit exit status if, and only if, followed by call to exec
+    $ENV{IS_DELAYED_EXECUTION} and return; # not applicable
     $pipelineSuite or exit $exitStatus;
     my $lockFile = getMdiLockFile();
     -e $lockFile and unlink $lockFile;
