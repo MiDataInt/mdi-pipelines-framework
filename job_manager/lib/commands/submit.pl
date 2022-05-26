@@ -48,6 +48,9 @@ sub checkScheduler {  # make sure there will be a way to run requested jobs
     $qInUse;
 }
 sub getConfigFromLauncher {
+    $ENV{SHOW_LAUNCHER_PROGRESS} = 1;
+    $ENV{IS_JOB_MANAGER} = 1;
+    $ENV{SAVE_DELAYED_EXECUTION} = !$options{'dry-run'};
     my $jobManagerCommand = getJobManagerCommand(); # returns full config, all commands
     my $parsedYaml = qx|$jobManagerCommand --dry-run|;
     if ($parsedYaml =~ m/$ymlError/) {
@@ -57,10 +60,11 @@ sub getConfigFromLauncher {
     loadYamlFromString($parsedYaml); # potentially a series of configs for multiple jobs
 }
 sub getJobManagerCommand {
-    my ($pipelineAction) = @_;
+    my ($pipelineAction, $excludePipelineOptions) = @_;
     $pipelineAction or $pipelineAction = '';
     my $developerFlag = $ENV{DEVELOPER_MODE} ? "-d" : "";
-    "$rootDir/$jobManagerName $developerFlag $pipelineName $pipelineAction $dataYmlFile $pipelineOptions";
+    my $pOptions = $excludePipelineOptions ? "" : $pipelineOptions;
+    "$rootDir/$jobManagerName $developerFlag $pipelineName $pipelineAction $dataYmlFile $pOptions";
 }
 sub provideFeedback {  # exit feedback
     my ($qInUse) = @_;
@@ -89,7 +93,7 @@ sub parseAndSubmitJobs {
     my $jobI = 0;
     foreach my $i(0..$#{$$yamls{parsed}}){
         my $parsed = $$yamls{parsed}[$i];
-        $$parsed{execute} or next; # the jobs configs we need to act on, in series (jobs may be arrays)        
+        $$parsed{execute} or next; # the jobs configs we need to act on, in series (jobs may be arrays) 
         my $config = assembleJobConfig($parsed);
         checkExtendability($config) or next; # jobs is already satisfied
         checkSingularityContainer($parsed);
@@ -145,9 +149,12 @@ sub checkSingularityContainer {
 # construct the complete script that is submitted for execution, with all helpers
 sub assembleTargetScript {
     my ($qInUse, $parsed, $jobI) = @_; # jobI, not taskI
-    
+
     # get required values based on config
     my $pipelineAction = $$parsed{execute}[0];
+    my $outputOptions = $$parsed{$pipelineAction}{output};
+    my $outputDirs = join(" ", @{$$outputOptions{'output-dir'}});
+    my $dataNames  = join(" ", @{$$outputOptions{'data-name'}});
     my $nTasks = $$parsed{nTasks}[0];
     my $options = $$parsed{$pipelineAction};
     my $dataName = $nTasks == 1 ? "_$$options{output}{'data-name'}[0]" : "";
@@ -179,7 +186,7 @@ sub assembleTargetScript {
     my $slurmLogFile = $ENV{IS_ARRAY_JOB} ? "$logDir/%x.o%A-%a" : "$logDir/%x.o%j";
     
     # set job manager command
-    my $jobManagerCommand = getJobManagerCommand($pipelineAction);
+    my $jobManagerCommand = getJobManagerCommand($pipelineAction, 1);
     $jobManagerCommand =~ s/\s+$//;
     $jobManagerCommand =~ s/ / \\\n/g;
     
@@ -239,6 +246,11 @@ source $libDir/utilities.sh
 checkPredecessors # only continue if dependencies did not time out
 getTaskID # determine if this is a specific task of an array job
 
+# set a flag and data needed for delayed execution via job submitted to scheduler
+export IS_DELAYED_EXECUTION=1
+export JOB_OUTPUT_DIRS=\"$outputDirs\"
+export JOB_DATA_NAMES=\"$dataNames\"
+
 # pre-execution feedback
 echo
 echo \"---\"
@@ -246,14 +258,10 @@ echo \"job-manager:\"
 echo \"    host: \$HOSTNAME\"
 echo \"    started: \"`date +'%a %D %R'`
 
-# make array tasks wait different times before starting to minimize lock collisions
-if [ \"\$TASK_NUMBER\" != \"\" ]; then sleep \$((TASK_NUMBER * 3)); fi
-export GIT_LOCK_WAIT_SECONDS=600
-
 # cascade call to pipeline launcher
 TIME_FORMAT=\"---\njob-manager:\n    exit_status: %x\n    walltime: %E\n    seconds: %e\n    maxvmem: %MK\n    swaps: %W\"
 $timePath -f \"\n\$TIME_FORMAT\" \\
-$jobManagerCommand \$TASK_ID
+$jobManagerCommand \$TASK_NUMBER
 EXIT_STATUS=\$?
 
 # post-execution feedback

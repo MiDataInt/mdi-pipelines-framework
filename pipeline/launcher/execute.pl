@@ -9,11 +9,12 @@ use vars qw($pipelineName $pipelineSuite $pipelineDir $pipelineSuiteDir $modules
             @args $config $isSingleAction
             %longOptions %optionArrays $isNTasks
             $launcherDir $workFlowDir $workflowScript
-            $suitesDir %workingSuiteVersions);
+            $suitesDir %workingSuiteVersions $showProgress);
 
 # parse the options and construct a call to a single pipeline action
 sub executeAction {
     my ($action) = @_;
+    $showProgress and print STDERR "|";
     
     # set the actions list and working action
     my $cmd = getCmdHash($action);
@@ -53,11 +54,14 @@ sub executeAction {
     setContainerEnvVars($assembled);
     $optionArrays{quiet}[0] or print $$assembled{report};
     my $isDryRun = $$assembled{taskOptions}[0]{'dry-run'};
-    foreach my $i(@workingTaskIs){    
+    my $firstTaskCodeSuiteDir;
+    foreach my $i(@workingTaskIs){   
+        $showProgress and print STDERR "*";
         my ($taskId, $taskReport) = processActionTask($assembled, $i, $requestedTaskId, @workingTaskIds);
-        manageTaskEnvironment($action, $cmd, $isDryRun, $assembled, $taskReport, $conda);
-        copyTaskCodeSuites($isDryRun);
-        $isDryRun or executeTask($action, $isSingleTask, $taskId, $conda);
+        manageTaskEnvironment($action, $cmd, $assembled, $taskReport, $conda);
+        $firstTaskCodeSuiteDir = copyTaskCodeSuites($isDryRun, $firstTaskCodeSuiteDir);
+        saveJobTaskEnvironment($isDryRun, $$conda{dir});
+        $isDryRun or executeTask($action, $isSingleTask, $taskId, $$conda{dir});
     } 
 }
 sub getCmdHash {                # the name of this function, 'cmd', and the varnames it populates
@@ -172,7 +176,7 @@ sub processActionTask {
     ($taskId, \$taskReport);
 }
 sub manageTaskEnvironment { # set all task environment variables (listed in tool suite pipeline README.md)
-    my ($action, $cmd, $isDryRun, $assembled, $taskReport, $conda) = @_;
+    my ($action, $cmd, $assembled, $taskReport, $conda) = @_;
 
     # note: some environment variables are overridden for containers in build-common.def
 
@@ -201,12 +205,10 @@ sub manageTaskEnvironment { # set all task environment variables (listed in tool
     $ENV{LOGS_DIR}        = "$ENV{TASK_ACTION_DIR}/logs"; 
     $ENV{LOG_FILE_PREFIX} = "$ENV{LOGS_DIR}/$ENV{DATA_NAME}"; 
     $ENV{TASK_LOG_FILE}   = "$ENV{LOG_FILE_PREFIX}.$pipelineName.$action.task.log";
-    if (!$isDryRun) {
-        -d $ENV{LOGS_DIR} or make_path($ENV{LOGS_DIR});
-        open my $outH, ">", $ENV{TASK_LOG_FILE} or throwError("could not open:\n    $ENV{TASK_LOG_FILE}\n$!");
-        print $outH "$$assembled{report}$$taskReport";
-        close $outH;
-    }
+    -d $ENV{LOGS_DIR} or make_path($ENV{LOGS_DIR});
+    open my $outH, ">", $ENV{TASK_LOG_FILE} or throwError("could not open:\n    $ENV{TASK_LOG_FILE}\n$!");
+    print $outH "$$assembled{report}$$taskReport";
+    close $outH;
 
     # set memory-related environment variables
     $ENV{RAM_PER_CPU_INT} = getIntRam($ENV{RAM_PER_CPU}); 
@@ -245,38 +247,91 @@ sub manageTaskEnvironment { # set all task environment variables (listed in tool
     -f $pipelineScript and require $pipelineScript;     
 }
 sub copyTaskCodeSuites { # create a permanent, fixed working copy of all tool suite code required by this task
-    my ($isDryRun) = @_;
-    sub copyCodeDir {
-        my ($srcDir, $destDir, $isDryRun) = @_;
-        -d $srcDir or throwError("does not exist or is not a directory: \n    $srcDir");
+    my ($isDryRun, $firstTaskCodeSuiteDir) = @_;
+    if($ENV{IS_JOB_MANAGER}){
+        $ENV{SAVE_DELAYED_EXECUTION} or return;
+    } else {
         $isDryRun and return;
-        make_path($destDir);
+    }
+    if($firstTaskCodeSuiteDir){ # hopefully speed up copying on slow file systems
+        $showProgress and print STDERR ".";
+        -d $ENV{SUITES_DIR} or make_path($ENV{SUITES_DIR});
+        system("cp -fr $firstTaskCodeSuiteDir/* $ENV{SUITES_DIR}");
+        return $firstTaskCodeSuiteDir;
+    }
+    sub copyCodeDir {
+        my ($srcDir, $destDir) = @_;
+        $showProgress and print STDERR ".";
+        -d $srcDir  or throwError("does not exist or is not a directory: \n    $srcDir");
+        -d $destDir or make_path($destDir);
         system("cp -fr $srcDir/* $destDir") and throwError("suite code copy failed: $!\n    $srcDir\n    $destDir");
     }
     foreach my $suiteDir(keys %workingSuiteVersions){
         my @parts = split("/", $suiteDir); 
         my $suiteName = $parts[$#parts];
         if($suiteName eq $pipelineSuite){ # this pipeline's suite copies the pipeline itself (all actions) and all shared modules
-            copyCodeDir($pipelineDir, $ENV{PIPELINE_DIR}, $isDryRun);
-            copyCodeDir($modulesDir,  $ENV{MODULES_DIR}, $isDryRun);
+            copyCodeDir($pipelineDir, $ENV{PIPELINE_DIR});
+            copyCodeDir($modulesDir,  $ENV{MODULES_DIR});
         } else { # external modules always come from definitive code suites
             my $modulesPath    = "$suiteName/shared/modules";
             my $modulesDirSrc  = "$suitesDir/$modulesPath";
             my $modulesDirDest = "$ENV{SUITES_DIR}/$modulesPath";
-            copyCodeDir($modulesDirSrc, $modulesDirDest, $isDryRun);
+            copyCodeDir($modulesDirSrc, $modulesDirDest);
         }
     }
-    $isDryRun or -e $ENV{ACTION_SCRIPT} or throwError(
+    -e $ENV{ACTION_SCRIPT} or throwError(
         "pipeline configuration error\n". # from a pipeline action or shared module folder
         "missing script target:\n    $ENV{ACTION_SCRIPT}"
     ); 
+    return $ENV{SUITES_DIR};
 }
 
-# finally, execute the task ...
-sub executeTask {
-    my ($action, $isSingleTask, $taskId, $conda) = @_;
+# handle the deferred execution of a task when called by jobManager submit
+sub saveJobTaskEnvironment { # remember the state of the --dry-run call always made at job submission time
+    my ($isDryRun, $condaDir) = @_;
+    (!$isDryRun or !$ENV{IS_JOB_MANAGER} or !$ENV{SAVE_DELAYED_EXECUTION}) and return;
+    $ENV{ACTION_CONDA_DIR} = $condaDir;
+    my $jobTaskEnvFile = "$ENV{TASK_ACTION_DIR}/environment.txt";
+    open my $outH, ">", $jobTaskEnvFile or die "could not open: $jobTaskEnvFile: $!\n";
+    foreach my $var(keys %ENV){
+        my $val = $ENV{$var};
+        defined $val and print $outH "$var\t$val\n";
+    }
+    close $outH;
+}
+sub loadJobTaskEnvironment {
+    my ($pipelineName, $pipelineAction, $taskId) = @_;
+    my @outputDirs = split(" ", $ENV{JOB_OUTPUT_DIRS});
+    my @dataNames  = split(" ", $ENV{JOB_DATA_NAMES});
+    my $outputDir = $outputDirs[$taskId - 1] || $outputDirs[0];
+    my $dataName  = $dataNames[$taskId - 1]  || $dataNames[0];
+    my $taskActionDir = "$outputDir/$dataName/$pipelineName/$pipelineAction";
+    my $jobTaskEnvFile = "$taskActionDir/environment.txt";
+    my %jobEnv = %ENV;
+    open my $inH, "<", $jobTaskEnvFile or die "could not open: $jobTaskEnvFile: $!\n";
+    while (my $line = <$inH>){
+        chomp $line;
+        my ($var, $val) = split("\t", $line, 2);
+        defined $jobEnv{$var} and next; # don't override the job's own environment
+        $ENV{$var} = $val;
+    }
+    close $inH;
+}
+sub executeJobTask { # called by jobManager submit target script when job is scheduled; shortcuts ~everthing to this point
+    my ($pipelineName, $pipelineAction, $dataYmlFile, $taskId) = @_;
+    loadJobTaskEnvironment($pipelineName, $pipelineAction, $taskId);
+    $ENV{QUIET} or print slurpFile($ENV{TASK_LOG_FILE});
+    $isSingleAction = 1;
+    executeTask($pipelineAction, 1, $taskId, $ENV{ACTION_CONDA_DIR});
+}
+
+# finally, execute the task
+# called on all paths to execute a task
+sub executeTask { 
+    my ($action, $isSingleTask, $taskId, $condaDir) = @_;
 
     # validate the container or conda environment based on runtime mode
+    -d $ENV{TASK_DIR} or die "does not exist: $ENV{TASK_DIR}\n";
     my $execCommand = "cd $ENV{TASK_DIR}; "; # implicitly bind-mounts TASK_DIR
     if($ENV{IS_CONTAINER}){
         my $uris = getContainerUris($ENV{CONTAINER_MAJOR_MINOR}, $ENV{CONTAINER_LEVEL} eq 'suite');
@@ -284,11 +339,13 @@ sub executeTask {
         pullPipelineContainer($uris, $singularity);
         $execCommand .= "$singularity run $ENV{CONTAINER_BIND_MOUNTS} $$uris{imageFile} pipeline";
     } else {
-        -d $$conda{dir} or throwError(
+        -d $condaDir or throwError(
             "missing conda environment for action '$action'\n".
             "please run 'mdi $ENV{PIPELINE_NAME} conda --create' before launching the pipeline"
         );  
-        $execCommand .= "bash $launcherDir/lib/execute.sh";
+        my $executeScript = "$launcherDir/lib/execute.sh";
+        -f $executeScript or die "does not exist: $executeScript\n";
+        $execCommand .= "bash $executeScript;";
     }
 
     # single actions or tasks replace this process and never return

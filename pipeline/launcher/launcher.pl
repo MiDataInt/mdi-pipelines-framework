@@ -6,6 +6,14 @@ $| = 1;
 # called by the 'mdi' command line function
 # configures the environment and launches pipeline worker script(s)
 
+# trap SIGINT to remove any locks when user aborts
+$SIG{INT} = sub {
+    system("rm -f $ENV{MDI_DIR}/frameworks/*.lock; ".
+           "rm -f $ENV{MDI_DIR}/suites/*.lock");
+    print "\n";
+    exit 1;
+};
+
 # various framework paths
 our %Forks = (definitive => "definitive", developer => "developer-forks");
 our $mdiDir = $ENV{MDI_DIR}; # the installation from which the pipeline was launched
@@ -75,6 +83,12 @@ our $modulesDir      = "$sharedDir/modules";
 map { $_ =~ m/launcher\.pl$/ or require $_ } glob("$launcherDir/*.pl");
 use vars qw($jobConfigYml);
 
+# handle special case of delayed execution via job scheduler submit
+if($ENV{IS_DELAYED_EXECUTION}){
+    executeJobTask($pipelineName, $target, @args);
+    exit;
+}
+
 # lock the suite repository - only one MDI process can use it at a time since branches may change
 # hereafter, use throwError() or releaseMdiGitLock() to end this launcher process (not exit or die)
 setMdiGitLock();
@@ -108,6 +122,7 @@ doRestrictedCommand($target);
 
 # act on one or more actions taken from a requested pipeline chunk in a data config file
 our $isSingleAction;
+our $showProgress = $ENV{SHOW_LAUNCHER_PROGRESS};
 if ($target =~ m/\.yml$/){ 
     extractPipelineJobConfigYml($target, 1);
     my $yaml = loadYamlFile(\$jobConfigYml, undef, undef, undef, 1);
@@ -129,6 +144,7 @@ if ($target =~ m/\.yml$/){
     my $actionCommand = $target;
     executeAction($actionCommand); # never returns
 }
+$showProgress and print STDERR "\n";
 
 # release our lock on the suite repository
 # any functions that terminate execution before this point must also release the lock
