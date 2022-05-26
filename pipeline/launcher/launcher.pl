@@ -6,6 +6,14 @@ $| = 1;
 # called by the 'mdi' command line function
 # configures the environment and launches pipeline worker script(s)
 
+# trap SIGINT to remove any locks when user aborts
+$SIG{INT} = sub {
+    system("rm -f $ENV{MDI_DIR}/frameworks/*.lock; ".
+           "rm -f $ENV{MDI_DIR}/suites/*.lock");
+    print "\n";
+    exit 1;
+};
+
 # various framework paths
 our %Forks = (definitive => "definitive", developer => "developer-forks");
 our $mdiDir = $ENV{MDI_DIR}; # the installation from which the pipeline was launched

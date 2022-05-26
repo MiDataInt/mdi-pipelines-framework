@@ -320,7 +320,7 @@ sub loadJobTaskEnvironment {
 sub executeJobTask { # called by jobManager submit target script when job is scheduled; shortcuts ~everthing to this point
     my ($pipelineName, $pipelineAction, $dataYmlFile, $taskId) = @_;
     loadJobTaskEnvironment($pipelineName, $pipelineAction, $taskId);
-    print slurpFile($ENV{TASK_LOG_FILE});
+    $ENV{QUIET} or print slurpFile($ENV{TASK_LOG_FILE});
     $isSingleAction = 1;
     executeTask($pipelineAction, 1, $taskId, $ENV{ACTION_CONDA_DIR});
 }
