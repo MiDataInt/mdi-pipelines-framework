@@ -77,6 +77,7 @@ sub setContainerEnvVars {
     setRuntimeEnvVars($$optionValues{runtime});
     if($ENV{IS_CONTAINER}){ # append container metadata to the task report, if applicable
         my $uris = getContainerUris($ENV{CONTAINER_MAJOR_MINOR}, $ENV{CONTAINER_LEVEL} eq 'suite');  
+        $ENV{SINGULARITY_IMAGE} = $$uris{imageFile};
         my $indent = "    ";
         $$assembled{report} .= $indent."singularity:\n";
         $$assembled{report} .= "$indent$indent"."image: $$uris{container}\n";
@@ -334,10 +335,14 @@ sub executeTask {
     -d $ENV{TASK_DIR} or die "does not exist: $ENV{TASK_DIR}\n";
     my $execCommand = "cd $ENV{TASK_DIR}; "; # implicitly bind-mounts TASK_DIR
     if($ENV{IS_CONTAINER}){
-        my $uris = getContainerUris($ENV{CONTAINER_MAJOR_MINOR}, $ENV{CONTAINER_LEVEL} eq 'suite');
         my $singularity = "$ENV{SINGULARITY_LOAD_COMMAND}; singularity";
-        pullPipelineContainer($uris, $singularity);
-        $execCommand .= "$singularity run $ENV{CONTAINER_BIND_MOUNTS} $$uris{imageFile} pipeline";
+        my $imageFile = $ENV{SINGULARITY_IMAGE};
+        if(!$imageFile){
+            my $uris = getContainerUris($ENV{CONTAINER_MAJOR_MINOR}, $ENV{CONTAINER_LEVEL} eq 'suite');
+            pullPipelineContainer($uris, $singularity);
+            $imageFile = $$uris{imageFile};            
+        }
+        $execCommand .= "$singularity run $ENV{CONTAINER_BIND_MOUNTS} $imageFile pipeline";
     } else {
         -d $condaDir or throwError(
             "missing conda environment for action '$action'\n".
