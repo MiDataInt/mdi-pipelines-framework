@@ -42,12 +42,12 @@ code for others to use as follows:
 
 ***
 For more information, please visit:
-|||||
+||||| 
 |--|--|--|--| 
 | MDI Project | [Documentation](https://midataint.github.io/ "Michigan Data Interface project"){: .btn } | [GitHub](https://github.com/MiDataInt/ "Michigan Data Interface repositories"){: .btn } | [Basic Training](/mdi-basic-training "Skills development for beginners and beyond"){: .btn } | 
-| Managers | [Command Line](/mdi "The mdi command line interface"){: .btn } | [R Package](/mdi-manager "The mdi-manager R package"){: .btn } | [Script Generator](https://wilsonte-umich.shinyapps.io/mdi-script-generator "Generate launch scripts for your desktop or laptop"){: .btn } |
+| Managers | [Command Line](/mdi "The mdi command line interface"){: .btn } | [R Package](/mdi-manager "The mdi-manager R package"){: .btn } | [Script Generator](https://wilsonte-umich.shinyapps.io/mdi-script-generator "Generate launch scripts for your desktop or laptop"){: .btn } | 
 | Frameworks |  [Suite Template](/mdi-suite-template "Creation and structure of MDI tools suites"){: .btn } | [Pipelines Framework](/mdi-pipelines-framework "Support code for Stage 1 pipeline development"){: .btn }  | [Apps Framework](/mdi-apps-framework "Support code for Stage 2 Apps development"){: .btn } | 
-| Cloud Support | [AWS AMIs](https://us-east-2.console.aws.amazon.com/ec2/v2/home?region=us-east-2#Images:visibility=public-images;v=3;search=:Michigan%20Data%20Interface "Amazon machine images for container building and public web servers"){: .btn } | | |
+| Cloud Support | [AWS AMIs](https://us-east-2.console.aws.amazon.com/ec2/v2/home?region=us-east-2#Images:visibility=public-images;v=3;search=:Michigan%20Data%20Interface "Amazon machine images for container building and public web servers"){: .btn } | | | 
 
 
 
