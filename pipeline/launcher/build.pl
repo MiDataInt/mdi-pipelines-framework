@@ -1,6 +1,7 @@
 use strict;
 use warnings;
 use File::Path qw(make_path remove_tree);
+use File::Basename;
 
 # subs for building, posting and using a Singularity container image of a pipeline or suite
 
@@ -247,7 +248,7 @@ sub pullPipelineContainer {
     }      
 
     # create the target directory
-    make_path($$uris{imageDir});
+    make_path(dirname($$uris{imageFile}));
 
     # pull the image
     print "pulling required container image...\n"; 
