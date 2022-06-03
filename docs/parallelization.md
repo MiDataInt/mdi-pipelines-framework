@@ -35,7 +35,7 @@ for communicating the resources they have allocated to a pipeline job.
 - **-r,--ram-per-cpu** = <string> RAM allocated per CPU (e.g., 500M, 4G)
 
 These and other job options are 
-[transformed into environment variables](/mdi-pipelines-framework/environment_variables.html/)
+[transformed into environment variables](/mdi-pipelines-framework/docs/env_vars.html)
 such as N_CPU. You should use those environment variables in your pipeline code to determine the extent of parallelization and memory available to your programs, e.g.
 
 ```bash

@@ -28,7 +28,10 @@ The following function is a very useful error trap for bash command streams, e.g
 
 ```
 command1 | command2
+checkPipe
 ```
+
+### checkPipe
 
 - **Usage**: checkPipe  
 - **Action**: Check the exit status of every command in the prior bash command stream  
@@ -53,6 +56,6 @@ make sure it has appropriate data to work on.
 
 ### checkFileExists
 
-- **Usage**: checkFileExists \<$FILE | $GLOB\>  
+- **Usage**: checkFileExists \<$FILE \| $GLOB\>  
 - **Action**: Verify that $FILE, or the first file of $GLOB, exists and is not empty  
 - **Result**: Script dies if file is empty or not found
