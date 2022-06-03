@@ -9,7 +9,7 @@ nav_order: 20
 
 We are fond of 
 [Snakemake](https://snakemake.readthedocs.io/en/stable/), 
-a Python-based utility that uses target file-directed rules
+a Python-based utility that uses target file rules
 for workflow control, and many Snakefiles exist in the wild
 for various data analysis tasks. It is easy
 to combine the best of the MDI and Snakemake when creating and 
@@ -73,7 +73,6 @@ The first entry loads Snakemake into the job environment, the second
 exposes two options to help users control Snakemake in your pipeline action.
 Option names are prefixed with "sn-" for clarity.
 
-Option **--sn-dry-run** sets snakemake option '--dry-run'.
-
-Option **--sn-forceall** forces snakemake to re-execute its Snakefile rules
-even if the target files already exist.
+- **--sn-dry-run** = sets snakemake option '--dry-run'
+- **--sn-forceall**  = forces snakemake to re-execute its Snakefile rules
+even if target files exist

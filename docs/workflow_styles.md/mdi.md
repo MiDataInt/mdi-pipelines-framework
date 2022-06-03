@@ -8,7 +8,11 @@ nav_order: 10
 ## {{ page.title }}
 
 The MDI workflow style uses a sequence of code steps within a pipeline
-action - think **pipeline >> action >> step**. The pipeline/action
+action. Think:
+
+**pipeline >> action >> step**
+
+The pipeline/action
 hierarchy is well known to users. They typically know less about the
 steps within an action (but see below), but steps can be important to developers.
 
@@ -48,7 +52,7 @@ so you might find a tree like:
 
 ```
 pipelineName/actionName/stepName
-|---stepName.sh
+|---stepScript.sh
 |---supportingFile.txt
 |---supportingScript.R (or py, or ....)
 ```
@@ -69,7 +73,7 @@ There are many logics by which you might break an action into steps, such as:
 - a desire to keep an interim file that was slow to create
 - a desire to organize and modularize the log/report structure
 - an inherently modular structure to the code called by each step
-- steps used different modes of parallelization
+- steps use different modes of parallelization
 - it helped you build a pipeline in an incremental fashion
 - etc.
 
