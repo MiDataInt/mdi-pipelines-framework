@@ -32,7 +32,7 @@ the structure and utilities for a pipeline **Workflow.sh** script.
 If you are experienced at something not yet represented in the 
 framework - e.g., a workflow style or support
 for a programming language - please consider adding standardized 
-code for others to use as follows:
+code for others to use:
 
 - fork the 
 [mdi-pipelines-framework repository](https://github.com/MiDataInt/mdi-pipelines-framework)
