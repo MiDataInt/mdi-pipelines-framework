@@ -35,7 +35,7 @@ for a programming language - please consider adding standardized
 code for others to use:
 
 - fork the 
-[mdi-pipelines-framework repository](https://github.com/MiDataInt/mdi-pipelines-framework)
+[mdi-pipelines-framework repository](https://github.com/MiDataInt/mdi-pipelines-framework/fork)
 - add/edit appropriate files
 - make a pull request with a description of your additions
 
