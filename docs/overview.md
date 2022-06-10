@@ -26,6 +26,8 @@ and its
 
 The main purpose of these pages is to describe
 the structure and utilities for a pipeline **Workflow.sh** script.
+This documentation is brief since the MDI pipelines framework
+has very few structural requirements for how you construct your pipeline.
 
 ### Contributing to the framework
 
