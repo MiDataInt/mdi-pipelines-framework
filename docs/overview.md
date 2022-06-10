@@ -12,6 +12,11 @@ MDI data analysis pipelines. It describes the functions and structures
 defined by the framework that you can draw on to
 create robust pipelines more quickly.
 
+The main purpose of these pages is to describe
+the structure and utilities for a pipeline **Workflow.sh** script.
+This documentation is brief since the MDI pipelines framework
+has very few structural requirements for how you construct your pipeline.
+
 ### Other important references
 
 Information here will not repeat the 
@@ -24,18 +29,18 @@ You should also be familiar with the
 and its
 [documentation](/mdi).
 
-The main purpose of these pages is to describe
-the structure and utilities for a pipeline **Workflow.sh** script.
+If you need help understanding how to edit code, use the Linux command line,
+or access HPC servers, see the [MDI Basic Training](/mdi-basic-training/docs/overview/).
 
 ### Contributing to the framework
 
 If you are experienced at something not yet represented in the 
 framework - e.g., a workflow style or support
 for a programming language - please consider adding standardized 
-code for others to use as follows:
+code for others to use:
 
 - fork the 
-[mdi-pipelines-framework repository](https://github.com/MiDataInt/mdi-pipelines-framework)
+[mdi-pipelines-framework repository](https://github.com/MiDataInt/mdi-pipelines-framework/fork)
 - add/edit appropriate files
 - make a pull request with a description of your additions
 
