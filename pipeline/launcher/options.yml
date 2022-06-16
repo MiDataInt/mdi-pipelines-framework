@@ -87,6 +87,7 @@ optionFamilies:
     job-manager: # only required when queuing jobs with jobManager (in contrast to family 'resources')
         order: 103
         universal: true
+        template: true
         options:
             email:
                 order: 1

@@ -10,6 +10,7 @@ my $keepLogical; # do not convert true/false to perl 0/1
 sub loadYamlFromString {
     my ($str, $keepLogical_) = @_;
     $keepLogical = $keepLogical_;
+    $str =~ m/^\s*---/ or $str = "---\n$str";
     open my $inH, "<", \$str or throwError("could not open yml string:\n$!");
 
     # first pass: read simplified lines from files

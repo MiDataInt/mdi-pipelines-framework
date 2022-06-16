@@ -351,7 +351,7 @@ sub runOptions {
 #------------------------------------------------------------------------------
 sub runOptionsTable { # takes no arguments
     my $launcher = loadYamlFile("$launcherDir/commands.yml", 0, 1, undef, 1);
-    my %suppressedFamilies = map { $_ => 1 } ("job-manager", "workflow", "help");
+    my %suppressedFamilies = map { $_ => 1 } ("workflow", "help"); # "job-manager", 
     print join("\t", qw(pipelineName action optionFamily optionName 
                         type required universal order 
                         default description)), "\n";  
