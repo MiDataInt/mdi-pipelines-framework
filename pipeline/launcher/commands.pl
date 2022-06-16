@@ -354,7 +354,7 @@ sub runOptionsTable { # takes no arguments
     my %suppressedFamilies = map { $_ => 1 } ("job-manager", "workflow", "help");
     print join("\t", qw(pipelineName action optionFamily optionName 
                         type required universal order 
-                        default description)), "\n";    
+                        default description)), "\n";  
     foreach my $action(keys %{$$config{actions}}){
         $$launcher{actions}{$action} and next;
         my $cmd = getCmdHash($action); 
@@ -364,10 +364,10 @@ sub runOptionsTable { # takes no arguments
             my $family = $$option{family};
             $suppressedFamilies{$family} and next;
             my $universal = $$config{optionFamilies}{$family}{universal}[0] ? "UNIVERSAL" : "";
-            my $order = $$option{order}[0] ? $$option{order}[0] : 9999;
-            my $default = $$option{default}[0] eq 'null' ? "" : $$option{default}[0];
+            my $order = ($$option{order} and defined $$option{order}[0]) ? $$option{order}[0] : 9999;
+            my $default = (!$$option{default} or $$option{default}[0] eq 'null') ? "" : $$option{default}[0];
             $default eq "NA" and $default = "_NA_";
-            my $required = $$option{required}[0] ? "TRUE" : "FALSE";
+            my $required = ($$option{required} and $$option{required}[0]) ? "TRUE" : "FALSE";
             print join("\t", $pipelineName, $action, $$option{family}, $$option{long}[0], 
                              $$option{type}[0], $required, $universal, $order,
                              $default, $$option{description}[0]), "\n";
