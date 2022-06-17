@@ -353,7 +353,7 @@ sub runOptionsTable { # takes no arguments
     my $launcher = loadYamlFile("$launcherDir/commands.yml", 0, 1, undef, 1);
     my %suppressedFamilies = map { $_ => 1 } ("workflow", "help"); # "job-manager", 
     print join("\t", qw(pipelineName action optionFamily optionName 
-                        type required universal order 
+                        type required universal familyOrder order 
                         default description)), "\n";  
     foreach my $action(keys %{$$config{actions}}){
         $$launcher{actions}{$action} and next;
@@ -363,13 +363,14 @@ sub runOptionsTable { # takes no arguments
         foreach my $option(@optionsOut){
             my $family = $$option{family};
             $suppressedFamilies{$family} and next;
-            my $universal = $$config{optionFamilies}{$family}{universal}[0] ? "UNIVERSAL" : "";
+            my $universal = $$config{optionFamilies}{$family}{universal}[0] ? "UNIVERSAL" : "";            
+            my $familyOrder = $$config{optionFamilies}{$family}{order} ? $$config{optionFamilies}{$family}{order}[0] : 9999;
             my $order = ($$option{order} and defined $$option{order}[0]) ? $$option{order}[0] : 9999;
             my $default = (!$$option{default} or $$option{default}[0] eq 'null') ? "" : $$option{default}[0];
             $default eq "NA" and $default = "_NA_";
             my $required = ($$option{required} and $$option{required}[0]) ? "TRUE" : "FALSE";
             print join("\t", $pipelineName, $action, $$option{family}, $$option{long}[0], 
-                             $$option{type}[0], $required, $universal, $order,
+                             $$option{type}[0], $required, $universal, $familyOrder, $order,
                              $default, $$option{description}[0]), "\n";
         }    
     }
