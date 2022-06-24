@@ -407,7 +407,7 @@ sub runValuesYaml { # takes no arguments
         my $cmd = getCmdHash($action);         
         parseAllOptions($action, undef, 1);
         parseAllDependencies($action);
-        assembleActionYaml($action, $cmd, $indent, \my @taskOptions, \$yml);
+        assembleActionYaml($action, $cmd, $indent, \my @taskOptions, \$yml, 1); # retains suite//option name format
     }
 
     # print the final yaml results
