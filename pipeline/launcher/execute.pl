@@ -53,6 +53,7 @@ sub executeAction {
     # do the requested work by task id
     setContainerEnvVars($assembled);
     $optionArrays{quiet}[0] or print $$assembled{report};
+    $ENV{GET_JOB_REPORT_ONLY} and return;
     my $isDryRun = $$assembled{taskOptions}[0]{'dry-run'};
     my $firstTaskCodeSuiteDir;
     foreach my $i(@workingTaskIs){   

@@ -92,7 +92,7 @@ our %longOptions = map { ${$optionInfo{$_}}[0] => $_ } keys %optionInfo; # for c
 #------------------------------------------------------------------------
 our %commandOptions =  ( # 0=allowed, 1=required
     inspect    =>  {},
-    mkdir      =>  {'force'=>0},
+    mkdir      =>  {'dry-run'=>0,'force'=>0},
     submit     =>  {'dry-run'=>0,'delete'=>0,'execute'=>0,'force'=>0,
                     '_suppress-echo_'=>0,'_extending_'=>0},
     extend     =>  {'dry-run'=>0,'delete'=>0,'execute'=>0,'force'=>0}, 
