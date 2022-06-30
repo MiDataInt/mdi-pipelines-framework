@@ -127,9 +127,9 @@ sub getYamlValue {
         lc($value) eq 'null' or
         $value eq '_REQUIRED_') {
         []
-    } elsif(lc($value) eq "true" and !$keepLogical) { # boolean true/false t- perl 1/0
+    } elsif((lc($value) eq "true"  or lc($value) eq "yes") and !$keepLogical) { # boolean to perl 1/0
         [1]   
-    } elsif(lc($value) eq "false" and !$keepLogical) {
+    } elsif((lc($value) eq "false" or lc($value) eq "no")  and !$keepLogical) {
         [0]  
     } elsif($value =~ m/^\[(.*)\]$/) { # handle [] array format 
         [ map { getYamlValue($_) } split(",", $1) ]; 
