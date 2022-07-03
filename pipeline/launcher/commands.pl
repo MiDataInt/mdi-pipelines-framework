@@ -155,6 +155,8 @@ sub runBuild {
 #------------------------------------------------------------------------------
 sub runShell {
 
+    # TODO: this should accept a command sequence for non-interactive use (e.g., by Pipeline Runner)
+
     # command has limited options, collect --help first
     my $help    = "help";
     my $action  = "action";    
@@ -416,7 +418,7 @@ sub runValuesYaml { # takes no arguments
 }
 
 #------------------------------------------------------------------------------
-# pre-pull a pipeline container for asynchronous, queued jobs to use (used by jobManager)
+# pre-pull a pipeline container for asynchronous, queued jobs to use (used by jobManager and Pipeline Runner)
 #------------------------------------------------------------------------------
 sub checkContainer {
     # command has no options: mdi pipeline checkContainer <data.yml>

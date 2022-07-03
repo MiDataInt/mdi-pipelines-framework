@@ -16,6 +16,7 @@ use vars qw($pipelineOptions);
 #------------------------------------------------------------------------
 sub qTop { 
     $pipelineOptions = "top -u $ENV{USER}";
+    $ENV{IS_PIPELINE_RUNNER} and $pipelineOptions .= " -bn1"; # single report in app
     qSsh('top');
 }
 #========================================================================
