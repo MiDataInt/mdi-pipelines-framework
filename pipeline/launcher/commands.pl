@@ -151,11 +151,9 @@ sub runBuild {
 }
 
 #------------------------------------------------------------------------------
-# open a command shell in a pipeline's runtime environment, either via conda or Singularity
+# open a command shell, or run a command, in a pipeline's runtime environment, either via conda or Singularity
 #------------------------------------------------------------------------------
 sub runShell {
-
-    # TODO: this should accept a command sequence for non-interactive use (e.g., by Pipeline Runner)
 
     # command has limited options, collect --help first
     my $help    = "help";
@@ -166,24 +164,32 @@ sub runShell {
     ($args[0] eq '-h' or $args[0] eq "--$help") and $options{$help} = 1;
 
     # if requested, show custom action help
-    if($options{$help}){
+    sub showShellHelp {
         my $usage;
         my $pname = $$config{pipeline}{name}[0];   
         my $desc = getTemplateValue($$config{actions}{shell}{description});
         $usage .= "\n$pname shell: $desc\n";
         $usage .=  "\nusage: mdi $pname shell [options]\n";  
-        $usage .=  "\n    -h/--$help     show this help"; 
-        $usage .=  "\n    -a/--$action   the pipeline action whose conda environment will be activated in the shell [do]";           
-        $usage .=  "\n    -m/--$runtime  execution environment: one of direct, container, or auto (container if supported) [auto]";
+        $usage .=  "\n    -h/--help     show this help"; 
+        $usage .=  "\n    -a/--action   the pipeline action whose conda environment will be activated in the shell [do]";           
+        $usage .=  "\n    -m/--runtime  execution environment: one of direct, container, or auto (container if supported) [auto]";
         print "$usage\n\n";
         releaseMdiGitLock(0);
     }
+    $options{$help} and showShellHelp();
 
     # collect and set the runtime options
-    $args[2] or $args[2] = ""; 
-    foreach my $i(0, 2){
-        ($args[$i] eq '-a' or $args[$i] eq "--$action")  and $options{$action}  = $args[$i + 1];        
-        ($args[$i] eq '-m' or $args[$i] eq "--$runtime") and $options{$runtime} = $args[$i + 1];
+    while($args[0] and $args[0] =~ m/^-/){
+        if($args[0] eq '-a' or $args[0] eq "--$action"){
+            $options{$action} = $args[1];
+        } elsif($args[0] eq '-m' or $args[0] eq "--$runtime"){
+            $options{$runtime} = $args[1];
+        } else {
+            print "\nunknown option: $args[0]\n";
+            showShellHelp();
+        }
+        shift @args; 
+        shift @args;
     }
     setRuntimeEnvVars($options{$runtime});
 
@@ -199,26 +205,38 @@ sub runShell {
 
     # set the shell command based on runtime mode
     my $shellCommand;
-    if($ENV{IS_CONTAINER}){
+    my $commandArgs = join(" ", @args); # remaining arguments passed as a command to shell
+    if($ENV{IS_CONTAINER}){             # or open an interactive shell if no command
         my $uris = getContainerUris($ENV{CONTAINER_MAJOR_MINOR}, $ENV{CONTAINER_LEVEL} eq 'suite');
         my $singularity = "$ENV{SINGULARITY_LOAD_COMMAND}; singularity";
         pullPipelineContainer($uris, $singularity);
-        my $script = "source \${CONDA_PROFILE_SCRIPT}; conda activate \${ENVIRONMENTS_DIR}/$$conda{name}; exec bash";
+        $commandArgs =~ m/\S/ or $commandArgs = "bash";
+        my $script = "source \${CONDA_PROFILE_SCRIPT}; conda activate \${ENVIRONMENTS_DIR}/$$conda{name}; exec $commandArgs";
         $shellCommand = "$singularity exec $$uris{imageFile} bash -c '$script'"; # implicitly binds $PWD
     } else {
         -d $$conda{dir} or throwError(
             "missing conda environment for action '$action'\n".
             "please run 'mdi $pipelineName conda --create' before opening a direct shell"
         );  
-        my $rcFile = glob("~/.mdi.rcfile");
-        my $script = "$$conda{loadCommand}; source $$conda{profileScript}; conda activate $$conda{dir}; rm -f $rcFile\n";
-	    open my $rcH, ">", $rcFile or throwError("could not write to $rcFile: $!");
-	    print $rcH $script; # --rcfile configures environment before passing interactive shell to user; the file deletes itself
-	    close $rcH;
-	    $shellCommand = "bash --rcfile $rcFile";
+        my $scriptFile = glob("~/.mdi.shellFile");
+        my $script = join("\n",
+            "rm -f $scriptFile", # the script file deletes itself
+            $$conda{loadCommand},
+            "source $$conda{profileScript}"
+        )."\n";
+        if($commandArgs =~ m/\S/){ # run a single command using "conda run"
+            $script .= "conda run --prefix $$conda{dir} $commandArgs\n";
+            $shellCommand = "bash $scriptFile";
+        } else { # open an interactive shell in the activated conda environment
+            $script .= "conda activate $$conda{dir}\n";
+            $shellCommand = "bash --rcfile $scriptFile"; # --rcfile configures environment before passing interactive shell to user
+        }
+	    open my $outH, ">", $scriptFile or throwError("could not write to $scriptFile: $!");
+	    print $outH $script; 
+	    close $outH;      
     }
 
-    # launch the shell
+    # launch the shell, either interactively or to run one command
     releaseMdiGitLock();
     exec $shellCommand;
 }

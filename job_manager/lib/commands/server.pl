@@ -32,7 +32,7 @@ sub mdiServer {
     # process a request for running server via system R, regardless of Singularity support
     my $runtime = $options{'runtime'};
     $runtime or $runtime = 'auto';
-    $runtime eq 'direct' and return launchServerDirect();
+    ($runtime eq 'direct' or $runtime eq 'conda') and return launchServerDirect();
 
     # determine whether system supports Singularity
     $singularityLoad = getSingularityLoadCommand();    
@@ -46,11 +46,11 @@ sub mdiServer {
     my $containerTypes = getAppsContainerSupport();
 
     # validate a request for running server via Singularity, without possibility for system fallback
-    if($runtime eq 'container'){
+    if($runtime eq 'container' or $runtime eq 'singularity'){
         $singularityLoad or 
-            throwError("--runtime 'container' requires Singularity on system or via config/singularity.yml >> load-command", $mdiCommand);            
+            throwError("--runtime '$runtime' requires Singularity on system or via config/singularity.yml >> load-command", $mdiCommand);            
         keys %$containerTypes or 
-            throwError("--runtime 'container' requires container support from the tool suite or MDI installation", $mdiCommand);
+            throwError("--runtime '$runtime' requires container support from the tool suite or MDI installation", $mdiCommand);
     } 
 
     # dispatch the launch request to the proper handler

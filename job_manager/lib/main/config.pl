@@ -82,7 +82,7 @@ our %optionInfo = (# [shortOption, valueString, optionGroup, groupOrder, optionH
     'server-command'=>     ["c", "<str>", "server",  0, "command to launch the web server (run, develop, remote, node) [run]"],
     'data-dir'=>           ["D", "<str>", "server",  1, "path to the desired data directory [MDI_DIR/data]"],
     'host-dir'=>           ["H", "<str>", "server",  2, "path to a shared/public MDI installation with code and resources [MDI_DIR]"],
-    'runtime'=>            ["m", "<str>", "server",  3, "execution environment: direct, container, or auto (container if supported) [auto]"],
+    'runtime'=>            ["m", "<str>", "server",  3, "execution environment: direct, conda, container, singularity, or auto [auto]"],
     'container-version'=>  ["C", "<str>", "server",  4, "the major.minor version of either R or a tool suite, e.g., 4.1 [latest]"],
     'port' =>              ["P", "<int>", "server",  5, "the port that the server will listen on [3838]"],
 );

@@ -103,10 +103,12 @@ sub setContainerEnvVars {
 sub setRuntimeEnvVars {
     my ($runtime) = @_;
     $runtime or $runtime = "auto";
+    $runtime eq 'conda' and $runtime = 'direct'; # allow 'conda' as synonym for 'direct'
+    $runtime eq 'singularity' and $runtime = 'container'; # and 'singularity' as synonym for 'container'
     my %runtimes = map { $_ => 1 } qw(direct container auto);
     $runtimes{$runtime} or throwError(
         "unrecognized value for option '--runtime': $runtime\n".
-        "valid values are 'direct', 'container', or 'auto'"
+        "valid values are 'direct', 'conda', 'container', 'singularity', or 'auto'"
     );  
     setEnvVariable('runtime', $runtime); 
     if($ENV{RUNTIME} eq 'auto'){
@@ -129,11 +131,11 @@ sub setRuntimeEnvVars {
             'suite': (pipelineSupportsContainers() ? 'pipeline' : '');
         $ENV{CONTAINER_LEVEL} or throwError(
             "pipeline '$pipelineName' does not support containers\n".
-            "please set option --runtime to 'direct' or 'auto'"
+            "please set option --runtime to 'direct', 'conda', or 'auto'"
         );  
         $ENV{SINGULARITY_LOAD_COMMAND} = getSingularityLoadCommand() or throwError(
             "could not find a way to load singularity from PATH or singularity.yml\n".
-            "please set option --runtime to 'direct' or 'auto', install singularity, or edit:\n".
+            "please set option --runtime to 'direct', 'conda', or 'auto', install singularity, or edit:\n".
             "    mdi/config/singularity.yml >> load-command"
         );        
     }
