@@ -1,23 +1,29 @@
+#!/usr/bin/perl
 use strict;
 use warnings;
 
 #========================================================================
-# 'top.pl' run the 'top' system monitor on the host running a job as $USER
+# print the parsed values of all job options in YAML format
+# thus:
+#   mdi inspect <data.yml> [args]
+# is equivalent to iterating:
+#   mdi <pipeline> <data.yml> --dry-run [args]
+# for each pipeline chunk of <data.yml>
 #========================================================================
 
 #========================================================================
 # define variables
 #------------------------------------------------------------------------
-use vars qw($pipelineOptions);
+use vars qw($pipelineName $dataYmlFile @args);
 #========================================================================
 
 #========================================================================
 # main execution block
 #------------------------------------------------------------------------
-sub qTop { 
-    $pipelineOptions = "top -u $ENV{USER}";
-    $ENV{IS_PIPELINE_RUNNER} and $pipelineOptions .= " -bn1"; # single report in app
-    qSsh('top');
+sub qInspect { 
+    my $developerFlag = $ENV{DEVELOPER_MODE} ? "-d" : "";
+    my $args = join(" ", @args);
+    system("$ENV{MDI_DIR}/mdi $developerFlag $pipelineName $dataYmlFile --dry-run $args");
 }
 #========================================================================
 

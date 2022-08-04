@@ -456,7 +456,9 @@ sub validateOptionArrays {
     # if multiple tasks, either OUTPUT_DIR or DATA_NAME must be arrayed to yield unique output paths
     $nTasks{$action} = $nListValues[0] || 1; # largest length of options lists, i.e N
     if ($nTasks{$action} > 1) {
-        @{$optionArrays{'output-dir'}} > 1 or @{$optionArrays{'data-name'}} > 1 or throwError(
+        my $nDir  = $optionArrays{'output-dir'} ? @{$optionArrays{'output-dir'}} : 0;
+        my $nName = $optionArrays{'data-name'}  ? @{$optionArrays{'data-name'}}  : 0;
+        $nDir > 1 or $nName > 1 or throwError(
             "task arrays must have multiple values for either '--output-dir' or '--data-name'"
         )
     }

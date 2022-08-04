@@ -11,7 +11,7 @@ use vars qw(%longOptions %optionValues);
 #------------------------------------------------------------------------------
 sub getPermission {
     my ($message, $force) = @_;
-    ($optionValues{force} or $force) and return 1;
+    ($optionValues{force} or $force or $ENV{IS_PIPELINE_RUNNER}) and return 1;
     print "$message\n";
     print "Agree to continue? [y|N] ";
     my $response = <STDIN>;

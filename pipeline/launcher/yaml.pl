@@ -94,7 +94,7 @@ sub loadYamlFile { # despite the name, also loads YAMl from a string reference
             $returnParsed and push @parsed, [ 
                 ARRAY,
                 join(":", @keys[0..($level-1)]),
-                $$value[0] || 'null',
+                defined $$value[0] ? $$value[0] : 'null',
                 $priority,
                 $i
             ];
@@ -111,7 +111,7 @@ sub loadYamlFile { # despite the name, also loads YAMl from a string reference
                 push @parsed, [
                     KEYED,
                     $keys,
-                    $value || ['null'],
+                    defined $value ? $value : 'null',
                     $priority,
                     $i
                 ];
@@ -162,9 +162,9 @@ sub getYamlValue {
         lc($value) eq 'null' or
         $value eq '_REQUIRED_') {
         $suppressNull ? undef : []
-    } elsif(lc($value) eq "true") { # boolean true/false t- perl 1/0
+    } elsif(lc($value) eq "true" or lc($value) eq "yes") { # boolean to perl 1/0
         [1]   
-    } elsif(lc($value) eq "false") {
+    } elsif(lc($value) eq "false" or lc($value) eq "no") {
         [0]  
     } elsif($value =~ m/^\[(.*)\]$/) { # handle [] array format 
         [ map { getYamlValue($_) } split(",", $1) ]; 

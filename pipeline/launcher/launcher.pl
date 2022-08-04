@@ -37,6 +37,7 @@ if($pipelineName eq "valuesYaml"){
     require "$launcherDir/yaml.pl";
     my $yml = loadYamlFile($args[0], undef, undef, undef, 1); # suppress null entries
     $pipelineName = $$yml{pipeline}[0];
+    $pipelineName =~ s/:.*$//; # strip trailing :version in data.yml pipeline declarations
 }
 
 # pipelineName could be a pipeline name only, or be directed to a specific repository as suite/pipeline (but not :version)

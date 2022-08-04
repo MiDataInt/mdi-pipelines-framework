@@ -155,13 +155,13 @@ sub reportAssembledConfig {
     {taskOptions => \@taskOptions, report => $report};
 }
 sub assembleActionYaml {
-    my ($action, $cmd, $indent, $taskOptions, $report) = @_;
+    my ($action, $cmd, $indent, $taskOptions, $report, $useFullFamilyNames) = @_;
     my %familySeen;
     foreach my $family(sort { getFamilyOrder($a) <=> getFamilyOrder($b) } getAllOptionFamilies($cmd)){
         $familySeen{$family} and next;
         $familySeen{$family}++;
         my $options = getFamilyOptions($family);   
-        $family =~ m|//(.+)| and $family = $1;     
+        $useFullFamilyNames or ($family =~ m|//(.+)| and $family = $1);     
         %$options and $$report .= "$indent$family:\n";
         foreach my $longOption(sort { getOptionOrder($a, $options) <=> getOptionOrder($b, $options) }
                                      keys %$options){
