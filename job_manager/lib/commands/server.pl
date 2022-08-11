@@ -77,7 +77,10 @@ sub launchServerDirect {
         "    e.g., module load R/0.0.0\n".
         "and be sure you have installed the MDI apps interface on the remote server", 
         'server');
-    exec "Rscript -e 'mdi::$serverCmd(mdiDir = \"$ENV{MDI_DIR}\", port = $options{'port'} $dataDir $hostDir)'";
+    my $R_VERSION = qx|Rscript --version|;
+    $R_VERSION =~ m/version\s+(\d+\.\d+)/ and $R_VERSION =$1;
+    my $LIB_PATH = "$ENV{MDI_DIR}/library/R-$R_VERSION"; # mdi-manager R package typically installed here
+    exec "Rscript -e '.libPaths(\"$LIB_PATH\"); mdi::$serverCmd(mdiDir = \"$ENV{MDI_DIR}\", port = $options{'port'} $dataDir $hostDir)'";
 }
 
 # launch via Singularity with suite-level container
