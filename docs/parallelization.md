@@ -36,7 +36,7 @@ for communicating the resources they have allocated to a pipeline job.
 
 These and other job options are 
 [transformed into environment variables](/mdi-pipelines-framework/docs/env_vars.html)
-such as N_CPU. You should use those environment variables in your pipeline code to determine the extent of parallelization and memory available to your programs, e.g.
+such as `N_CPU`. You should use those environment variables in your pipeline code to determine the extent of parallelization and memory available to your programs, e.g.
 
 ```bash
 sort --parallel ${N_CPU} --buffer-size ${TOTAL_RAM_INT}b

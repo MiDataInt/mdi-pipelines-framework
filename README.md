@@ -1,16 +1,9 @@
-# Michigan Data Interface
+# MDI Pipelines Framework
 
 The [Michigan Data Interface](https://midataint.github.io/) (MDI) 
 is a framework for developing, installing and running 
-HPC data analysis pipelines and interactive visualization 
-applications within a standardized design interface.
-
-The MDI is separated into 
-[two stages of code execution](https://midataint.github.io/docs/analysis-flow/) 
-called Stage 1 HPC **pipelines** and Stage 2 web applications (i.e., **apps**).
-Collectively, pipelines and apps are known as **tools**.
-
-## Repository contents
+Stage 1 HPC **pipelines** and Stage 2 interactive web applications 
+(i.e., **apps**) in a standardized design interface.
 
 This is the repository for the **MDI pipelines framework**. 
 We use 'pipeline' synonymously with 'workflow' to 
@@ -22,7 +15,7 @@ created from our suite repository template:
 
 - tool suite template: <https://github.com/MiDataInt/mdi-suite-template>
 
-Instead, the pipelines frameworks encodes scripts that:
+Instead, the pipelines framework encodes scripts that:
 
 - allow YAML configuration files to be used to define a pipeline
 - wrap pipelines into a common command-line executable 
@@ -33,5 +26,6 @@ Instead, the pipelines frameworks encodes scripts that:
 This repository is not used directly. Instead, it is cloned
 and managed by the MDI installer and manager utilities found here:
 
+- MDI Desktop app: <https://github.com/MiDataInt/mdi-desktop-app>
 - MDI installation script: <https://github.com/MiDataInt/mdi>
 - MDI manager R package: <https://github.com/MiDataInt/mdi-manager>
