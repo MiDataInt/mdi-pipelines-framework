@@ -9,10 +9,7 @@ nav_order: 10
 The MDI makes few demands of how you create your workflows.
 The only structural requirement is that a pipeline action
 be defined by the contents of script:
-
-```
-pipelines/<pipelineName>/<actionName>/Workflow.sh
-```
+- _pipelines/\<pipelineName\>/\<actionName\>/Workflow.sh_
 
 but that script can contain any executable code you wish.
 
