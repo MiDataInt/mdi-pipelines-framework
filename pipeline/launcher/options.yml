@@ -49,7 +49,7 @@ optionFamilies:
                 type: string
                 required: false
                 default: auto
-                description: "execution environment: one of direct, container, or auto (container if supported)"
+                description: "execution environment: one of direct, conda, container, singularity, auto"
             n-cpu:
                 order: 2
                 short: p
@@ -87,6 +87,7 @@ optionFamilies:
     job-manager: # only required when queuing jobs with jobManager (in contrast to family 'resources')
         order: 103
         universal: true
+        template: true
         options:
             email:
                 order: 1

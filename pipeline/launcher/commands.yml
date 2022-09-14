@@ -39,7 +39,7 @@ actions:
             required:
                 total-ram: null
         optionFamilies: null        
-        description: "open a command shell in a pipeline action's runtime environment" 
+        description: "open a shell or run a command in a pipeline action's runtime environment" 
     status:
         order: 5
         universal: true

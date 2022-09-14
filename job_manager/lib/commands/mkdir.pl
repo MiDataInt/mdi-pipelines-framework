@@ -20,8 +20,13 @@ my (%paths, @paths);
 sub qMkdir { 
     $pipelineOptions = "";
     $ENV{SUPPRESS_OUTPUT_DIR_CHECK} = 1;
+    $ENV{GET_JOB_REPORT_ONLY} = 1;
 
     # loop every pipeline execution chunk in data.yml
+    my $isDryRun = $options{'dry-run'};
+    my $isForce = $options{'force'};    
+    $options{'dry-run'} = 1; # coerce these options for the parsing calls that come next
+    $options{'force'} = undef;
     foreach my $ymlChunk(@$parsedYamls){ 
         $$ymlChunk{pipeline} or next;
         $pipelineName = $$ymlChunk{pipeline}[0] or next; # [suiteName/]pipelineName[:suiteVersion]
@@ -53,7 +58,9 @@ sub qMkdir {
     
     # confirm and execute directory creation
     if(@missingPaths){
-        $options{'force'} or getPermissionGeneral($message);
+        ($isDryRun or $isForce) and print "$message\n";
+        $isDryRun and return;
+        $isForce or getPermissionGeneral($message);
         make_path(@missingPaths);
         print "\nall output directories created\n\n";
 

@@ -32,8 +32,9 @@ sub qSsh {
 
     # pass the call to system ssh
     my $host = $jmData{host};
-    $host or throwError("error processing job log file: missing host", $mdiCommand);     
-    exec join(" ", "ssh -t $host", $pipelineOptions); # use -t (terminal) to support interactive commands like [h]top
+    $host or throwError("error processing job log file: missing host", $mdiCommand); 
+    my $pseudoTerminal = $ENV{IS_PIPELINE_RUNNER} ? "" : "-t"; # use -t (terminal) to support interactive commands like [h]top
+    exec join(" ", "ssh $pseudoTerminal $host", $pipelineOptions);
 }
 #========================================================================
 
@@ -50,7 +51,7 @@ sub getJobLogFileContents {
     $options{'no-chain'} = 1; 
 
     # get a single target job, or a single task of an array job
-    if($runningOnly){
+    if($runningOnly and !$ENV{IS_PIPELINE_RUNNER}){
         updateStatusQuietly();
         my %runningJobs;
         foreach my $jobId(keys %allJobs){

@@ -11,8 +11,8 @@ to all action scripts.
 
 ### Transformation of options to environment variables
 
-First, all pipeline options are available, where an option named "--abc-def" 
-sets environment variable "ABC_DEF", e.g., '--n-cpu' becomes N_CPU, etc.
+First, all pipeline options are available, where an option named `--abc-def` 
+sets environment variable `ABC_DEF`, e.g., `--n-cpu` becomes `N_CPU`, etc.
 
 ### Derivative environment variables
 

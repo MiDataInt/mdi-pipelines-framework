@@ -11,8 +11,9 @@ my $jmName = $ENV{JOB_MANAGER_NAME} ? $ENV{JOB_MANAGER_NAME} : $jobManagerName;
 our %commands = (  # [executionSub, commandHelp, mdiStage2]
 #------------------------------------------------------------------------------------------------------------
 # commands that manage Stage 1 pipeline execution and depend on data.yml(s)
-    mkdir       =>  [\&qMkdir,       "create the output directory(s) needed by a job configuration file"], # mkdir, submit, and extend must parse data.yml
-    submit      =>  [\&qSubmit,      "queue all required data analysis jobs on the HPC server"],           # they create files on the system
+    inspect     =>  [\&qInspect,     "print the parsed values of all job options to STDOUT in YAML format"], # inspect, mkdir, submit, and extend must parse data.yml
+    mkdir       =>  [\&qMkdir,       "create the output directory(s) needed by a job configuration file"], # mkdir, submit, and extend create files on the system 
+    submit      =>  [\&qSubmit,      "queue all required data analysis jobs on the HPC server"],
     extend      =>  [\&qExtend,      "queue only new or deleted/unsatisfied jobs"],
     #--------------------------------------------------------------------------------------------------------
     status      =>  [\&qStatus,      "show the updated status of all previously queued jobs"], # non-destructive job-file actions
@@ -81,7 +82,7 @@ our %optionInfo = (# [shortOption, valueString, optionGroup, groupOrder, optionH
     'server-command'=>     ["c", "<str>", "server",  0, "command to launch the web server (run, develop, remote, node) [run]"],
     'data-dir'=>           ["D", "<str>", "server",  1, "path to the desired data directory [MDI_DIR/data]"],
     'host-dir'=>           ["H", "<str>", "server",  2, "path to a shared/public MDI installation with code and resources [MDI_DIR]"],
-    'runtime'=>            ["m", "<str>", "server",  3, "execution environment: direct, container, or auto (container if supported) [auto]"],
+    'runtime'=>            ["m", "<str>", "server",  3, "execution environment: direct, conda, container, singularity, or auto [auto]"],
     'container-version'=>  ["C", "<str>", "server",  4, "the major.minor version of either R or a tool suite, e.g., 4.1 [latest]"],
     'port' =>              ["P", "<int>", "server",  5, "the port that the server will listen on [3838]"],
 );
@@ -90,10 +91,11 @@ our %longOptions = map { ${$optionInfo{$_}}[0] => $_ } keys %optionInfo; # for c
 # associate commands with allowed and required options
 #------------------------------------------------------------------------
 our %commandOptions =  ( # 0=allowed, 1=required
+    inspect    =>  {},
+    mkdir      =>  {'dry-run'=>0,'force'=>0},
     submit     =>  {'dry-run'=>0,'delete'=>0,'execute'=>0,'force'=>0,
                     '_suppress-echo_'=>0,'_extending_'=>0},
     extend     =>  {'dry-run'=>0,'delete'=>0,'execute'=>0,'force'=>0}, 
-    mkdir      =>  {'force'=>0}, 
 #------------------------------------------------------------------------------------------------------------             
     status     =>  {},
     report     =>  {'job'=>0},
@@ -121,6 +123,7 @@ our %commandOptions =  ( # 0=allowed, 1=required
 # suppress the extra demarcating lines used in command execution outputs
 #------------------------------------------------------------------------
 our %suppressLinesCommands = map { $_ => 1 } qw(
+    inspect
     mkdir
     ssh
     top
@@ -131,6 +134,7 @@ our %suppressLinesCommands = map { $_ => 1 } qw(
 # identify commands that execute once for each pipeline block of data.yml
 #------------------------------------------------------------------------
 our %pipelineLevelCommands = map { $_ => 1 } qw(
+    inspect
     submit    
     extend 
 ); # mkdir handled differently...

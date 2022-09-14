@@ -46,7 +46,7 @@ A detailed description of the snakemake command line and
 Snakefiles is beyond our scope - if you are
 reading this you probably already know something about it.
 
-Workflow.sh can do many things in sequence. A pipeline
+_Workflow.sh_ can do many things in sequence. A pipeline
 action step could chain multiple Snakefiles, etc., if that makes
 more sense to your work than creating one all-encompassing Snakefile.
 
