@@ -110,15 +110,16 @@ sub getCondaPaths {
     
     # locate the script that must be sourced to allow 'conda activate' to be called from scripts
     # see: https://github.com/conda/conda/issues/7980
+    my $loadCommand = applyVariablesToYamlValue($$configYml{conda}{'load-command'}[0], \%ENV);
     my $profileScript = applyVariablesToYamlValue($$configYml{conda}{'profile-script'}[0], \%ENV);
     if(!$profileScript or $profileScript eq 'null'){
-        my $condaBasePath = qx/conda info --base/;
+        my $loadCommand = $loadCommand ? $loadCommand : "echo";
+        my $condaBasePath = qx|$loadCommand 1>/dev/null 2>/dev/null; conda info --base|;
         chomp $condaBasePath;
         $profileScript = "$condaBasePath/etc/profile.d/conda.sh";
     }
     
     # determine if the server requires us to load conda (if not, it must be always available)
-    my $loadCommand = applyVariablesToYamlValue($$configYml{conda}{'load-command'}[0], \%ENV);
     if(!$loadCommand or $loadCommand eq 'null'){
         $loadCommand = "# using system conda";
     }
