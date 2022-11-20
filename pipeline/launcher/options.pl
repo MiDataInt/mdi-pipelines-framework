@@ -279,7 +279,7 @@ sub setConfigFileOptions {
             # NB: do NOT support nested arrays
             if (@$values > 1) { # already an array, wrap space-containing strings in double quotes
                 @parsedValues = map { $_ =~ m/ / ? '"'.$_.'"' : $_ } @parsedValues;
-            } else { # interpret space-delimited lists as option arrays
+            } elsif(!$$optionConfig{literal}[0]) { # interpret space-delimited lists as option arrays, unless pipeline says not to via "literal" flag
                 @parsedValues = split(" ", $parsedValues[0]);
             }
             $optionArrays{$longOption} = \@parsedValues;     
