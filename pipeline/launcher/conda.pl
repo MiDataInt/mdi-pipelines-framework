@@ -7,12 +7,6 @@ use File::Copy;
 # subs for loading available conda dependency families
 # for speed and efficiency, use mamba to create conda environments
 
-# TODO: at present, does not yet handle pip installations, i.e.
-# dependencies:
-#     - pip:
-#         - abc=0.0.1
-# will it be necessary?  always prefer conda packages if available
-
 use vars qw(@args $environmentsDir $config %conda %optionArrays);
 
 #------------------------------------------------------------------------------
@@ -67,8 +61,13 @@ sub loadPipelineConda { # then load environment configs from pipeline config (ov
 sub addCondaFamily {
     my ($yml) = @_;
     $yml or return;
+    my (@deps, $inPipSection);
+    foreach my $dep(@{$$yml{dependencies}}){ # support installation from pip
+        $dep eq "pip:" and $inPipSection = 1 and next; # pip section must come last in any given dependencies list
+        push @deps, $inPipSection ? "pip:$dep" : $dep; # pip: prefix to record depenency, reparsed by getCondaEnvironmentYml
+    }
     $$yml{channels}     and push @{$conda{channels}},     @{$$yml{channels}};
-    $$yml{dependencies} and push @{$conda{dependencies}}, @{$$yml{dependencies}};  
+    $$yml{dependencies} and push @{$conda{dependencies}}, @deps;  
     return 1;
 }
 #------------------------------------------------------------------------------
@@ -327,7 +326,25 @@ sub getCondaEnvironmentYml {
     foreach my $key(qw(channels dependencies)){
         ($conda{$key} and ref($conda{$key}) eq 'ARRAY' and @{$conda{$key}}) or next;
         $yml .= "$key:\n";
-        $yml .= join("\n", map { "$indent- $_" } @{$conda{$key}})."\n";
+        if($key eq "channels"){
+            $yml .= join("\n", map { "$indent- $_" } @{$conda{$key}})."\n";
+        } else {
+            my %deps = (conda => [], pip => []);
+            foreach my $dep(@{$conda{$key}}){
+                if($dep =~ m/pip:(.+)/){
+                    push @{$deps{pip}}, $1;
+                } else {
+                    push @{$deps{conda}}, $dep;
+                }
+            }
+            if(@{$deps{conda}}){
+                $yml .= join("\n", map { "$indent- $_" } @{$deps{conda}})."\n";
+            }
+            if(@{$deps{pip}}){
+                $yml .= "$indent- pip:\n";
+                $yml .= join("\n", map { "$indent$indent- $_" } @{$deps{pip}})."\n";
+            }
+        }  
     }
     # $yml .= "\n";
     $yml
