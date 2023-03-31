@@ -57,15 +57,22 @@ optionFamilies:
                 required: false
                 default: 1
                 description: "number of CPUs used for parallel processing"
-            ram-per-cpu:
+            n-gpu:
                 order: 3
+                short: u
+                type: integer
+                required: false
+                default: 0
+                description: "number of GPUs used for data processing"  
+            ram-per-cpu:
+                order: 4
                 short: r
                 type: string
                 required: false
                 default: 4G
                 description: "RAM allocated per CPU (e.g., 500M, 4G)"
             tmp-dir:
-                order: 4
+                order: 5
                 short: t
                 type: string
                 required: false
@@ -75,7 +82,7 @@ optionFamilies:
                     bind-mount: true
                 description: "directory used for small temporary files (recommend SSD)"
             tmp-dir-large:
-                order: 5
+                order: 6
                 short: T
                 type: string
                 required: false

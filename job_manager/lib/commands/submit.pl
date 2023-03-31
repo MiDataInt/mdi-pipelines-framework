@@ -159,6 +159,7 @@ sub assembleTargetScript {
     my $options = $$parsed{$pipelineAction};
     my $dataName = $nTasks == 1 ? "_$$options{output}{'data-name'}[0]" : "";
     my $nCpu = $$options{resources}{'n-cpu'}[0]; # thus, resources options really cannot be arrayed
+    my $nGpu = $$options{resources}{'n-gpu'}[0];
     my $ramPerCpu = $$options{resources}{'ram-per-cpu'}[0]; # does this need to be made lower case, etc?
     my $thread = $$parsed{thread}[0] || "default";    
 
@@ -184,6 +185,7 @@ sub assembleTargetScript {
     my $logDir = getLogDir($qInUse);
     $ENV{JOB_LOG_DIR} = $logDir;
     my $slurmLogFile = $ENV{IS_ARRAY_JOB} ? "$logDir/%x.o%A-%a" : "$logDir/%x.o%j";
+    my $gpuRequest = "";
     
     # set job manager command
     my $jobManagerCommand = getJobManagerCommand($pipelineAction, 1);
@@ -230,6 +232,7 @@ sub assembleTargetScript {
 # Slurm directives
 #SBATCH --job-name=$jobName
 #SBATCH --cpus-per-task=$nCpu
+#SBATCH --gpus-per-task=$nGpu
 #SBATCH --mem-per-cpu=$ramPerCpu 
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=1
