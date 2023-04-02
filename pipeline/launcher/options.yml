@@ -26,8 +26,41 @@ optionFamilies:
                 required: true
                 default: null
                 description: "simple name for the data (e.g., sample) being analyzed (no spaces or periods)"
+    push: 
+        order: 110
+        universal: true
+        template: true
+        options:        
+            push-server: # push options do not have short, single-letter access
+                order: 1
+                short: null
+                type: string
+                required: false
+                default: null
+                description: "external server domain name, e.g, on AWS, to which data packages should be pushed with scp"
+            push-dir:
+                order: 2
+                short: null
+                type: string
+                required: false
+                default: /srv/data
+                description: "directory on --push-server to which data packages will be pushed"
+            push-user:
+                order: 3
+                short: null
+                type: string
+                required: false
+                default: ubuntu # the typical default user on MDI AWS public servers
+                description: "valid user name on --push-server, authorized by --push-key"
+            push-key:
+                order: 4
+                short: null
+                type: string
+                required: false
+                default: ~/.ssh/mdi-push-key.pem
+                description: "path to an ssh key file for which --push-user has a public key on --push-server"
     version:
-        order: 101
+        order: 120
         universal: true
         template: false # pipeline version is set at top of data.yml, in pipeline dictionary, not per action
         options:        # template.pl handles its proper inclusion and placement in job config templates
@@ -39,7 +72,7 @@ optionFamilies:
                 default: latest
                 description: "the version to use of the tool suite that provides the requested pipeline"
     resources: # always required, even when running pipeline as a simple inline command
-        order: 102
+        order: 130
         universal: true
         template: true
         options:  
@@ -57,15 +90,22 @@ optionFamilies:
                 required: false
                 default: 1
                 description: "number of CPUs used for parallel processing"
-            ram-per-cpu:
+            n-gpu:
                 order: 3
+                short: u
+                type: integer
+                required: false
+                default: 0
+                description: "number of GPUs used for data processing"  
+            ram-per-cpu:
+                order: 4
                 short: r
                 type: string
                 required: false
                 default: 4G
                 description: "RAM allocated per CPU (e.g., 500M, 4G)"
             tmp-dir:
-                order: 4
+                order: 5
                 short: t
                 type: string
                 required: false
@@ -75,7 +115,7 @@ optionFamilies:
                     bind-mount: true
                 description: "directory used for small temporary files (recommend SSD)"
             tmp-dir-large:
-                order: 5
+                order: 6
                 short: T
                 type: string
                 required: false
@@ -85,7 +125,7 @@ optionFamilies:
                     bind-mount: true
                 description: "directory used for large temporary files (generally >10GB)"
     job-manager: # only required when queuing jobs with jobManager (in contrast to family 'resources')
-        order: 103
+        order: 140
         universal: true
         template: true
         options:
@@ -118,7 +158,7 @@ optionFamilies:
                 default: standard
                 description: "slurm --partition (standard, gpu, largemem, viz, standard-oc)" 
     workflow:
-        order: 104
+        order: 150
         universal: true
         options:
             task-id:
@@ -151,7 +191,7 @@ optionFamilies:
                 default: false
                 description: "suppress the configuration feedback in the output log stream"  
     help: 
-        order: 105
+        order: 160
         universal: true
         options:
             help:

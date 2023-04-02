@@ -2,11 +2,14 @@ use strict;
 use warnings;
 use File::Copy;
 use File::Path qw(remove_tree);
+use File::Basename;
 
 # Called automatically by a running pipeline to assemble a data package, 
 # if configured in pipeline.yml. The resulting zip file contains the 
 # small(ish) output files of a Stage 1 Pipeline for loading into a 
 # Stage 1 App.
+
+# optionally, also push the data package to an external server
 
 #---------------------------------------------------------------
 # preparative work
@@ -80,6 +83,25 @@ foreach my $file(@previousFiles){
 system("zip -jr $packagePrefix.zip $packagePrefix");
 remove_tree($packagePrefix);
 print "\n";
+
+#---------------------------------------------------------------
+# if requested, push data packages to an external server for use in Stage 2 Apps
+#---------------------------------------------------------------
+if($ENV{PUSH_SERVER} and $ENV{PUSH_DIR} and $ENV{PUSH_USER} and $ENV{PUSH_KEY}){
+    my $packageFileName = basename($packageFile);
+    my $pushPath = "$ENV{PUSH_SERVER}:$ENV{PUSH_DIR}/$packageFileName";
+    my $localIP = qx/hostname -I | awk '{print \$1}'/;
+    if($localIP =~ m/^10\./ or $localIP =~ m/^172\./ or $localIP =~ m/^192\./){
+        print "skipping push because this server is on a private network\n";
+        print "to push, re-run your job directly on a host with a fully qualified public IP address\n\n";
+    } else {
+        print "attempting to push package file to\n$pushPath\n";
+        print "    external server must allow ssh access to host IP $localIP";
+        print "    you must run 'ssh -i $ENV{PUSH_KEY} $ENV{PUSH_USER}\@$ENV{PUSH_SERVER}' to accept the server fingerprint\n";
+        my $scpCommand = "scp -i $ENV{PUSH_KEY} $packageFile $ENV{PUSH_USER}\@$pushPath";
+        system($scpCommand) or print "push was successful\n\n";        
+    }
+}
 
 #---------------------------------------------------------------
 # fill any task-specific option values into a single task options hash
