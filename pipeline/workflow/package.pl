@@ -91,11 +91,16 @@ if($ENV{PUSH_SERVER} and $ENV{PUSH_DIR} and $ENV{PUSH_USER} and $ENV{PUSH_KEY}){
     my $packageFileName = basename($packageFile);
     my $pushPath = "$ENV{PUSH_SERVER}:$ENV{PUSH_DIR}/$packageFileName";
     my $localIP = qx/hostname -I | awk '{print \$1}'/;
-    print "attempting to push package file to\n$pushPath\n";
-    print "    external server must allow ssh access to host IP $localIP";
-    print "    you must run 'ssh -i $ENV{PUSH_KEY} $ENV{PUSH_USER}\@$ENV{PUSH_SERVER}' to accept the server fingerprint\n";
-    my $scpCommand = "scp -i $ENV{PUSH_KEY} $packageFile $ENV{PUSH_USER}\@$pushPath";
-    system($scpCommand) or print "push was successful\n\n";
+    if($localIP =~ m/^10\./ or $localIP =~ m/^172\./ or $localIP =~ m/^192\./){
+        print "skipping push because this server is on a private network\n";
+        print "to push, re-run your job directly on a host with a fully qualified public IP address\n\n";
+    } else {
+        print "attempting to push package file to\n$pushPath\n";
+        print "    external server must allow ssh access to host IP $localIP";
+        print "    you must run 'ssh -i $ENV{PUSH_KEY} $ENV{PUSH_USER}\@$ENV{PUSH_SERVER}' to accept the server fingerprint\n";
+        my $scpCommand = "scp -i $ENV{PUSH_KEY} $packageFile $ENV{PUSH_USER}\@$pushPath";
+        system($scpCommand) or print "push was successful\n\n";        
+    }
 }
 
 #---------------------------------------------------------------
