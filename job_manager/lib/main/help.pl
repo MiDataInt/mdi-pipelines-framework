@@ -51,7 +51,7 @@ sub reportCommandsHelp { # help on the set of available commands, organized by t
     reportCommandChunk("status and result reporting", qw(status report script ssh top ls));   
     reportCommandChunk("error handling",              qw(delete));           
     reportCommandChunk("pipeline management",         qw(rollback purge));  
-    reportCommandChunk("server management",           qw(initialize install alias add list unlock build server));  
+    reportCommandChunk("server management",           qw(initialize install alias add list clean unlock build server));  
 }
 sub reportOptionHelp { 
     my ($command) = @_;
