@@ -87,7 +87,7 @@ print "\n";
 #---------------------------------------------------------------
 # if requested, push data packages to an external server for use in Stage 2 Apps
 #---------------------------------------------------------------
-if($ENV{PUSH_SERVER} and $ENV{PUSH_DIR} and $ENV{PUSH_USER} and $ENV{PUSH_KEY}){
+if($ENV{PUSH_SERVER} and $ENV{PUSH_SERVER} =~ m/\./ and $ENV{PUSH_DIR} and $ENV{PUSH_USER} and $ENV{PUSH_KEY}){
     my $packageFileName = basename($packageFile);
     my $pushPath = "$ENV{PUSH_SERVER}:$ENV{PUSH_DIR}/$packageFileName";
     my $localIP = qx/hostname -I | awk '{print \$1}'/;
