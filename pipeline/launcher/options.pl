@@ -91,6 +91,7 @@ sub loadActionOptions {
         my $options = getFamilyOptions($family);
         foreach my $optionName(keys %$options){
             my $option = $$options{$optionName};
+            $$cmd{override} and defined $$cmd{override}{$optionName} and $$option{default} = $$cmd{override}{$optionName};
             #$$option{required}[0] or defined $$option{default}[0] or $$option{type}[0] eq 'boolean' or 
             #     throwError("pipeline configuration error\n".
             #                "option '$optionName' must be required or have a default value");
@@ -331,7 +332,7 @@ sub applyVariablesToYamlValue {
         ($varName, $useType) = ($1, 'braces');
     }
     #$varName or return applyBackticks($value); # TODO: allow use of commands in config file? (security risk)
-    $varName or return removeInternalDoubleQuotes($value); # nothing more to do
+    $varName or return unmaskInterploatedSymbols(removeInternalDoubleQuotes($value)); # nothing more to do; these are final values
     
     # discover the values to subsitute
     my $sub;

@@ -113,7 +113,7 @@ sub trimYamlLine {
     $str =~ m/(.+)\s*#(^")*/ and $str = $1; # strip trailing comments        
     $str =~ s/\s+$//g;                   # trim trailing whitespace
     $trimLeading and $str =~ s/^\s+//g;  # trim leading whitespace if requested
-    $str =~ s/\@/\\\@/g;                 # prevent unintended interpolation of @ symbols in values
+    $str =~ s/\@/__AT_SYMBOL__/g;                 # prevent unintended interpolation of @ symbols in values
     $str;
 }
 

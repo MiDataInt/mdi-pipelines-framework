@@ -93,10 +93,10 @@ optionFamilies:
             n-gpu:
                 order: 3
                 short: u
-                type: integer
+                type: character
                 required: false
                 default: 0
-                description: "number of GPUs used for data processing"  
+                description: "number [and type] of GPUs used for data processing, as [gpu-type:]n-gpu"  
             ram-per-cpu:
                 order: 4
                 short: r

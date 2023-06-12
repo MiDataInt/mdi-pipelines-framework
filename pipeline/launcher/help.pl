@@ -98,7 +98,7 @@ sub showOptionsHelp {
                 print "$leftPad"."$left$spaces$value\n";            
             } else {
                 my $type = $$option{type}[0] ? "<$$option{type}[0]> " : "";
-                my $required = $$option{required}[0] ? "*REQUIRED*" : ($$option{default}[0] ? "[$$option{default}[0]]" : "");                
+                my $required = $$option{required}[0] ? "*REQUIRED*" : ($$option{default}[0] ? "[".unmaskInterploatedSymbols($$option{default}[0])."]" : "");                
                 my $desc = getTemplateValue($$option{description});
                 my $right = "$type$desc $required";
                 print  "$leftPad"."$left$spaces$right\n";                

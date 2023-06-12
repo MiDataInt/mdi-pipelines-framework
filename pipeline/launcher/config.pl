@@ -20,7 +20,7 @@ sub loadPipelineConfig {
     my $launcher = loadYamlFile("$launcherDir/commands.yml", 0, 1);
     my $pipeline = loadYamlFile("$pipelineDir/pipeline.yml"); # quick read to obtain suite version declarations and merge _global
     $pipelineSuiteVersions = $$pipeline{suiteVersions};  
-    mergeGlobalFamilies($$pipeline{actions}); # control order of re-assembled yaml to ensure that suiteVersion precedes actions on full load  
+    mergeGlobalFamilies($$pipeline{actions}); # control order of re-assembled yaml to ensure that suiteVersion precedes actions on full load
     printYAML($pipeline, \my $pipelineYml, undef, undef, qw(
         pipeline
         suiteVersions
@@ -51,7 +51,11 @@ sub loadPipelineConfig {
     }
     
     # merge information into a single, final config file hash
-    mergeYAML($launcher, $pipeline, @optionFamilies); # only uses parsed_ values
+    my $config = mergeYAML($launcher, $pipeline, @optionFamilies); # only uses parsed_ values
+
+    # override simple keys, like "description" and option defaults, in action modules to support pipeline customization
+    overrideActionModuleKeys($$config{actions});
+    $config
 }
 sub mergeGlobalFamilies { # support option and conda family sharing between actions
     my ($actions) = @_;
@@ -76,6 +80,21 @@ sub mergeGlobalFamilies { # support option and conda family sharing between acti
         }
     }
     delete $$actions{$global}; # all paths delete the non-existent _global action
+}
+sub overrideActionModuleKeys {
+    my ($actions) = @_; 
+    my %overrideKeys = map { $_ => 1 } qw(description); # explicitly declare the config keys that can be overridden
+    foreach my $actionName(keys %$actions){             # options defaults to override that match this list may not be handled as expected
+        my $action = $$actions{$actionName};
+        $$action{module} or next;
+        $$action{override} or next;
+        foreach my $key(keys %{$$action{override}}){
+            if($overrideKeys{$key}){
+               $$action{$key} = $$action{override}{$key};
+               $$action{override}{$key} = undef; # remaining keys are potentially used to override _default_ values defined by the module
+            }
+        }
+    }
 }
 
 #------------------------------------------------------------------------------

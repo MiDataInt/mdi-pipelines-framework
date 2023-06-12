@@ -148,7 +148,16 @@ sub trimYamlLine {
     $str =~ m/(.+)\s*#(^")*/ and $str = $1; # strip trailing comments        
     $str =~ s/\s+$//g;                   # trim trailing whitespace
     $trimLeading and $str =~ s/^\s+//g;  # trim leading whitespace if requested
-    $str =~ s/\@/\\\@/g;                 # prevent unintended interpolation of @ symbols in values
+    maskInterploatedSymbols($str);
+}
+sub maskInterploatedSymbols {
+    my ($str) = @_;
+    $str =~ s/\@/__AT_SYMBOL__/g; # prevent unintended interpolation of @ symbols in values
+    $str;
+}
+sub unmaskInterploatedSymbols {
+    my ($str) = @_;
+    $str =~ s/__AT_SYMBOL__/\@/g;
     $str;
 }
 
@@ -247,9 +256,13 @@ sub printYAML {
             my $value = $$x[0];
             defined $value or $value = "null";
             $value eq '' and $value = "null";
+            $value = unmaskInterploatedSymbols($value);
             print $outH " $value"; 
         } else { # arrayed values
-            foreach my $value(@$x){ print $outH "\n$indent- $value" }
+            foreach my $value(@$x){ 
+                $value = unmaskInterploatedSymbols($value);
+                print $outH "\n$indent- $value";
+            }
         }  
     }
     $comment or $comment = "";
