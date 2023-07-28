@@ -157,6 +157,13 @@ optionFamilies:
                 required: false
                 default: standard
                 description: "slurm --partition (standard, gpu, largemem, viz, standard-oc)" 
+            exclusive: 
+                order: 5
+                short: null
+                type: boolean
+                required: false
+                default: false
+                description: "ensure that only your Slurm job runs on a node; sets --ram-per-cpu to 0"         
     workflow:
         order: 150
         universal: true

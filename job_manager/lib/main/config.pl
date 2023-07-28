@@ -17,6 +17,7 @@ our %commands = (  # [executionSub, commandHelp, mdiStage2]
     extend      =>  [\&qExtend,      "queue only new or deleted/unsatisfied jobs"],
     #--------------------------------------------------------------------------------------------------------
     status      =>  [\&qStatus,      "show the updated status of all previously queued jobs"], # non-destructive job-file actions
+    start       =>  [\&qStart,       "show the estimated start time of all pending jobs queued by a job file"],
     #--------------------------------------------------------------------------------------------------------
     report      =>  [\&qReport,      "show the log file of a previously queued job"], # non-destructive job-specific actions
     script      =>  [\&qScript,      "show the parsed target script for a previously queued job"],
@@ -99,6 +100,7 @@ our %commandOptions =  ( # 0=allowed, 1=required
     extend     =>  {'dry-run'=>0,'delete'=>0,'execute'=>0,'force'=>0}, 
 #------------------------------------------------------------------------------------------------------------             
     status     =>  {},
+    start      =>  {},
     report     =>  {'job'=>0},
     script     =>  {'job'=>0},
     ssh        =>  {'job'=>0},
