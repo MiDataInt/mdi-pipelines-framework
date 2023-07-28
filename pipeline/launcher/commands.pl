@@ -74,8 +74,10 @@ sub runConda {
     my @newArgs = ($args[0] and $args[$#args] =~ m/\.yml$/) ? (pop @args) : ();
     
     # special handling of command line option flags
+    # NOTE: as always, --version was already handled by launcher.pl: setPipelineSuiteVersion()
     my %options;
     my $help    = "help";
+    my $version = "version";
     my $list    = "list";
     my $create  = "create";
     my $force   = "force";
@@ -98,6 +100,7 @@ sub runConda {
         my $desc = getTemplateValue($$config{actions}{conda}{description});
         $usage .= "\n$pname conda: $desc\n";
         $usage .=  "\nusage: mdi $pname conda [options]\n";
+        $usage .=  "\n    -v/--$version   the suite version to query, as a git release tag or branch [latest]";
         $usage .=  "\n    -l/--$list      show the yml config file for each pipeline action";
         $usage .=  "\n    -c/--$create    if needed, create/update the required conda environments";
         $usage .=  "\n    -f/--$force     do not prompt for permission to create/update environments"; 

@@ -168,6 +168,7 @@ sub assembleTargetScript {
     my $account = $$options{'job-manager'}{account}[0]; 
     my $timeLimit = $$options{'job-manager'}{'time-limit'}[0];
     my $partition = $$options{'job-manager'}{partition}[0];
+    my $exclusive =  $$options{'job-manager'}{exclusive}[0];
 
     # set derivative job values
     my ($sgeArrayConfig, $pbsArrayConfig, $slurmArrayConfig) = ('','','');
@@ -186,7 +187,12 @@ sub assembleTargetScript {
     $ENV{JOB_LOG_DIR} = $logDir;
     my $slurmLogFile = $ENV{IS_ARRAY_JOB} ? "$logDir/%x.o%A-%a" : "$logDir/%x.o%j";
     my $gpuRequest = "";
-    
+    my $slurmExclusive = "";
+    if($exclusive){
+        $slurmExclusive =  "\n#SBATCH --exclusive";
+        $ramPerCpu = 0;
+    }
+
     # set job manager command
     my $jobManagerCommand = getJobManagerCommand($pipelineAction, 1);
     $jobManagerCommand =~ s/\s+$//;
@@ -242,7 +248,7 @@ sub assembleTargetScript {
 #SBATCH --account=$account
 #SBATCH --mail-user=$email
 #SBATCH --mail-type=NONE
-#SBATCH --export=ALL $slurmArrayConfig $slurmDepend
+#SBATCH --export=ALL $slurmExclusive $slurmArrayConfig $slurmDepend
 
 # initialize job and task
 source $libDir/utilities.sh

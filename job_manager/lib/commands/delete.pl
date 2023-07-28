@@ -17,7 +17,7 @@ our (@targetJobIDs, %targetJobIDs, $taskID);  # --job options parsing provided b
 #------------------------------------------------------------------------
 sub qDelete { # delete all incomplete jobs from queue
     #checkLock();
-    updateStatusQuietly();
+    $options{'job'} ? updateStatusQuietly() : updateStatusFiles();
     parseJobOption(\%deletable, 1, 1); # one or more jobs (tasks not needed, delete operates at job level) 
     deleteTargetJobs();    
 }
@@ -83,7 +83,7 @@ sub promptForJobSelection {
     $i++;
     foreach my $jobId(sort { $a <=> $b } keys %$allowedHash){
         my $job = $$allowedHash{$jobId};
-        $message .= join("\t", "", $i, $jobId, $$job[$#$job])."\n";
+        $message .= join("\t", "", $i, $jobId, ref $job eq "ARRAY" ? $$job[$#$job] : $job)."\n";
         $selections{$i} = $jobId;
         $i++;
     }

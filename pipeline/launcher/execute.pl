@@ -247,9 +247,14 @@ sub manageTaskEnvironment { # set all task environment variables (listed in tool
     $ENV{LAST_SUCCESSFUL_STEP} = $rollback eq "null" ? "" : $rollback;
 
     # add any pipeline-specific environment variables as last step
-    # thus can use any standard pipeline variables to construct new, pipeline-specific ones
-    my $pipelineScript = "$pipelineDir/pipeline.pl";
-    -f $pipelineScript and require $pipelineScript;     
+    # thus, pipeline can override anything that came before
+    if($$cmd{'env-vars'}){
+        foreach my $optionLong(keys %{$$cmd{'env-vars'}}){                    # first set variables based on the action declaration in pipeline.yml
+            setEnvVariable($optionLong, ${$$cmd{'env-vars'}}{$optionLong}[0]) # this allows a pipeline to call the same module more than once with different environments
+        } 
+    }
+    my $pipelineScript = "$pipelineDir/pipeline.pl"; # then call pipeline.pl, which can perform extended processing
+    -f $pipelineScript and require $pipelineScript;  # thus can use other variables to construct new, pipeline-specific ones
 }
 sub copyTaskCodeSuites { # create a permanent, fixed working copy of all tool suite code required by this task
     my ($isDryRun, $firstTaskCodeSuiteDir) = @_;

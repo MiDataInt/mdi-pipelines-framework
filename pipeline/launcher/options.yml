@@ -93,10 +93,10 @@ optionFamilies:
             n-gpu:
                 order: 3
                 short: u
-                type: integer
+                type: character
                 required: false
                 default: 0
-                description: "number of GPUs used for data processing"  
+                description: "number [and type] of GPUs used for data processing, as [gpu-type:]n-gpu"  
             ram-per-cpu:
                 order: 4
                 short: r
@@ -157,6 +157,13 @@ optionFamilies:
                 required: false
                 default: standard
                 description: "slurm --partition (standard, gpu, largemem, viz, standard-oc)" 
+            exclusive: 
+                order: 5
+                short: null
+                type: boolean
+                required: false
+                default: false
+                description: "ensure that only your Slurm job runs on a node; sets --ram-per-cpu to 0"         
     workflow:
         order: 150
         universal: true

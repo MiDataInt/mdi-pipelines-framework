@@ -36,7 +36,7 @@ sub qLs {
     # pass the call to system ls
     $taskDir or throwError("error processing job log file: could not extract the task directory", $mdiCommand);
     my $lsDir = join("/", $taskDir, $pipelineOptions);
-    exec "echo $lsDir; ls -lah $lsDir"; 
+    exec "echo $lsDir; ls -lahrt $lsDir"; 
 }
 #========================================================================
 

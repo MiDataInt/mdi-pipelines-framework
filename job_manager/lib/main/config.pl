@@ -17,6 +17,7 @@ our %commands = (  # [executionSub, commandHelp, mdiStage2]
     extend      =>  [\&qExtend,      "queue only new or deleted/unsatisfied jobs"],
     #--------------------------------------------------------------------------------------------------------
     status      =>  [\&qStatus,      "show the updated status of all previously queued jobs"], # non-destructive job-file actions
+    start       =>  [\&qStart,       "show the estimated start time of all pending jobs queued by a job file"],
     #--------------------------------------------------------------------------------------------------------
     report      =>  [\&qReport,      "show the log file of a previously queued job"], # non-destructive job-specific actions
     script      =>  [\&qScript,      "show the parsed target script for a previously queued job"],
@@ -36,6 +37,7 @@ our %commands = (  # [executionSub, commandHelp, mdiStage2]
     alias       =>  [\&mdiAlias,      "create an alias, i.e., named shortcut, to this MDI program target", 1],
     add         =>  [\&mdiAdd,        "add one tool suite repository to config/suites.yml and re-install", 1],
     list        =>  [\&mdiList,       "list all pipelines and apps available in this MDI installation", 1],
+    clean       =>  [\&mdiClean,      "delete all unused conda environments from old pipeline verions", 1],
     unlock      =>  [\&mdiUnlock,     "remove all framework and suite repository locks, to reset after error", 1],    
     build       =>  [\&mdiBuild,      "build one container with all of a suite's pipelines and apps", 1],
     server      =>  [\&mdiServer,     "launch the web server to use interactive Stage 2 apps",  1],
@@ -77,7 +79,7 @@ our %optionInfo = (# [shortOption, valueString, optionGroup, groupOrder, optionH
     'alias'=>              ["a", "<str>", "alias",   0, "the name of the alias, i.e., the command you will type [mdi]"],
     'profile'=>            ["l", "<str>", "alias",   1, "full path to the bash profile file where the alias will be written [~/.bashrc]"],
     'get'=>                ["g", undef,   "alias",   2, "only show the alias command; --profile is ignored and nothing is written"],
-    'version'=>            ["V", "<str>", "build",   0, "the version of the suite to build, e.g. v0.0.0 [latest]"],
+    'version'=>            ["V", "<str>", "build",   0, "the version of the suite to act on, e.g. v0.0.0 [latest]"],
     'sandbox'=>            ["S", undef,   "build",   1, "pass option '--sandbox' to singularity build"],
     'server-command'=>     ["c", "<str>", "server",  0, "command to launch the web server (run, develop, remote, node) [run]"],
     'data-dir'=>           ["D", "<str>", "server",  1, "path to the desired data directory [MDI_DIR/data]"],
@@ -98,13 +100,14 @@ our %commandOptions =  ( # 0=allowed, 1=required
     extend     =>  {'dry-run'=>0,'delete'=>0,'execute'=>0,'force'=>0}, 
 #------------------------------------------------------------------------------------------------------------             
     status     =>  {},
+    start      =>  {},
     report     =>  {'job'=>0},
     script     =>  {'job'=>0},
     ssh        =>  {'job'=>0},
     top        =>  {'job'=>0},
     ls         =>  {'job'=>0},
 #------------------------------------------------------------------------------------------------------------
-    delete     =>  {'dry-run'=>0,'job'=>1,'force'=>0}, 
+    delete     =>  {'dry-run'=>0,'job'=>0,'force'=>0}, 
 #------------------------------------------------------------------------------------------------------------
     rollback   =>  {'dry-run'=>0,'force'=>0,'count'=>0}, 
     purge      =>  {'dry-run'=>0,'force'=>0},
@@ -115,6 +118,7 @@ our %commandOptions =  ( # 0=allowed, 1=required
     alias      =>  {'alias'=>0, 'profile'=>0, 'get'=>0},
     add        =>  {'install-packages'=>0, 'suite'=>1},
     list       =>  {},
+    clean      =>  {},
     unlock     =>  {},
     build      =>  {'suite'=>1, 'version'=>0, 'sandbox' => 0},
     server     =>  {'server-command'=>0,'data-dir'=>0,'host-dir'=>0,'runtime'=>0,'container-version'=>0,'port'=>0}, 
