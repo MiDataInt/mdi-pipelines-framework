@@ -38,9 +38,9 @@ if(!defined $pid){
 } elsif ($pid == 0) {
     foreach my $n(reverse 1..$startingLevel){
         my $levelPath = join("/", ("*") x $n);
-        system("ls -1d 2>/dev/null $tmpDirectory/$levelPath | xargs rm -rf 2>/dev/null {}");
+        system("ls -1d 2>/dev/null $tmpDirectory/$levelPath | xargs rm -rf 2>/dev/null {}"); # does not remove hidden files
     }
-    rmdir $tmpDirectory;
+    system("rm -rf $tmpDirectory"); # remove directory and any remaining hidden files
 } else {
    print "\nfork successful, directory is being deleted\n\n";
 }
