@@ -9,7 +9,7 @@ use vars qw($pipelineName $pipelineSuite $pipelineDir $pipelineSuiteDir $modules
             @args $config $isSingleAction
             %longOptions %optionArrays $isNTasks
             $launcherDir $workFlowDir $workflowScript
-            $suitesDir %workingSuiteVersions $showProgress);
+            %workingSuiteVersions $showProgress);
 
 # parse the options and construct a call to a single pipeline action
 sub executeAction {
@@ -282,10 +282,9 @@ sub copyTaskCodeSuites { # create a permanent, fixed working copy of all tool su
         if($suiteName eq $pipelineSuite){ # this pipeline's suite copies the pipeline itself (all actions) and all shared modules
             copyCodeDir($pipelineDir, $ENV{PIPELINE_DIR});
             copyCodeDir($modulesDir,  $ENV{MODULES_DIR});
-        } else { # external modules always come from definitive code suites
-            my $modulesPath    = "$suiteName/shared/modules";
-            my $modulesDirSrc  = "$suitesDir/$modulesPath";
-            my $modulesDirDest = "$ENV{SUITES_DIR}/$modulesPath";
+        } else {
+            my $modulesDirSrc = getExternalSharedSuiteDir($suiteName)."/shared/modules";
+            my $modulesDirDest = "$ENV{SUITES_DIR}/$suiteName/shared/modules";
             copyCodeDir($modulesDirSrc, $modulesDirDest);
         }
     }

@@ -17,7 +17,8 @@ $SIG{INT} = sub {
 # various framework paths
 our %Forks = (definitive => "definitive", developer => "developer-forks");
 our $mdiDir = $ENV{MDI_DIR}; # the installation from which the pipeline was launched
-our $suitesDir = "$mdiDir/suites/$Forks{definitive}"; # for external suites, which never come from developer forks
+our $definitiveSuitesDir = "$mdiDir/suites/$Forks{definitive}"; # for external suite path resolution
+our $developerSuitesDir  = "$mdiDir/suites/$Forks{developer}";
 our $launcherDir    = "$ENV{FRAMEWORK_DIR}/pipeline/launcher";
 our $workFlowDir    = "$ENV{FRAMEWORK_DIR}/pipeline/workflow";
 our $workflowScript = "$workFlowDir/workflow.sh";

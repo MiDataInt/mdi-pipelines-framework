@@ -8,7 +8,7 @@ use warnings;
 #   external suite version requirements can be specified in pipeline.yml
 
 # working variables
-use vars qw($mdiDir $suitesDir);
+use vars qw($mdiDir $definitiveSuitesDir $developerSuitesDir);
 
 # return the path to a requested shared component file
 sub getSharedFile {
@@ -31,9 +31,17 @@ sub getSharedFile {
     $throwError and throwSharedFileError($sharedTarget, $sharedType);
     undef;
 }
+sub getExternalSharedSuiteDir {
+    my ($suite) = @_;
+    if($ENV{DEVELOPER_MODE}){ # in developer mode, use forked repo if available, otherwise fall back to definitive
+        my $developerSuiteDir = "$developerSuitesDir/$suite";
+        -d $developerSuiteDir and return $developerSuiteDir;
+    } 
+    return "$definitiveSuitesDir/$suite";
+}
 sub getExternalSharedFile {
     my ($suite, $ymlTarget, $sharedType) = @_;
-    my $suiteDir = "$suitesDir/$suite";
+    my $suiteDir = getExternalSharedSuiteDir($suite); 
     -d $suiteDir or return;
     setExternalSuiteVersion($suiteDir, $suite);
     my $suiteSharedDir = "$suiteDir/shared/$sharedType"."s";
