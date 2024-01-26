@@ -133,11 +133,15 @@ if ($target =~ m/\.yml$/){
     my @orderedActions = sort { $$cmds{$a}{order}[0] <=> $$cmds{$b}{order}[0] } keys %$cmds;
     unshift @args, $target; # mimic format '<pipeline> <action> <data.yml> <options>' for each action
     my @argsCache = @args;
+    my $actionSequenceStarted; # for honoring submit from-action/to-action requests
     foreach my $actionCommand(@orderedActions){
+        $actionSequenceStarted = (!$ENV{SUBMIT_FROM_ACTION} or $actionSequenceStarted or $actionCommand eq $ENV{SUBMIT_FROM_ACTION});
+        $actionSequenceStarted or next;                # allow user override of pipeline actions in data.yml
         $$cmds{$actionCommand}{universal}[0] and next; # only execute pipeline actions
         $requestedActions{$actionCommand} or next;     # only execute actions requested in data.yml chunk
         executeAction($actionCommand);
         @args = @argsCache; # reset args for next action
+        $ENV{SUBMIT_TO_ACTION} and $actionCommand eq $ENV{SUBMIT_TO_ACTION} and last;
     }
     
 # a single action specified on the command line    

@@ -51,6 +51,8 @@ sub getConfigFromLauncher {
     $ENV{SHOW_LAUNCHER_PROGRESS} = 1;
     $ENV{IS_JOB_MANAGER} = 1;
     $ENV{SAVE_DELAYED_EXECUTION} = !$options{'dry-run'};
+    $ENV{SUBMIT_FROM_ACTION} = $options{'from-action'};
+    $ENV{SUBMIT_TO_ACTION}   = $options{'to-action'};
     my $jobManagerCommand = getJobManagerCommand(); # returns full config, all commands
     my $parsedYaml = qx|$jobManagerCommand --dry-run|;
     if ($parsedYaml =~ m/$ymlError/) {
