@@ -51,7 +51,9 @@ our %optionInfo = (# [shortOption, valueString, optionGroup, groupOrder, optionH
     'dry-run'=>     ["d", undef,   "submit",  0, "check syntax and report actions to be taken; nothing will be queued or deleted"], 
     'delete'=>      ["x", undef,   "submit",  2, "kill matching pending/running jobs when repeat job submissions are encountered"],    
     'execute'=>     ["e", undef,   "submit",  3, "run target jobs immediately in the shell instead of scheduling them"],   
-    'force'=>       ["f", undef,   "submit",  4, "suppress warnings that duplicate jobs will be queued, files deleted, etc."],  
+    'force'=>       ["f", undef,   "submit",  4, "suppress warnings that duplicate jobs will be queued, files deleted, etc."],
+    'from-action'=> ["t", "<str>", "submit",  5, "queue jobs starting from this named action"],
+    'to-action'=>   ["T", "<str>", "submit",  6, "stop queuing jobs after this named action"],
 #------------------------------------------------------------------------------------------------------------   
     'job'=>         ["j", "<str>", "job",     0, "restrict command to specific jobID(s) (and sometimes its successors)\n". 
                         "                          allowed formats for <str>:\n".
@@ -96,8 +98,10 @@ our %commandOptions =  ( # 0=allowed, 1=required
     inspect    =>  {},
     mkdir      =>  {'dry-run'=>0,'force'=>0},
     submit     =>  {'dry-run'=>0,'delete'=>0,'execute'=>0,'force'=>0,
+                    'from-action'=>0,'to-action'=>0,
                     '_suppress-echo_'=>0,'_extending_'=>0},
-    extend     =>  {'dry-run'=>0,'delete'=>0,'execute'=>0,'force'=>0}, 
+    extend     =>  {'dry-run'=>0,'delete'=>0,'execute'=>0,'force'=>0,
+                    'from-action'=>0,'to-action'=>0}, 
 #------------------------------------------------------------------------------------------------------------             
     status     =>  {},
     start      =>  {},
