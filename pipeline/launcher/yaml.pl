@@ -210,10 +210,18 @@ sub mergeYAML {
     @parsed = sort { $$a[KEY] cmp $$b[KEY] or 
                      $$a[PRIORITY] <=> $$b[PRIORITY] or 
                      $$a[LINE_NUMBER] <=> $$b[LINE_NUMBER]} @parsed; # to preserve array order
-    my %collapsed;
+    my (%priorities, %collapsed);
     foreach my $line(@parsed){
-        if ($$line[TYPE] eq KEYED) { $collapsed{$$line[KEY]} = $$line[VALUE] }
-        else { push @{$collapsed{$$line[KEY]}}, $$line[VALUE] }   
+        my $key = $$line[KEY];
+        my $priority = $$line[PRIORITY];
+        if(!defined $priorities{$key}){
+            $priorities{$key} = $priority;
+        } elsif($priorities{$key} != $priority){
+            delete $collapsed{$key}; # reset in case higher priority YAML changes from KEYED (single value) to ARRAY (multiple values), etc.
+            $priorities{$key} = $priority;
+        }
+        if ($$line[TYPE] eq KEYED) { $collapsed{$key} = $$line[VALUE] }
+        else { push @{$collapsed{$key}}, $$line[VALUE] }   
     }
 
     # expand keys to nested YAML hash
