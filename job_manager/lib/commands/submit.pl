@@ -91,7 +91,10 @@ sub parseAndSubmitJobs {
         my $parsed = $$yamls{parsed}[$i];
         $$parsed{execute} and $nJobsExpected++;
     }
-    $nJobsExpected or throwError('no commands are requested; nothing to do');
+    unless($nJobsExpected){ # don't die, to support multi-pipeline job files
+        print STDERR "$pipelineName: no actions requested\n";
+        return;
+    }
     my $jobI = 0;
     foreach my $i(0..$#{$$yamls{parsed}}){
         my $parsed = $$yamls{parsed}[$i];
