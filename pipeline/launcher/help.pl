@@ -8,6 +8,7 @@ use vars qw($config %optionValues $helpAction $helpCmd);
 my $jmName = $ENV{JOB_MANAGER_NAME} ? $ENV{JOB_MANAGER_NAME} : 'mdi';
 my $actionTabLength = 15;
 my $optionTabLength = 20;
+my $optionTabLengthWide = 25;
 our $leftPad = (" ") x 2;
 our $errorSeparator = "!" x 100;
 
@@ -86,7 +87,8 @@ sub showOptionsHelp {
             $shortOption = $shortOption eq 'null' ? "" : "-$$option{short}[0],";
             my $left = "$shortOption--$longOption";
             my $leftLength = length($left);
-            my $nSpaces = $optionTabLength - $leftLength;
+            my $otl = $leftLength > $optionTabLength ? $optionTabLengthWide : $optionTabLength;
+            my $nSpaces = $otl - $leftLength;
             my $spaces = (" ") x ($nSpaces > 0 ? $nSpaces : 0);
             if($useValues){
                 my $value = $optionValues{$longOption};
@@ -95,13 +97,21 @@ sub showOptionsHelp {
                 } elsif(!defined $value){
                     $value = "null";
                 }
-                print "$leftPad"."$left$spaces$value\n";            
+                print "$leftPad"."$left$spaces$value\n";
             } else {
                 my $type = $$option{type}[0] ? "<$$option{type}[0]> " : "";
-                my $required = $$option{required}[0] ? "*REQUIRED*" : ($$option{default}[0] ? "[".unmaskInterploatedSymbols($$option{default}[0])."]" : "");                
+                my $required = 
+                    $$option{required}[0] ? 
+                    "*REQUIRED*" : (
+                        (defined $$option{default}[0] and 
+                            $$option{type}[0] ne 'boolean' and 
+                            $$option{default}[0] ne 'null') ? 
+                        "[".unmaskInterploatedSymbols($$option{default}[0])."]" : 
+                        ""
+                    );
                 my $desc = getTemplateValue($$option{description});
-                my $right = "$type$desc $required";
-                print  "$leftPad"."$left$spaces$right\n";                
+                my $right = " $type$desc $required";
+                print  "$leftPad"."$left$spaces$right\n";
             }
         }
         $useValues or print "\n";
