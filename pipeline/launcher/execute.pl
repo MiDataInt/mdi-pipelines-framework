@@ -111,8 +111,8 @@ sub setRuntimeEnvVars {
         "valid values are 'direct', 'conda', 'container', 'singularity', or 'auto'"
     );  
     setEnvVariable('runtime', $runtime); 
+    $ENV{SINGULARITY_LOAD_COMMAND} = getSingularityLoadCommand();
     if($ENV{RUNTIME} eq 'auto'){
-        $ENV{SINGULARITY_LOAD_COMMAND} = getSingularityLoadCommand();
         if($ENV{SINGULARITY_LOAD_COMMAND}){
             if(suiteSupportsContainers() and getSuiteContainerStage('pipelines')){
                 $ENV{RUNTIME} = 'container'; # suite containers take precedence if pipelines installed in them
@@ -133,7 +133,7 @@ sub setRuntimeEnvVars {
             "pipeline '$pipelineName' does not support containers\n".
             "please set option --runtime to 'direct', 'conda', or 'auto'"
         );  
-        $ENV{SINGULARITY_LOAD_COMMAND} = getSingularityLoadCommand() or throwError(
+        $ENV{SINGULARITY_LOAD_COMMAND} or throwError(
             "could not find a way to load singularity from PATH or singularity.yml\n".
             "please set option --runtime to 'direct', 'conda', or 'auto', install singularity, or edit:\n".
             "    mdi/config/singularity.yml >> load-command"
