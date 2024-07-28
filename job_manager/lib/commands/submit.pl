@@ -337,7 +337,7 @@ sub addJob { # act on the assembled job
 }
 sub padSubmitEchoColumns {  # ensure pretty parsing of echoed status table
     my(@in) = @_;
-    my @columnWidths = (40, 1, 7, 5, 20);
+    my @columnWidths = (40, 1, 9, 5, 20);
     foreach my $i(0..4){
         my $value = $in[$i];
         my $outWidth = $columnWidths[$i];    
