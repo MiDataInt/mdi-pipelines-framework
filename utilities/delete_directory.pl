@@ -42,5 +42,5 @@ if(!defined $pid){
     }
     system("rm -rf $tmpDirectory"); # remove directory and any remaining hidden files
 } else {
-   print "\nfork successful, directory is being deleted\n\n";
+   print "\nfork successful, directory is being deleted (PID = $pid)\n\n";
 }
