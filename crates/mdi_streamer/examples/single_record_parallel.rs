@@ -24,20 +24,27 @@ struct OutputRecord {
 
 // main
 fn main() {
+
+    // demonstrate the use of immutable data accessed by all parallel threads
+    // such data elements can be safely instantiated at runtime prior to record streaming
+    let global_values: Vec<u32> = vec![666, 777, 888, 999];
+
     RecordStreamer::new()
         .parallelize(1000, 4) // process 1000 records at a time across 4 CPU cores
-        .stream(add_new_field)
+        .stream(|input_record: &InputRecord|{
+            add_new_field(input_record, &global_values)
+        })
         .expect("my RecordStreamer failed");
 }
 
 // in this example, we add a new field to the input_record
 // therefore, we need both and input and a distinct output structure
-fn add_new_field(input_record: &InputRecord) -> Option<Vec<OutputRecord>> {
+fn add_new_field(input_record: &InputRecord, global_values: &Vec<u32>) -> Option<Vec<OutputRecord>> {
     // thread::sleep(time::Duration::from_millis(1)); // uncomment here and above to stimulate a slow process
     Some(vec![OutputRecord {
         group:  input_record.group,
         record: input_record.record,
         random: input_record.random,
-        new_field: 999,
+        new_field: global_values[2], // expect 888 in output
     }])
 }
