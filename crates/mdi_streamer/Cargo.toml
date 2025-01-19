@@ -1,0 +1,10 @@
+[package]
+name = "mdi_streamer"
+version = "0.1.0"
+edition = "2025"
+authors = ["Thomas E. Wilson"]
+
+[dependencies]
+csv = "1.3.1"
+rayon = "1.10.0"
+serde = { version = "1.0", features = ["derive"] }
