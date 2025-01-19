@@ -22,7 +22,7 @@
 //! - without headers, unless `has_headers()` is called on the RecordStreamer
 //! - tab-delimited, unless `delimiter(b'<delimiter>')` is called on the RecordStreamer
 //!
-//! Fields in input and output records will be trimmed of leading and trailing whitespace 
+//! Fields in input records will be trimmed of leading and trailing whitespace 
 //! unless `trim(csv::Trim::None)` is called on the RecordStreamer.
 //!
 //! Streaming is executed by calling `stream(|record: &InputRecord|{})` 
@@ -45,10 +45,10 @@
 
 // dependencies
 use std::error::Error;
-use std::io::{self, Write};
-use rayon::prelude::*;
+use std::io::{self};
+// use rayon::prelude::*;
 use serde::{de::DeserializeOwned, Serialize};
-use serde_json::Value;
+// use serde_json::Value;
 
 /// Initialize a record streamer.
 pub struct RecordStreamer {
@@ -80,7 +80,7 @@ impl RecordStreamer {
     /// struct InputRecord {} // as needed to define record fields
     /// struct OutputRecord {}
     /// 
-    /// let rs = RecordStreamer::new();
+    /// let rs = RecordStreamer::new()
     ///     .parallelize(1000, 8) // process 1000 records at a time across 8 CPU cores
     ///     .has_headers()
     ///     .stream(|record: &InputRecord| {
@@ -88,7 +88,7 @@ impl RecordStreamer {
     ///     })
     ///     .expect("my RecordStreamer failed");
     /// // ... or ...
-    /// let rs = RecordStreamer::new();
+    /// let rs = RecordStreamer::new()
     ///     .group_by("UUID", |records: &[InputRecord]| { // group records by UUID field
     ///         // process records into None or Some(Vec<OutputRecord>)
     ///     })
@@ -103,7 +103,7 @@ impl RecordStreamer {
     /// Parameter `buffer_size` specifies the number of records to process in parallel.
     /// Parameter `n_cpu` specifies the number of CPU cores to use for parallel processing.
     pub fn parallelize(&mut self, buffer_size: usize, n_cpu: usize) -> &mut Self {
-        self.parallelize = Some(buffer_size);
+        self.buffer_size = Some(buffer_size);
         self.n_cpu = Some(n_cpu);
         self
     }
@@ -120,7 +120,7 @@ impl RecordStreamer {
         self
     }
 
-    /// Set the csv trim option for the input and output streams if whitespace trimming is not needed.
+    /// Set the csv trim option for the input stream if whitespace trimming is not needed.
     pub fn trim(&mut self, trim: csv::Trim) -> &mut Self {
         self.trim = trim;
         self
@@ -131,12 +131,12 @@ impl RecordStreamer {
     /// The `stream()` function processes input records one at a time as they are encountered.
     pub fn stream<I, O, F>(&self, record_parser: F) -> Result<(), Box<dyn Error>>
     where
-        I: DeserializeOwned,
+        I: DeserializeOwned + Serialize,
         O: Serialize,
         F: Fn(&I) -> Option<Vec<O>>,
     {
         // get I/O streams
-        let (rdr, wtr) = get_io_streams(self).expect("RecordStreamer failed to open I/O streams on STDIN and/or STDOUT");
+        let (mut rdr, mut wtr) = get_io_streams(self).expect("RecordStreamer failed to open I/O streams on STDIN and/or STDOUT");
         let mut line_number: u64 = 0;
 
         // if requested, process records in chunks with parallel processing of each chunk ...
@@ -148,20 +148,20 @@ impl RecordStreamer {
                 let input_record: I = result.expect(&format!("RecordStreamer failed to parse input line {}", line_number));
                 input_records.push(input_record);
                 if input_records.len() >= buffer_size {
-                    process_record_buffer(&mut wtr, &input_records, record_parser)
-                        .expect(&format!("RecordStreamer failed to process buffer near input line {}", line_number));
+                    // process_record_buffer(&mut wtr, &input_records, &record_parser)
+                    //     .expect(&format!("RecordStreamer failed to process buffer near input line {}", line_number));
                     input_records.clear();
                 }
             }
-            process_record_buffer(&mut wtr, &input_records, record_parser)
-                .expect("RecordStreamer failed to process the last buffered chunk");
+            // process_record_buffer(&mut wtr, &input_records, &record_parser)
+            //     .expect("RecordStreamer failed to process the last buffered chunk");
 
         // .. otherwise process records one at a time
         } else {
             for result in rdr.deserialize() {
                 line_number += 1;
                 let input_record: I = result.expect(&format!("RecordStreamer failed to parse input line {}", line_number));
-                process_record(&mut wtr, &input_record, record_parser)
+                process_record(&mut wtr, &input_record, &record_parser)
                     .expect(&format!("RecordStreamer failed to process input record {}", line_number));
             }
         }
@@ -176,16 +176,16 @@ impl RecordStreamer {
     /// The `group_by()` function processes input records in batches based on the key value in field `grouping_field`.
     pub fn group_by<I, O, F>(&self, grouping_field: &str, record_parser: F) -> Result<(), Box<dyn Error>>
     where
-        I: DeserializeOwned,
+        I: DeserializeOwned + Serialize,
         O: Serialize,
         F: Fn(&[I]) -> Option<Vec<O>>,
     {
         // get I/O streams
-        let (rdr, wtr) = get_io_streams(self).expect("RecordStreamer failed to open I/O streams on STDIN and/or STDOUT");
+        let (mut rdr, mut wtr) = get_io_streams(self).expect("RecordStreamer failed to open I/O streams on STDIN and/or STDOUT");
         let mut line_number: u64 = 0;
 
         // if requested, process grouped records in chunks of groups with parallel processing of each chunk ...
-        if let Some(buffer_size) = self.parallelize {
+        if let Some(buffer_size) = self.buffer_size {
             init_parallel(self).expect("RecordStreamer failed to initialize parallel processing");
             let mut buffered_groups: Vec<Vec<I>> = Vec::new();
             let mut working_group: Vec<I> = Vec::new();
@@ -197,10 +197,11 @@ impl RecordStreamer {
                     .expect(&format!("RecordStreamer failed to get group key from line {}", line_number));
                 if previous_key.as_ref().map_or(false, |k| k != &this_key) {
                     buffered_groups.push(working_group);
-                    working_group.clear();
+                    // working_group.clear();
+                    working_group = Vec::new(); // prevents move error with working_group.clear();
                     if buffered_groups.len() >= buffer_size {
-                        process_group_buffer(&mut wtr, &buffered_groups, record_parser)
-                            .expect(&format!("RecordStreamer failed to process group buffer before input line {}", line_number));
+                        // process_group_buffer(&mut wtr, &buffered_groups, &record_parser)
+                        //     .expect(&format!("RecordStreamer failed to process group buffer before input line {}", line_number));
                         buffered_groups.clear();
                     }
                 }
@@ -208,8 +209,8 @@ impl RecordStreamer {
                 working_group.push(input_record);
             }
             buffered_groups.push(working_group); // handle last group and buffer
-            process_group_buffer(&mut wtr, &buffered_groups, record_parser)
-                .expect("RecordStreamer failed to process last group buffer");
+            // process_group_buffer(&mut wtr, &buffered_groups, &record_parser)
+            //     .expect("RecordStreamer failed to process last group buffer");
 
         // .. otherwise process grouped records one group at a time
         } else {
@@ -221,14 +222,14 @@ impl RecordStreamer {
                 let this_key = get_field_value(&input_record, grouping_field)
                     .expect(&format!("RecordStreamer failed to get group key from line {}", line_number));
                 if previous_key.as_ref().map_or(false, |k| k != &this_key) {
-                    process_group(&mut wtr, &working_group, record_parser)
+                    process_group(&mut wtr, &working_group, &record_parser)
                         .expect(&format!("RecordStreamer failed to process group ending at line {}", line_number - 1));
                     working_group.clear();
                 }
                 previous_key = Some(this_key);
                 working_group.push(input_record);
             }
-            process_group(&mut wtr, &working_group, record_parser)
+            process_group(&mut wtr, &working_group, &record_parser)
                 .expect("RecordStreamer failed to process the last group");
         }
 
@@ -240,28 +241,28 @@ impl RecordStreamer {
 
 // private function to return a paired stream reader and writer for STDIN and STDOUT
 // by design, headers and delimiters are handled the same for both input and output streams
-fn get_io_streams(self: &RecordStreamer) -> Result<(
+fn get_io_streams(rs: &RecordStreamer) -> Result<(
     csv::Reader<std::io::Stdin>, 
     csv::Writer<std::io::Stdout>
 ), Box<dyn Error>> {
     let rdr = csv::ReaderBuilder::new()
-        .has_headers(self.has_headers)
-        .delimiter(self.delimiter)
-        .trim(self.trim)
-        .from_reader(io::stdin())?;
+        .has_headers(rs.has_headers)
+        .delimiter(rs.delimiter)
+        .trim(rs.trim)
+        .from_reader(io::stdin());
     let wtr = csv::WriterBuilder::new()
-        .has_headers(self.has_headers)
-        .delimiter(self.delimiter)
-        .trim(self.trim)
-        .from_writer(io::stdout())?;
+        .has_headers(rs.has_headers)
+        .delimiter(rs.delimiter)
+        .from_writer(io::stdout());
     Ok((rdr, wtr))
 }
 
 // private function to initialize the number of parallel processing threads
-fn init_parallel(self: &RecordStreamer) -> Result<(), Box<dyn Error>> {
-    if let Some(n_cpu) = self.n_cpu {
+fn init_parallel(rs: &RecordStreamer) -> Result<(), Box<dyn Error>> {
+    if let Some(n_cpu) = rs.n_cpu {
         rayon::ThreadPoolBuilder::new().num_threads(n_cpu).build_global()?;
     }
+    Ok(())
 }
 
 // private function to get the value of the key field in a record
@@ -274,51 +275,51 @@ fn get_field_value<T: Serialize>(record: &T, grouping_field: &str) -> Result<Str
     }
 }
 
-// private function to process a buffer of single records in parallel
-// called by stream() when parallelize is requested
-fn process_record_buffer<I, O, F>(
-    wtr: &mut csv::Writer<std::io::Stdout>, 
-    input_records: &[I], 
-    record_parser: F
-) -> Result<(), Box<dyn Error>>
-where
-    I: DeserializeOwned,
-    O: Serialize,
-    F: Fn(&I) -> Option<Vec<O>>,
-{
-    let output_records: Vec<O> = input_records
-        .par_iter()
-        .filter_map(record_parser) // record_parser must return None or Some(Vec<O>)
-        .flatten() // transform Some(Vec<O>) into Vec<O>
-        .collect();
-    for output_record in output_records {
-        wtr.serialize(output_record)?;
-    }
-    Ok(())
-}
+// // private function to process a buffer of single records in parallel
+// // called by stream() when parallelize is requested
+// fn process_record_buffer<I, O, F>(
+//     wtr: &mut csv::Writer<std::io::Stdout>, 
+//     input_records: &[I], 
+//     record_parser: F
+// ) -> Result<(), Box<dyn Error>>
+// where
+//     I: DeserializeOwned + Serialize,
+//     O: Serialize,
+//     F: Fn(&I) -> Option<Vec<O>>,
+// {
+//     // let output_records: Vec<O> = input_records
+//     //     .par_iter()
+//     //     .filter_map(record_parser) // record_parser must return None or Some(Vec<O>)
+//     //     .flatten() // transform Some(Vec<O>) into Vec<O>
+//     //     .collect();
+//     // for output_record in output_records {
+//     //     wtr.serialize(output_record)?;
+//     // }
+//     Ok(())
+// }
 
-// private function to process a buffer of groups of records in parallel
-// called by group_by() when parallelize is requested
-fn process_group_buffer<I, O, F>(
-    wtr: &mut csv::Writer<std::io::Stdout>, 
-    input_record_groups: &[Vec<I>],
-    record_parser: F
-) -> Result<(), Box<dyn Error>>
-where
-    I: DeserializeOwned,
-    O: Serialize,
-    F: Fn(&[I]) -> Option<Vec<O>>,
-{
-    let output_records: Vec<O> = input_record_groups
-        .par_iter()
-        .filter_map(record_parser) // record_parser must return None or Some(Vec<O>)
-        .flatten() // transform Some(Vec<O>) into Vec<O>
-        .collect();
-        for output_record in output_records {
-            wtr.serialize(output_record)?;
-        }
-        Ok(())
-}
+// // private function to process a buffer of groups of records in parallel
+// // called by group_by() when parallelize is requested
+// fn process_group_buffer<I, O, F>(
+//     wtr: &mut csv::Writer<std::io::Stdout>, 
+//     input_record_groups: &[Vec<I>],
+//     record_parser: F
+// ) -> Result<(), Box<dyn Error>>
+// where
+//     I: DeserializeOwned + Serialize,
+//     O: Serialize,
+//     F: Fn(&[I]) -> Option<Vec<O>>,
+// {
+//     // let output_records: Vec<O> = input_record_groups
+//     //     .par_iter()
+//     //     .filter_map(record_parser) // record_parser must return None or Some(Vec<O>)
+//     //     .flatten() // transform Some(Vec<O>) into Vec<O>
+//     //     .collect();
+//     // for output_record in output_records {
+//     //     wtr.serialize(output_record)?;
+//     // }
+//     Ok(())
+// }
 
 // private function to process a single record
 // called by stream() when parallelize is not requested
@@ -328,7 +329,7 @@ fn process_record<I, O, F>(
     record_parser: F
 ) -> Result<(), Box<dyn Error>>
 where
-    I: DeserializeOwned,
+    I: DeserializeOwned + Serialize,
     O: Serialize,
     F: Fn(&I) -> Option<Vec<O>>,
 {
@@ -348,7 +349,7 @@ fn process_group<I, O, F>(
     record_parser: F
 ) -> Result<(), Box<dyn Error>>
 where
-    I: DeserializeOwned,
+    I: DeserializeOwned + Serialize,
     O: Serialize,
     F: Fn(&[I]) -> Option<Vec<O>>,
 {
