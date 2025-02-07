@@ -154,7 +154,7 @@ sub runCompile {
         $usage .= "\n$pname compile: $desc\n";
         $usage .=  "\nusage: mdi $pname compile [options]\n";
         $usage .=  "\n    -v/--$version   the suite version to query, as a git release tag or branch [latest]";
-        $usage .=  "\n    -l/--$list      show a table of expected and compiled executables required by the pipeline";
+        $usage .=  "\n    -l/--$list      show expected and compiled executables required by the pipeline";
         $usage .=  "\n    -c/--$create    if needed, compile any missing executables";
         $usage .=  "\n    -f/--$force     do not prompt for permission to compile executables"; 
         $usage .=  "\n    -M/--$noMamba  do not use Mamba to create the compilation environment, only use Conda";
