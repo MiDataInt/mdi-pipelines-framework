@@ -4,3 +4,5 @@
 **/crates/*/target
 **/crates/*/Cargo.lock
 
+_unused
+_old
