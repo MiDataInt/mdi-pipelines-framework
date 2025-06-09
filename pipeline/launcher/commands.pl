@@ -16,6 +16,7 @@ sub doRestrictedCommand {
         # commands advertised to users
         template => \&runTemplate,
         conda    => \&runConda,
+        compile  => \&runCompile,
         build    => \&runBuild,
         shell    => \&runShell,
         status   => \&runStatus,
@@ -113,6 +114,58 @@ sub runConda {
     # list or create conda environments in action order
     @args = @newArgs;
     showCreateCondaEnvironments($options{$create}, $options{$force}, $options{$noMamba});
+    releaseMdiGitLock(0);
+}
+
+#------------------------------------------------------------------------------
+# compile any executable programs defined by and required by a pipeline"
+#------------------------------------------------------------------------------
+sub runCompile {
+    
+    # see if user provided server.yml
+    my $defaultServerYml = Cwd::abs_path("$mdiDir/config/stage1-pipelines.yml");
+    my @newArgs = ($args[0] and $args[$#args] =~ m/\.yml$/) ? (pop @args) : ();
+    
+    # special handling of command line option flags
+    # NOTE: as always, --version was already handled by launcher.pl: setPipelineSuiteVersion()
+    my %options;
+    my $help    = "help";
+    my $version = "version";
+    my $list    = "list";
+    my $create  = "create";
+    my $force   = "force";
+    my $noMamba = "no-mamba";
+    foreach my $arg(@args){
+        ($arg eq '-h' or $arg eq "--$help")    and $options{$help}    = 1;
+        ($arg eq '-l' or $arg eq "--$list")    and $options{$list}    = 1;
+        ($arg eq '-c' or $arg eq "--$create")  and $options{$create}  = 1;
+        ($arg eq '-f' or $arg eq "--$force")   and $options{$force}   = 1;
+        ($arg eq '-M' or $arg eq "--$noMamba") and $options{$noMamba} = 1;
+    }
+    (!$options{$list} and !$options{$create}) and $options{$help}  = 1;
+    my $error = ($options{$list} and $options{$create}) ?
+                "\noptions '--$list' and '--$create' are mutually exclusive\n" : "";
+                
+    # if requested, show custom action help
+    my $pname = $$config{pipeline}{name}[0];
+    if($options{$help} or $error){
+        my $usage;
+        my $desc = getTemplateValue($$config{actions}{compile}{description});
+        $usage .= "\n$pname compile: $desc\n";
+        $usage .=  "\nusage: mdi $pname compile [options]\n";
+        $usage .=  "\n    -v/--$version   the suite version to query, as a git release tag or branch [latest]";
+        $usage .=  "\n    -l/--$list      show expected and compiled executables required by the pipeline";
+        $usage .=  "\n    -c/--$create    if needed, compile any missing executables";
+        $usage .=  "\n    -f/--$force     do not prompt for permission to compile executables"; 
+        $usage .=  "\n    -M/--$noMamba  do not use Mamba to create the compilation environment, only use Conda";
+        $error and throwError($error.$usage);
+        print "$usage\n\n";
+        releaseMdiGitLock(0);
+    }
+    
+    # compile any executable programs
+    @args = @newArgs;
+    showCompileExecutables($options{$create}, $options{$force}, $options{$noMamba});
     releaseMdiGitLock(0);
 }
 

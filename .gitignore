@@ -1,2 +1,8 @@
 **/job_manager/jobManager
 **/job_manager/qType
+
+**/crates/*/target
+**/crates/*/Cargo.lock
+
+_unused
+_old

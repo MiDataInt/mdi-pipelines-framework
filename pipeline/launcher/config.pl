@@ -27,6 +27,7 @@ sub loadPipelineConfig {
         actions
         optionFamilies
         condaFamilies
+        compilationTargets
         package
         container
     ));
@@ -62,7 +63,7 @@ sub mergeGlobalFamilies { # support option and conda family sharing between acti
     my $global = "_global";
     $$actions{$global} or return; # no global families, nothing to do
     if(ref($$actions{$global}) eq "HASH"){ # check for something to do
-        foreach my $key(qw(environment condaFamilies optionFamilies)){ # control what is supported in _global, ignore all other keys
+        foreach my $key(qw(environment condaFamilies optionFamilies compilationTargets)){ # control what is supported in _global, ignore all other keys
             my $globalRef = $$actions{$global}{$key};
             (ref($globalRef) eq "ARRAY" and @$globalRef and $$globalRef[0] ne 'null') or next; # make sure key is defined
             foreach my $action(keys %$actions){ # append _global to every action ...

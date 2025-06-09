@@ -22,53 +22,61 @@ actions:
         resources:
             required:
                 total-ram: null
-        optionFamilies: null        
+        optionFamilies: null
         description: "create, update, or list the conda environment(s) required by a pipeline"  
-    build:
+    compile:
         order: 3
-        universal: true      
+        universal: true
         resources:
             required:
                 total-ram: null
-        optionFamilies: null        
-        description: "build a pipeline Singularity image and push to a registry" 
-    shell:
+        optionFamilies: null
+        description: "compile any executable programs defined by and required by a pipeline"
+    build:
         order: 4
         universal: true      
         resources:
             required:
                 total-ram: null
-        optionFamilies: null        
-        description: "open a shell or run a command in a pipeline action's runtime environment" 
-    status:
+        optionFamilies: null
+        description: "build a pipeline Singularity image and push to a registry" 
+    shell:
         order: 5
         universal: true
         resources:
             required:
                 total-ram: null
-        optionFamilies: null        
-        description: "print the pipeline status file for an output directory"
-    rollback:
+        optionFamilies: null
+        description: "open a shell or run a command in a pipeline action's runtime environment" 
+    status:
         order: 6
         universal: true
         resources:
             required:
                 total-ram: null
-        optionFamilies: null        
+        optionFamilies: null
+        description: "print the pipeline status file for an output directory"
+    rollback:
+        order: 7
+        universal: true
+        resources:
+            required:
+                total-ram: null
+        optionFamilies: null
         description: "revert the pipeline to an earlier step for an output directory"    
 
     # commands for developers or MDI-internal use
     options:
-        order: 6
+        order: 8
         universal: true
-        hidden: true        
+        hidden: true
         resources:
             required:
                 total-ram: null
-        optionFamilies: null        
+        optionFamilies: null
         description: "show a concise, alphabetically sorted option list for a pipeline action" 
     optionsTable:
-        order: 7
+        order: 9
         universal: true
         hidden: true
         resources:
@@ -77,7 +85,7 @@ actions:
         optionFamilies: null
         description: "return a tab-delimited table of all pipeline actions and options"
     valuesYaml:
-        order: 8
+        order: 10
         universal: true
         hidden: true
         resources:
@@ -86,7 +94,7 @@ actions:
         optionFamilies: null
         description: "return yaml-formatted parsed option values for <data>.yml"
     checkContainer:
-        order: 9
+        order: 11
         universal: true
         hidden: true
         resources:
@@ -95,7 +103,7 @@ actions:
         optionFamilies: null
         description: "check for the presence of a container and prompt to pull if missing"
     buildSuite:
-        order: 10
+        order: 12
         universal: true
         hidden: true
         resources:
