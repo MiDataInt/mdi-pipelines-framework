@@ -95,11 +95,31 @@ if($ENV{PUSH_SERVER} and $ENV{PUSH_SERVER} =~ m/\./ and $ENV{PUSH_DIR} and $ENV{
         print "skipping push because this server is on a private network\n";
         print "to push, re-run your job directly on a host with a fully qualified public IP address\n\n";
     } else {
+
+        # push the data package itself
         print "attempting to push package file to\n$pushPath\n";
         print "    external server must allow ssh access to host IP $localIP";
         print "    you must run 'ssh -i $ENV{PUSH_KEY} $ENV{PUSH_USER}\@$ENV{PUSH_SERVER}' to accept the server fingerprint\n";
         my $scpCommand = "scp -i $ENV{PUSH_KEY} $packageFile $ENV{PUSH_USER}\@$pushPath";
-        system($scpCommand) or print "push was successful\n\n";        
+        my $error = system($scpCommand) or print "push was successful\n\n";
+
+        # push any requested additional (large) files that live outside the package
+        if(!$error and $$config{extraPushFiles}){
+            foreach my $file(@{$$config{extraPushFiles}}){ # file can be a file or directory
+                $file = applyVariablesToYamlValue($file);
+                my $fileName = basename($file);
+                my $pushPath = "$ENV{PUSH_SERVER}:$ENV{PUSH_DIR}/$fileName";
+                my $recursive = '';
+                if(-d $file){ # directory
+                    $recursive = '-r';
+                    $fileName .= '/'; # ensure the directory is created on the server
+                }
+                my $scpCommand = "scp -i $ENV{PUSH_KEY} $recursive $file $ENV{PUSH_USER}\@$pushPath";
+                print "pushing extra file/directory to server: $fileName\n";
+                my $error = system($scpCommand) or print "push was successful\n\n";
+                $error and last;
+            }
+        }
     }
 }
 
