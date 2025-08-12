@@ -82,7 +82,7 @@ foreach my $file(@previousFiles){
 }
 system("zip -jr $packagePrefix.zip $packagePrefix");
 remove_tree($packagePrefix);
-print "\n";
+print "data package created successfully\n\n";
 
 #---------------------------------------------------------------
 # if requested, push data packages to an external server for use in Stage 2 Apps
@@ -148,7 +148,10 @@ sub getOutputFiles {
     my $files = $$config{files};
     foreach my $fileType(keys %$files){
         $$files{$fileType}{file} = [
-            parsePackageFile( applyVariablesToYamlValue($$files{$fileType}{file}[0]) )
+            parsePackageFile( 
+                applyVariablesToYamlValue($$files{$fileType}{file}[0]), 
+                $$files{$fileType}{maxSize}
+            )
         ];
     }
 
@@ -177,8 +180,19 @@ sub getOutputFiles {
     return $files;
 }
 sub parsePackageFile { # get the file name as recorded in package.yml
-    my ($path) = @_;
-    push @files, $path;    
+    my ($path, $maxSize) = @_;
+    -f $path or return "null";
+    if($maxSize){ # reject this file if it exceeds the requested maximum size
+        $maxSize = uc(applyVariablesToYamlValue($$maxSize[0]));
+        if($maxSize =~ m/(\d+)M/){
+            $maxSize = $1 * 1024 * 1024;
+        } elsif($maxSize =~ m/(\d+)G/){
+            $maxSize = $1 * 1024 * 1024 * 1024;
+        }
+        my $fileSize = -s $path;
+        $fileSize > $maxSize and return "null";
+    }
+    push @files, $path;
     $path =~ m|(.+)/(.+)|;
     $2;
 }
