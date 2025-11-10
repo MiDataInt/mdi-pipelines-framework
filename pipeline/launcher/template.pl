@@ -134,6 +134,7 @@ sub writeOptionFamily {
         !$isRequired and !defined $value and $value = 'null';        
         $isRequired and (!defined $value or $value eq 'null') and $value = $requiredLabel;  
         !$allOptions and $value ne $requiredLabel and next;          
+        $$opt{type}[0] eq 'string' and $value =~ m/,/ and $value = "\"$value\"";
         my $left = "$indent$indent$option:";
         my $spaces = $valueIndent - length($left);
         $spaces < 1 and $spaces = 1;

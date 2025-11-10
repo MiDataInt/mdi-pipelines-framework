@@ -190,11 +190,13 @@ sub assembleActionYaml {
             if(!defined $values){ # used by valuesYaml
                 my $value = applyVariablesToYamlValue($$option{default}[0]);
                 !defined $value and $value = "__REQUIRED__";
+                $$option{type}[0] eq 'string' and $value =~ m/,/ and $value = "\"$value\"";
                 $$report .= "$indent$indent$longOption: $value\n";
             } elsif (@$values > 1) {
                 $$option{hidden}[0] or $$report .= "$indent$indent$longOption:\n";
                 foreach my $i(0..$#$values){
                     my $value = getReportOptionValue($option, $$values[$i]);
+                    $$option{type}[0] eq 'string' and $value =~ m/,/ and $value = "\"$value\"";
                     $$option{hidden}[0] or $$report .= "$indent$indent$indent- $value\n";
                     $$taskOptions[$i]{$longOption} = $$values[$i];
                 }
@@ -203,6 +205,7 @@ sub assembleActionYaml {
                 my $nSpaces = 15 - $leftLength;
                 my $spaces = (" ") x ($nSpaces > 1 ? $nSpaces : 1);
                 my $value = getReportOptionValue($option, $$values[0]);
+                $$option{type}[0] eq 'string' and $value =~ m/,/ and $value = "\"$value\"";
                 $$option{hidden}[0] or $$report .= "$indent$indent$longOption:$spaces$value\n";
                 foreach my $i(1..$nTasks{$action}){
                     $$taskOptions[$i-1]{$longOption} = $$values[0];
