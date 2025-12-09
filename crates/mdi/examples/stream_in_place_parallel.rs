@@ -1,10 +1,9 @@
-//! A simple app to show the use of mdi::stream::RecordStreamer::stream_in_place_parallel().
-//! Compatible with output streamed from mdi_streamer/make_tsv.pl.
+//! A simple app to show the use of mdi::RecordStreamer::stream_in_place_parallel().
+//! Compatible with output streamed from make_tsv.pl.
 
 // dependencies
-// use std::{thread, time};
-// use rand::Rng;
-use mdi::stream::RecordStreamer;
+use std::error::Error;
+use mdi::RecordStreamer;
 use serde::{Deserialize, Serialize};
 
 // structures, with support for record parsing using serde
@@ -26,7 +25,7 @@ fn main() {
 
     // demonstrate passing of immutable values to the record parser
     let proof: String = METHOD.to_string();
-    let record_parser = |input_record: &mut MyRecord| -> Option<()> {
+    let record_parser = |input_record: &mut MyRecord| -> Result<bool, Box<dyn Error + Send + Sync>> {
         parse_with_proof(input_record, &proof)
     };
     RecordStreamer::new()
@@ -34,25 +33,20 @@ fn main() {
 }
 
 // record parsing function
-// records are updated by reference, returning None or Some(()) to enact filtering
-fn parse_with_proof(input_record: &mut MyRecord, proof: &str) -> Option<()> {
+// records are updated by reference, returning Ok(bool) to enact filtering
+fn parse_with_proof(input_record: &mut MyRecord, proof: &str) -> Result<bool, Box<dyn Error + Send + Sync>> {
 
-    // // simulate a slow process by sleeping for a random number of milliseconds
-    // // output order will be retained by par_iter.map()
-    // let milli_seconds: u64 = rand::thread_rng().gen_range(0..5);
-    // thread::sleep(time::Duration::from_millis(milli_seconds)); 
-
-    // filter against some records by returning None
+    // filter against some records by returning Ok(false)
     if input_record.group > 5 && input_record.group < 10 {
-        None
+        Ok(false)
 
     // update the remaining records to show we did something
     } else {
         input_record.random *= 100;
         input_record.name = format!("{}-{}", input_record.name, proof);
 
-        // return Some(()) to indicate success
+        // return Ok(true) to output this record
         // do not need to return the record since it is updated in place
-        Some(())
+        Ok(true)
     }
 }

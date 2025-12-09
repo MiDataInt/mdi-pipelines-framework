@@ -1,11 +1,10 @@
-//! A simple app to show the use of mdi::stream::RecordStreamer::group_by_replace_parallel().
-//! Compatible with output streamed from mdi_streamer/make_tsv.pl.
+//! A simple app to show the use of mdi::RecordStreamer::group_by_replace_parallel().
+//! Compatible with output streamed from make_tsv.pl.
 
 // dependencies
-// use std::{thread, time};
-// use rand::Rng;
+use std::error::Error;
 use std::cmp::min;
-use mdi::stream::RecordStreamer;
+use mdi::RecordStreamer;
 use serde::{Deserialize, Serialize};
 
 // structures, with support for record parsing using serde
@@ -35,7 +34,7 @@ fn main() {
 
     // demonstrate passing of immutable values to the record parser
     let proof: String = METHOD.to_string();
-    let record_parser = |input_record_group: &Vec<InputRecord>| -> Option<Vec<OutputRecord>> {
+    let record_parser = |input_record_group: &Vec<InputRecord>| -> Result<Vec<OutputRecord>, Box<dyn Error + Send + Sync>> {
         parse_with_proof(input_record_group, &proof)
     };
 
@@ -46,18 +45,13 @@ fn main() {
 
 // record parsing function
 // input records are immutable and must be transformed to output records
-fn parse_with_proof(input_record_group: &Vec<InputRecord>, proof: &str) -> Option<Vec<OutputRecord>> {
+fn parse_with_proof(input_record_group: &Vec<InputRecord>, proof: &str) -> Result<Vec<OutputRecord>, Box<dyn Error + Send + Sync>> {
 
-    // // simulate a slow process by sleeping for a random number of milliseconds
-    // // output order will be retained by par_iter.map()
-    // let milli_seconds: u64 = rand::thread_rng().gen_range(0..5);
-    // thread::sleep(time::Duration::from_millis(milli_seconds)); 
-
-    // filter against some record groups by returning None
+    // filter against some record groups by returning an empty vector
     let group0 = &input_record_group[0];
     let group = group0.group; // probably wouldn't do this, but to demonstrate some things
     if group > 5 && group < 10 {
-        None
+        Ok(vec![])
     } else {
 
         // initialize a new aggregated output record from the first input record
@@ -79,6 +73,6 @@ fn parse_with_proof(input_record_group: &Vec<InputRecord>, proof: &str) -> Optio
         // return the new output record(s)
         // returning a vector of records transfers metadata ownership to RecordStreamer
         // without a deep copy of the allocated record data on the heap
-        Some(vec![output_record])
+        Ok(vec![output_record])
     }
 }

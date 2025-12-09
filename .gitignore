@@ -1,8 +1,16 @@
+# exclude files creating during local installation of the framework
 **/job_manager/jobManager
 **/job_manager/qType
 
+# exclude Rust build artifacts
+**/crates/target
+**/crates/Cargo.lock
 **/crates/*/target
 **/crates/*/Cargo.lock
 
-_unused
-_old
+# exclude development artifacts and temporary files
+unused/
+old/
+_unused/
+_old/
+test.*
