@@ -31,6 +31,12 @@ pub use crate::df_set;
 //internal macros
 pub use crate::__df_set;
 /*-------------------------------------------------------------------- */
+// from inject.rs
+// user macros
+pub use crate::df_inject;
+//internal macros
+pub use crate::__df_inject;
+/*-------------------------------------------------------------------- */
 // from column.rs
 pub use crate::df_set_labels;
 pub use crate::df_retain;
@@ -52,6 +58,10 @@ pub use crate::__qry_aggregate;
 pub use crate::__qry_pivot;
 pub use crate::__df_query;
 pub use crate::__df_query_chain;
+/*-------------------------------------------------------------------- */
+// from index.rs
+pub use crate::df_index;
+pub use crate::df_get_indexed;
 /*-------------------------------------------------------------------- */
 // from bind.rs
 pub use crate::df_cbind;

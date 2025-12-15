@@ -85,15 +85,13 @@ macro_rules! __df_set {
     base case, no more operations
     ============================================================================= */
     ($df:expr, $qry:expr, $out_names:expr $(,)?) => {
-        
     };
 }
 
 /// Create new or overwrite existing column(s) in place using a mutable reference
-/// to a DataFrame and caller-defined operation(s) applied to one or more DataFrame 
-/// columns. 
+/// to a DataFrame and caller-defined operation(s) applied to one or more columns. 
 /// 
-/// The `df_set` interface enables:
+/// The `df_set!()` macro enables:
 /// - strong, declared typing consistent with Rust conventions
 /// - compact, easy-to-read, write, and debug statement syntax
 /// - maximum flexibility in column operations provided as user-defined operation closures
@@ -101,13 +99,13 @@ macro_rules! __df_set {
 /// - embarassingly parallel row-wise processing of column-wise operations
 /// - row filtering to only apply update to matching rows
 /// 
-/// The overall macro call structure is 
-/// `df_set!(&mut df, [filter(statement, ...),] do(statement, ...))`,
+/// The `df_set!()` call structure is 
+///     `df_set!(&mut df, [filter(statement, ...),] do(statement, ...))`,
 /// where 
-/// - `filter()` is optional and filled with one or more condition statements
-/// - `do()` is required and filled with one or more set statements
-/// - as a shortcut, the `do()` wrapper can be omitted if filtering is not required, i.e., 
-///   `df_set!(&mut df, ...)` is equivalent to `df_set!(&mut df, do(...))`.
+///     - `filter()` is optional and filled with one or more condition statements
+///     - `do()` is required and filled with one or more set statements
+///     - as a shortcut, the `do()` wrapper can be omitted if filtering is not required, i.e., 
+///       `df_set!(&mut df, ...)` is equivalent to `df_set!(&mut df, do(...))`.
 ///
 /// Include query-like `filter(...)` statement(s) to only update df rows that match
 /// the filter condition(s). See the `query` macro for details on creating filter statements.
@@ -122,8 +120,8 @@ macro_rules! __df_set {
 /// 
 /// Set statements end with a semicolon, similar to other Rust statements.
 /// 
-/// Operations to be performed are provided as closures of form 
-/// `|a| ...`, `|a, b| ...`, etc.
+/// Operations to be performed are provided as closures of form:
+///     `|a| ...`, `|a, b| ...`, etc.
 /// Up to three comma-separated input columns can specified as inputs to each closure.
 /// Any names of your choosing can be used as closure arguments but `a`, `b`, `c` are 
 /// a common shorthand. Alternatively, you can map to a named function with an 
@@ -150,7 +148,7 @@ macro_rules! __df_set {
 /// Output column names can be the same as input column names, which will overwrite/update 
 /// that column without error or warning.
 /// 
-/// When updating RFactor/u16 columns, `df_set!()` will automatically retain factor
+/// When updating RFactor/u16 columns, `df_set!()` will retain factor
 /// labels from the existing column. However, `df_set!()` does not have a syntax to add factor 
 /// labels to a new column. Add labels after the fact using `df.set_labels()` or `df_set_labels!()`.
 /// 
@@ -161,7 +159,7 @@ macro_rules! __df_set {
 ///     vec_fill:usize = (0..n_row).collect::<Vec<usize>>().to_rl(); // vector fill
 ///     int_col_add_1:i32 = int_col => |a| a + 1;    // new column from op on existing column
 ///     num_col:f64 = num_col => |a: &f64| a + 0.5;  // modify existing column in place
-///     int_add_num:f64[0.0] = int_col, num_col =>      // multi-column operation with default value 0.0
+///     int_add_num:f64[0.0] = int_col, num_col =>   // multi-column operation with default value 0.0
 ///         |a: &i32, b: &f64| (*a as f64) + b;
 /// );
 /// df_set!(&mut df2,

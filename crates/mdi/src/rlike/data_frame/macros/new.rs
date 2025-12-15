@@ -16,12 +16,11 @@ DataFrame `new` constructor macro
 /// (with factor labels as `col_name:u16[labels]`) to create a new DataFrame with zero rows, 
 /// i.e., a DataFrame schema.
 /// 
-/// Note that `df_new!()` uses commas, not semicolons, to separate its arguments,
-/// unlike other DataFrame macros based on statement syntaxes.
+/// Note that `df_new!()` uses commas, not semicolons, to separate its arguments.
 /// 
 /// Calling df_new!() with no arguments creates an empty DataFrame with zero rows and
 /// zero columns that can be populated later from disk or from pre-existing DataFrames 
-/// using the `df_read!()`, `df_inject!()`, `df_cbind!()`, `df_rbind!()`, or other macros.
+/// using `df_read!()`, `df_inject!()`, `df_cbind!()`, `df_rbind!()`, or other macros.
 /// 
 /// # Examples:
 /// 

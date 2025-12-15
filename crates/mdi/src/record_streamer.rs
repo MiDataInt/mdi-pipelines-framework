@@ -53,9 +53,9 @@
 //! - `stream_in_place_parallel(Fn(&mut T) -> Result<bool, Box<dyn Error>>, n_cpu: usize, buffer_size: usize)`
 //! - `stream_replace_serial(FnMut(&I) -> Result<Vec<O>, Box<dyn Error>>)`
 //! - `stream_replace_parallel(Fn(&I) -> Result<Vec<O>, Box<dyn Error>>, n_cpu: usize, buffer_size: usize)`
-//! - `group_by_in_place_serial(Fn(&mut Vec<T>) -> Result<Vec<usize>, Box<dyn Error>>, grouping_fields: &[&str])`
+//! - `group_by_in_place_serial(FnMut(&mut Vec<T>) -> Result<Vec<usize>, Box<dyn Error>>, grouping_fields: &[&str])`
 //! - `group_by_in_place_parallel(Fn(&mut Vec<T>) -> Result<Vec<usize>, Box<dyn Error>>, grouping_fields: &[&str], n_cpu: usize, buffer_size: usize)`
-//! - `group_by_replace_serial(Fn(&Vec<I>) -> Result<Vec<O>, Box<dyn Error>>, grouping_fields: &[&str])`
+//! - `group_by_replace_serial(FnMut(&Vec<I>) -> Result<Vec<O>, Box<dyn Error>>, grouping_fields: &[&str])`
 //! - `group_by_replace_parallel(Fn(&Vec<I>) -> Result<Vec<O>, Box<dyn Error>>, grouping_fields: &[&str], n_cpu: usize, buffer_size: usize)`
 //! where the caller defines and provides:
 //! - `Struct`s that define the input and output record structures
@@ -84,11 +84,11 @@
 //! 
 //! It is common for calling code to pass a closure to the RecordStreamer as
 //! the record_parser argument, so that the closure can capture additional variables from
-//! the calling environment. Only a subset of RecordStreamer functions support
-//! mutable captures, i.e., that allow the record_parser to modify captured local variables.
-//! Essentially, only the serial functions support mutable captures, since
-//! parallel functions cannot modify shared local variables safely. It make take some
-//! trial and error to determine which functions support your mutable captures.
+//! the calling environment. Only the `xxx__xxx_serial` RecordStreamer functions support
+//! mutable captures, i.e., that allow the record_parser to modify captured local variables,
+//! as parallel functions cannot modify shared local variables safely due to concurrency
+//! restrictions. If you need to modify something other than the record stream itself,
+//! e.g., a counter or a summary vector, you should use serial record parsing functions.
 //! Immutable local variable captures are supported by all RecordStreamer functions.
 //! 
 //! # Additional Program Actions (side effects)
@@ -343,12 +343,12 @@ impl RecordStreamer {
     ///     - in place, i.e., only filtering, sorting or updating the input records
     pub fn group_by_in_place_serial <T, F>(
         &mut self, 
-        record_parser: F, 
+        mut record_parser: F, 
         grouping_fields: &[&str]
     )
     where
         T: DeserializeOwned + Serialize,
-        F: for<'a> Fn(&'a mut Vec<T>) -> Result<Vec<usize>, Box<dyn Error>>,
+        F: FnMut(&mut Vec<T>) -> Result<Vec<usize>, Box<dyn Error>>,
     {
         self.mode = "RecordStreamer::group_by_in_place_serial()".to_string();
         let (mut rdr, mut wtr) = self.init_io_streams(None);
@@ -360,13 +360,13 @@ impl RecordStreamer {
             );
             let this_key = self.get_composite_key(&input_record, grouping_fields, i0);
             if previous_key.as_ref().map_or(false, |k| k != &this_key) {
-                self.do_group_by_in_place_serial(&mut wtr, &mut input_record_group, &record_parser, Some(i0));
+                self.do_group_by_in_place_serial(&mut wtr, &mut input_record_group, &mut record_parser, Some(i0));
                 input_record_group.clear();
             }
             previous_key = Some(this_key);
             input_record_group.push(input_record);
         }
-        self.do_group_by_in_place_serial(&mut wtr, &mut input_record_group, &record_parser, None);
+        self.do_group_by_in_place_serial(&mut wtr, &mut input_record_group, &mut record_parser, None);
         self.flush_stream(wtr);
     }
 
@@ -415,13 +415,13 @@ impl RecordStreamer {
     ///     - where output records of arbitrary number and structure replace input records
     pub fn group_by_replace_serial <I, O, F>(
         &mut self, 
-        record_parser: F, 
+        mut record_parser: F, 
         grouping_fields: &[&str]
     )
     where
         I: DeserializeOwned + Serialize,
         O: Serialize,
-        F: for<'a> Fn(&Vec<I>) -> Result<Vec<O>, Box<dyn Error>>,
+        F: FnMut(&Vec<I>) -> Result<Vec<O>, Box<dyn Error>>,
     {
         self.mode = "RecordStreamer::group_by_replace_serial()".to_string();
         let (mut rdr, mut wtr) = self.init_io_streams(None);
@@ -433,13 +433,13 @@ impl RecordStreamer {
             );
             let this_key = self.get_composite_key(&input_record, grouping_fields, i0);
             if previous_key.as_ref().map_or(false, |k| k != &this_key) {
-                self.do_group_by_replace_serial(&mut wtr, &input_record_group, &record_parser, Some(i0));
+                self.do_group_by_replace_serial(&mut wtr, &input_record_group, &mut record_parser, Some(i0));
                 input_record_group.clear();
             }
             previous_key = Some(this_key);
             input_record_group.push(input_record);
         }
-        self.do_group_by_replace_serial(&mut wtr, &input_record_group, &record_parser, None);
+        self.do_group_by_replace_serial(&mut wtr, &input_record_group, &mut record_parser, None);
         self.flush_stream(wtr);
     }
 
@@ -645,12 +645,12 @@ impl RecordStreamer {
         &self,
         wtr: &mut csv::Writer<Stdout>, 
         input_record_group: &mut Vec<T>, 
-        record_parser: F,
+        record_parser: &mut F,
         i0: Option<usize>,
     )
     where
         T: DeserializeOwned + Serialize,
-        F: Fn(&mut Vec<T>) -> Result<Vec<usize>, Box<dyn Error>>,
+        F: FnMut(&mut Vec<T>) -> Result<Vec<usize>, Box<dyn Error>>,
     {
         let result = record_parser(input_record_group);
         let n_in  = input_record_group.len();
@@ -718,13 +718,13 @@ impl RecordStreamer {
         &self,
         wtr: &mut csv::Writer<Stdout>, 
         input_record_group: &Vec<I>, 
-        record_parser: F,
+        record_parser: &mut F,
         i0: Option<usize>,
     )
     where
         I: DeserializeOwned + Serialize,
         O: Serialize,
-        F: Fn(&Vec<I>) -> Result<Vec<O>, Box<dyn Error>>,
+        F: FnMut(&Vec<I>) -> Result<Vec<O>, Box<dyn Error>>,
     {
         let result = record_parser(input_record_group);
         match &result {

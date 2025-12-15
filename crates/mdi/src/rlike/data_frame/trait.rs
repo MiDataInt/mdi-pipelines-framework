@@ -10,8 +10,8 @@ use crate::rlike::data_frame::column::get::ColVec;
 /// A trait for DataFrame and DataFrameSlice to provide a common interface
 /// for accessing DataFrame metadata and data.
 /// 
-/// Many methods are shared because DataFrameSlice is a reference to a subset 
-/// of the rows of a DataFrame.
+/// Many methods are shared because DataFrameSlice is an immutable reference 
+/// to a subset of the rows of a DataFrame.
 pub trait DataFrameTrait<'a>{
     /* -----------------------------------------------------------------------------
     DataFrame[Slice] metadata getters
@@ -37,10 +37,6 @@ pub trait DataFrameTrait<'a>{
     /// Get the row sort and group status of a DataFrame[Slice].
     fn status(&self) -> &QueryStatus;
 
-    // /// Check if a DataFrame's sort or group columns include any of a list of columns.
-    // /// If so, reset the status to the default state.
-    // /// If not, copy the status from the source DataFrame.
-    // fn reset_or_copy_status(&mut self, src_df: &DataFrame, col_names: Vec<String>);
     /* -----------------------------------------------------------------------------
     DataFrameSlice data getters
     ----------------------------------------------------------------------------- */
@@ -64,13 +60,6 @@ impl DataFrameTrait<'_> for DataFrame {
     fn is_empty(&self)  -> bool { self.n_row == 0 && self.n_col == 0 }
     fn has_rows(&self)  -> bool { self.n_row > 0 }
     fn status(&self) -> &QueryStatus { &self.status }
-    // fn reset_or_copy_status(&mut self, df_src: &DataFrame, col_names: Vec<String>) {
-    //     if self.status.sort_cols.iter().any(|col| col_names.contains(col)) {
-    //         self.status.reset();
-    //     } else {
-    //         self.status = df_src.status.clone();
-    //     }
-    // }
 
     // DataFrame data getters
     fn get<T: Clone>(&self, col_name: &str) -> Vec<Option<T>> 
@@ -95,14 +84,7 @@ impl DataFrameTrait<'_> for DataFrameSlice<'_> {
     fn is_empty(&self)  -> bool { self.n_row == 0 && self.data_frame.n_col == 0 }
     fn has_rows(&self)  -> bool { self.n_row > 0 }
     fn status(&self) -> &QueryStatus { &self.data_frame.status }
-    // fn reset_or_copy_status(&mut self, df_src: &DataFrame, col_names: Vec<String>) {
-    //     if self.data_frame.status.sort_cols.iter().any(|col| col_names.contains(col)) {
-    //         self.data_frame.status.reset();
-    //     } else {
-    //         self.data_frame.status = df_src.status.clone();
-    //     }
-    // }
-    
+
     // DataFrameSlice data getters
     fn get<T: Clone>(&self, col_name: &str) -> Vec<Option<T>> 
     where Vec<Option<T>>: ColVec {

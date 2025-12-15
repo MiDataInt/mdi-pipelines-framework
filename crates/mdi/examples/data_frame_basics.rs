@@ -11,6 +11,7 @@
 //!   - Queries      = ask questions of DataFrames; create new DataFrames from results
 //!   - Aggregation  = summarize DataFrames by (sorted) row groups
 //!   - Pivots       = long-to-wide reshaping of DataFrames
+//!   - Indexing     = data retrieval using key columns for fast data access
 //!   - Binding      = create new DataFrames as row/column-wise combinations of existing DataFrames
 //!   - Joins        = combine DataFrames by matching column values
 //! 
@@ -23,7 +24,9 @@
 //! 
 //! Don't be deceived by the very simple and small DataFrames used here! See example
 //! `data_frame_stress_test.rs` to explore DataFrame performance and scalability with
-//! data sets encompassing millions of rows (or as many rows as you care to test).
+//! data sets encompassing millions of rows (or as many as you care to test).
+
+use core::panic;
 
 /*----------------------------------------------------------------------------
 Imports = bring DataFrame features into scope
@@ -38,10 +41,10 @@ fn main() {
     // Create a new DataFrame with initial data using the `df_new!()` macro.
     // Here, column data types are inferred from input data.
     // Values are wrapped in `Option<T>`, either manually or using `to_rl()`, to represent NA/nulls.
-    // Other ways of filling data frames from IO are illustrated in example `data_frame_stress_test.rs`.
-    // Additional specially handled data types are illustrated in example `data_frame_data_types.md`.
-    let df1 = df_new!(
-        record_i = (10..=19).collect::<Vec<_>>().to_rl(),
+    // Other ways of filling data frames from IO are illustrated in example `data_frame_stress_test.rs`,
+    // including the use of additional specially handled data types.
+    let mut df1 = df_new!(
+        record_i = (10..=19).collect::<Vec<_>>().to_rl(), // entries are separated by commas
         int_col  = vec![99, 99, 0, 99, 99, 99, 0, 99, 99, 99].to_rl(),
         num_col  = vec![Some(0.0), Some(1.1), None, Some(3.3), Some(1.1), 
                         Some(2.2), None, Some(3.3), Some(4.4), Some(3.3)],
@@ -55,14 +58,24 @@ fn main() {
     // This DataFrame has no columns or rows.
     let df4 = DataFrame::new();
 
-    // Initialize an empty DataFrame another DataFrame's columns as a schema.
+    // Initialize an empty DataFrame using another DataFrame's columns as a schema.
     // This DataFrame has the same columns and data types as `df1` but no rows.
-    let df5 = DataFrame::from_schema(&df1);
+    let mut df5 = DataFrame::from_schema(&df1);
+    df5.reserve(1000); // reserve space for expected rows to minimize reallocation
+
+    // Initialize an empty DataFrame with a schema you define.
+    let _df6 = df_new!(
+        capacity = 1000, // optional initial capacity (default is 100K rows)
+        record_i: i32,
+        int_col:  i32,
+        num_col:  f64
+    );
 
     /*------------------------------------------------------------------------
     Display = inspect DataFrames
     ----------------------------------------------------------------------- */
     // Print a summary of a DataFrame's structure and contents by exploiting its Display trait.
+    // Adjust the layout by setting `df1.print_max_rows` and `df1.print_max_col_width`.
     eprint!("\ndf1 (initial data){}\n", df1);
     // DataFrame: 10 rows × 3 columns
     // record_i <i32> int_col <i32> num_col <f64> 
@@ -96,6 +109,15 @@ fn main() {
     eprint!("Extracted num_col values:\n{:?}\n\n", df1_num_col);
     assert_eq !(df1_num_col_row_3.unwrap(), 3.3); // row_i 3 uses 0-based row numbering
 
+    // Data manipulations can be performed on the fly while extracting data using `df_get!()`.
+    let record_i_sum: Vec<Option<i32>> = df_get!(&df1, record_i, Do::sum); // a single value aggregated over record_i
+    let vectorized_sum: Vec<Option<i32>> = df_get!(&df1, record_i, int_col, Do::add); // a vector of length df1.n_row()
+    assert_eq !(record_i_sum[0].unwrap(), 145); // sum of 10 through 19
+    assert_eq !(vectorized_sum, vec![
+        Some(109), Some(110), Some(12), Some(112), Some(113), // pairwise sums by row
+        Some(114), Some(16), Some(116), Some(117), Some(118)
+    ]);
+
     /*------------------------------------------------------------------------
     Setters = modify data in DataFrames in place
     ----------------------------------------------------------------------- */
@@ -123,7 +145,7 @@ fn main() {
     // interface below for details on the filter statement syntax.
     df_set!(&mut df2,
         filter( int_col:i32 => |a| a == Some(0); ),
-        do(     record_i:i32 = Some(666); )
+        do( record_i:i32 = Some(666); )
     );
     eprint!("modified df2{}\n", df2);
     // DataFrame: 10 rows × 7 columns
@@ -157,12 +179,12 @@ fn main() {
     //      `col:type [, col:type ...] => |a [, ...]| ...;`,
     // which in natural language reads from left-to-right as:
     //      "use these columns of these names and data types mapped into this operation to filter rows"
-    let df6 = df_query!(&df1,
+    let df7 = df_query!(&df1,
         filter( int_col:i32 => |a| a != Some(0); ), // filter to rows where int_col != 0 or None
         sort( num_col ),                            // sort by num_col ascending
         select( record_i, num_col )                 // select output columns
     );
-    eprint!("df6 (simple filter and sort){}\n", df6);
+    eprint!("df7 (simple filter and sort){}\n", df7);
     // DataFrame: 8 rows × 2 columns
     // record_i <i32> num_col <f64> 
     // -------------- ------------- 
@@ -178,7 +200,7 @@ fn main() {
     // Multi-statement/column filtering and sorting is supported. Multi-statement filters use AND logic.
     // Filter conditions can also be built using multiple columns, e.g., for OR logic or arithmetic.
     // Non-string sorts can be negated using the '_' prefix to indicate descending order.
-    let df6 = df_query!(&df1,
+    let df7 = df_query!(&df1,
         filter( 
             int_col:i32 => |a| a != Some(0); // use as many conditions as needed
             num_col:f64 => |a| a >= Some(2.0);
@@ -187,7 +209,7 @@ fn main() {
         sort( _num_col, record_i), // sort by num_col descending, then record_i ascending
         select( record_i, num_col )
     );
-    eprint!("df6 (multi-statement/column filters, descending sort){}\n", df6);
+    eprint!("df7 (multi-statement/column filters, descending sort){}\n", df7);
     // DataFrame: 5 rows × 2 columns
     // record_i <i32> num_col <f64> 
     // -------------- ------------- 
@@ -199,12 +221,12 @@ fn main() {
 
     // A single call to `df_query!()` can perform chained queries - just continue
     // to call another query sequence after calling `select()`.
-    let df6 = df_query!(&df1,
+    let df7 = df_query!(&df1,
         select( record_i, num_col ),                  // the first query sequence in a chain
         filter( record_i:i32 => |a| a >= Some(15); ), // the second query sequence in a chain
         select(num_col) // a trivial example, you would not normally do this but it works
     );
-    eprint!("df6 (query chain){}\n", df6);
+    eprint!("df7 (query chain){}\n", df7);
     // DataFrame: 5 rows × 1 columns
     // num_col <f64> 
     // ------------- 
@@ -227,17 +249,17 @@ fn main() {
     // which in natural language reads from left-to-right as:
     //      "create output column of this name and data type [with this NA replacement value] 
     //       by mapping these columns into this aggregation operation"
-    let df7 = df_query!(
+    let df8 = df_query!(
         &df1,
         filter( int_col:i32 => |a| a != Some(0); ),
         sort( num_col, int_col ), // you can sort by more than the grouping columns, but grouping columns come first
         group( num_col ~ record_i + int_col ), // group by num_col, aggregate over record_i and int_col
         aggregate( // aggregation statements, yielding a single value from Vec<T>
             record_i:i32 = record_i => Agg::first;       // using predefined aggregation functions
-            int_col:i32 = int_col => |a: Vec<i32>| a[0]; // the same 'first' aggregation using a custom closure
+            int_col:i32 = int_col => |a: Vec<i32>| a[0]; // the same 'first' op using a custom closure
         )
     );
-    eprint!("df7 (sorted group by){}\n", df7);
+    eprint!("df8 (sorted group by){}\n", df8);
     // DataFrame: 5 rows × 3 columns
     // num_col <f64> record_i <i32> int_col <i32> 
     // ------------- -------------- ------------- 
@@ -249,7 +271,7 @@ fn main() {
 
     // If the `sort()` action is omitted before `group()`, grouping is done using hashes in a
     // manner that returns results in the order that groups were first encounted in the DataFrame.
-    let df7 = df_query!(
+    let df8 = df_query!(
         &df1,
         filter( int_col:i32 => |a| a != Some(0); ),
         group( num_col ~ record_i + int_col ), // same grouping query without pre-sorting
@@ -258,7 +280,7 @@ fn main() {
             int_col:i32 = int_col => |a: Vec<i32>| a[0];
         )
     );
-    eprint!("df7 (unsorted group by){}\n", df7);
+    eprint!("df8 (unsorted group by){}\n", df8);
     // DataFrame: 5 rows × 3 columns
     // num_col <f64> record_i <i32> int_col <i32> 
     // ------------- -------------- ------------- 
@@ -268,38 +290,38 @@ fn main() {
     // 2.2           15             99            
     // 4.4           18             99  
 
-    // Multiple complex aggregation operations, including generating entirely new
-    // DataFrames, is achieved using the 'group and do' variation of `df_query!()`,
+    // More complex aggregation operations, including generating entirely new
+    // DataFrames, are achieved using the 'group and do' variation of `df_query!()`,
     // where `aggregate()` is replaced with `do()`. `do()` takes a closure with signature:
     //      `|grp_i: usize, grp: DataFrame, rows: DataFrameSlice| -> DataFrame`, where:
     //  `grp_i` is a 0-referenced index of the target group that can be used as a simplified group key
     //  `grp` is an owned, single-row DataFrame containing the key column(s) of the target group
-    //  `rows` is a DataFrameSlice from which the group's non-key columns can be accessed for arbitrary operations
-    let df7 = df_query!(
+    //  `rows` is a DataFrameSlice from which the group's non-key columns can be accessed for operations
+    // Often you will inject data from `rows` into `grp` using the `df_inject!()` macro as illustrated,
+    // using the same statement syntax as `df_set!()`.
+    let df8 = df_query!(
         &df1,
         filter( int_col:i32 => |a| a != Some(0); ),
         group( num_col ~ record_i + int_col ),
-        do( |grp_i, mut grp, rows| { // declare grp DataFrame as mutable to modify it
-            // tasks in the `do` closure can be as complex as needed
-            let first_record_i: i32 = rows.get("record_i")[0].unwrap();
-            df_set!(&mut grp, 
-                grp_i:usize        = Some(grp_i); // add the group index as a new column
-                row_count:usize    = Some(rows.n_row());   // overly elaborate ways to do these simple tasks
-                first_record_i:i32 = Some(first_record_i); // your `do` actions will be more complex
-            );
-            grp // return the modified group DataFrame - or an entirely different DataFrame!
+        do( |grp_i, grp, rows| {
+            // tasks in the `do` closure can be as complex as needed and return any DataFrame
+            df_inject!(grp, &rows, // like df_set!(), but injects from rows into grp
+                grp_i:usize      = Some(grp_i);
+                row_count:usize  = Some(rows.n_row());
+                sum_record_i:i32 = record_i => Do::sum; // or Do::cumsum for a running total per group
+            )
         }),
-        select( grp_i, num_col, row_count, first_record_i )
+        select( grp_i, num_col, row_count, sum_record_i )
     );
-    eprint!("df7 (group and do){}\n", df7);
+    eprint!("df8 (group and do){}\n", df8);
     // DataFrame: 5 rows × 4 columns
-    // grp_i <usize> num_col <f64> row_count <usize> first_record_i <i32> 
-    // ------------- ------------- ----------------- -------------------- 
-    // 0             0             1                 10                   
-    // 1             1.1           2                 11                   
-    // 2             3.3           3                 13                   
-    // 3             2.2           1                 15                   
-    // 4             4.4           1                 18    
+    // grp_i <usize> num_col <f64> row_count <usize> sum_record_i <i32> 
+    // ------------- ------------- ----------------- ------------------ 
+    // 0             0             1                 10                 
+    // 1             1.1           2                 25                 
+    // 2             3.3           3                 49                 
+    // 3             2.2           1                 15                 
+    // 4             4.4           1                 18  
 
     /*------------------------------------------------------------------------
     Pivots = long-to-wide reshaping of DataFrames
@@ -310,12 +332,12 @@ fn main() {
     //      `bool  = key_col [+ key_col ...] ~ pivot_col;`
     //      `usize = key_col [+ key_col ...] ~ pivot_col;`:
     // where the formula LHS are the grouping key columns, and the RHS is the pivot column.
-    let df8 = df_query!(
+    let df9 = df_query!(
         &df1,
         sort( _num_col ),
         pivot( usize = num_col ~ int_col; ) // or bool = ... to report true/false presence
     );
-    eprint!("df8 (simple pivot, count){}\n", df8);
+    eprint!("df9 (simple pivot, count){}\n", df9);
     // DataFrame: 6 rows × 3 columns
     // num_col <f64> 0 <usize> 99 <usize>  <<<<< unique values of int_col
     // ------------- --------- ---------- 
@@ -330,12 +352,12 @@ fn main() {
     //      `out_type[NA_value] = key_col [+ key_col ...] ~ pivot_col as fill_col => |a| ...;`
     // where the new element is fill_col, which could be a key_col, the pivot_col, or another column
     // used to fill pivoted output cells via a provided operation that acts on Vec<fill_col type>.
-    let df8 = df_query!(
+    let df9 = df_query!(
         &df1,
         sort( _num_col ),
         pivot( f64[-1.0] = num_col ~ int_col as record_i => Agg::mean::<i32>; ) 
     );
-    eprint!("df8 (custom pivot, mean){}\n", df8);
+    eprint!("df9 (custom pivot, mean){}\n", df9);
     // DataFrame: 6 rows × 3 columns
     // num_col <f64> 0 <f64> 99 <f64>           
     // ------------- ------- ------------------ 
@@ -345,6 +367,20 @@ fn main() {
     // 2.2           -1      15                 
     // 1.1           -1      12.5               
     // 0             -1      10  
+
+    /*------------------------------------------------------------------------
+    Indexing = data retrieval using key columns for fast data access
+    ----------------------------------------------------------------------- */
+    // Set an index on a DataFrame using named columns as keys.
+    df1 = df_index!(df1, record_i, num_col); // pass and reclaim as owned in case df1 needs to be sorted
+
+    // Extract a DataFrameSlice using the `df_get_indexed!()` macro with requested key value(s).
+    let ds1 = df_get_indexed!(&df1, record_i = Some(17), num_col = Some(3.3));
+    eprint!("ds1 (indexed DataFrameSlice, matching key){}\n", ds1.to_df());
+
+    // If no match is found, an empty DataFrameSlice is returned.
+    let ds1 = df_get_indexed!(&df1, record_i = Some(17), num_col = Some(4.4));
+    eprint!("ds1 (indexed DataFrameSlice, unmatched key){}\n", ds1.to_df());
 
     /*------------------------------------------------------------------------
     Binding = create new DataFrames as row/column-wise combinations of existing DataFrames

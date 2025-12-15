@@ -16,6 +16,8 @@ impl DataFrame {
     pub fn rbind(mut self, other: DataFrame) -> Self {
         Column::check_col_names_match(&self.col_names, &other.col_names, "rbind_ref");
         self.rbind_add_rows(&other);
+        self.status.reset();
+        self.row_index.reset();
         self
     }    
 

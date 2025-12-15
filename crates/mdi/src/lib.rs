@@ -6,3 +6,4 @@ pub mod rlike;            // R-like data frames for tabular data manipulation
 // re-exports
 pub use record_streamer::RecordStreamer;
 pub use rlike::data_frame;
+pub use workflow::file::{InputFile, OutputFile};

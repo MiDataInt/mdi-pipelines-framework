@@ -1,4 +1,4 @@
-//! The`rlike::data_frame::query module manages and executes DataFrame queries
+//! The`rlike::data_frame::query`` module manages and executes DataFrame queries
 //! by maintaining a metadata record of current and pending query operations.
 //! Queries on executed on methods of the Query type.
 
@@ -109,17 +109,18 @@ impl QueryStatus {
         self.is_aggregated &&
         self.group_cols.starts_with(col_names) // group_cols, not agg_cols
     }
-    /// Check if a DataFrame sort or group columns include any of a list of columns.
+    /// Check if a DataFrame's sort or group columns include any of a list of columns.
     /// If so, reset the status to the default state.
-    /// If not, copy the status from the source DataFrame.
-    pub fn reset_or_copy(self, df_src: &DataFrame, col_names: Vec<String>) -> Self {
+    /// 
+    /// Input column names are typically those whose values just changed and that 
+    /// therefore may invalidate the current sort/group status.
+    pub fn reset_if_changed(&mut self, col_names: Vec<String>) {
+        // sort_cols includes group_cols, no need to check group_cols separately
         if self.sort_cols.iter().any(|x| col_names.contains(x)) {
-            Self::new()
-        // otherwise, it is safe to assume that df_dst remains sorted and grouped as before
-        } else {
-            df_src.status().clone()
+            self.reset();
         }
-}
+        // otherwise, df remains sorted and grouped as before despite changes to other columns
+    }
 }
 
 /* -----------------------------------------------------------------------------

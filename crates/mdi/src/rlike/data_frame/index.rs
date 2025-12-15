@@ -57,7 +57,7 @@ pub enum RowIndexType {
 /* -----------------------------------------------------------------------------
 RowIndex structure definition
 ----------------------------------------------------------------------------- */
-/// A DataFrameSlice is a reference to a DataFrame with metadata defining a slice of rows.
+/// A RowIndex stores information on the current indexing state of a DataFrame.
 pub struct RowIndex {
     // the names of the columns used to create the current index
     pub key_cols:   Vec<String>, 
@@ -80,7 +80,7 @@ impl RowIndex {
     /* -----------------------------------------------------------------------------
     RowIndex constructor
     ----------------------------------------------------------------------------- */
-    /// Create a DataFrameSlice from a DataFrame and a range of rows.
+    /// Create a new empty RowIndex.
     pub fn new() -> Self {
         Self {
             key_cols:    Vec::new(), 
@@ -96,7 +96,7 @@ impl RowIndex {
         }   
     }
     /// Purge the stored index from a DataFrame.
-    pub fn clear(&mut self) {
+    pub fn reset(&mut self) {
         self.key_cols.clear();
         self.index_type = RowIndexType::None;
         self.grp_keys_1.clear();
@@ -107,6 +107,18 @@ impl RowIndex {
         self.grp_map_2.clear();
         self.grp_map_4.clear();
         self.grp_map_8.clear();
+    }
+
+    /// Check if a DataFrame's index key columns include any of a list of columns.
+    /// If so, reset the index to the default state.
+    /// 
+    /// Input column names are typically those whose values just changed and that 
+    /// therefore may invalidate the current index.
+    pub fn reset_if_changed(&mut self, col_names: Vec<String>) {
+        if self.key_cols.iter().any(|x| col_names.contains(x)) {
+            self.reset();
+        }
+        // otherwise, df remains indexed as before despite changes to other columns
     }
     /* -----------------------------------------------------------------------------
     RowIndex indexing (prior to retrieval)
@@ -147,7 +159,7 @@ impl RowIndex {
         // if the DataFrame is already properly sorted to unique rows per group, use binary search
         if is_sorted_by && is_aggregated_by {
             if !key_cols_match || !idx.has_required_grp_keys(n_key_cols) {
-                idx.clear();
+                idx.reset();
                 idx.key_cols = key_cols.clone();
                 idx.index_type = RowIndexType::Sorted;
                      if n_key_cols == 1 { Self::set_grp_keys_1(&mut df, key_cols) } 
@@ -160,7 +172,7 @@ impl RowIndex {
         // otherwise, if DataFrame is already properly grouped, fall back to a hash map of group keys
         } else if is_grouped_by {
             if !key_cols_match || !idx.has_required_grp_map(n_key_cols) {
-                idx.clear();
+                idx.reset();
                 idx.key_cols = key_cols.clone();
                 idx.index_type = RowIndexType::Hashed;
                      if n_key_cols == 1 { Self::set_grp_map_1(&mut df, key_cols) } 
@@ -177,12 +189,6 @@ impl RowIndex {
             df = qry.execute_select_query(&df);
             Self::set_index(df, key_cols)
         }
-
-        // there is no need to adjust the status of the output DataFrame
-        // we primarily are interesting is updating the index here
-        // the code path that calls execute_select_query() updates the status
-        // on the replacement DataFrame as needed
-
     }
     fn has_required_grp_keys(&self, n_key_cols: usize) -> bool {
              if n_key_cols == 1 { self.grp_keys_1.len() > 0 } 
@@ -200,8 +206,8 @@ impl RowIndex {
     RowIndex indexed retrieval
     ----------------------------------------------------------------------------- */
     pub fn get_indexed(
-        df: &mut DataFrame,   // the indexed DataFrame being queried
-        mut dk: DataFrame // the DataFrame[Slice] being queried, the first row of which will be used as the key
+        df: &DataFrame, // the indexed DataFrame being queried
+        mut dk: DataFrame   // a DataFrame[Slice] whose first (and usually only) row will be used as the key
     ) -> DataFrameSlice {
         let key_cols = df.row_index.key_cols.clone();
         let n_key_cols = key_cols.len();
@@ -238,9 +244,6 @@ impl RowIndex {
         } else {
             DataFrameSlice::new(df, 0, 0) // return empty DataFrameSlice when no rows match
         }
-
-        // there is no need to adjust the status of an output DataFrameSlice
-        // it implicitly inherits the status of the parent DataFrame
     }
     fn parse_bs(x: &mut (usize, usize), result: Result<usize, usize>) -> Option<&(usize, usize)> {
         if let Ok(start_row_i) = result {

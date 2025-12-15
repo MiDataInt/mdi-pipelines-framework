@@ -1,100 +1,88 @@
-//! The Config structure stores configuration values in a hash map
-//! that can be easily passed to data processing functions as a single variable.
+//! The Config structure stores configuration values that can be passed to  
+//! data processing functions as a single variable.
 
 // dependencies
 use std::collections::HashMap;
 use std::env;
 use std::str::FromStr;
-
-/// Macro to define one or more environment variable key constants as `const KEY: &str = "KEY";`.
-/// Doing so at the top of a binary or library module is optional but improves code 
-/// readability and helps avoid typos in string literals used as keys to access 
-/// configuration values, since calls can now take the form `cfg.u8.get(KEY)`, etc.
-/// Variable keys set in this way must be all uppercase to follow Rust's naming conventions.
-/// Provide keys as either space-separated or comma-separated lists.
-#[macro_export]
-macro_rules! config_key_constants {
-    ($($key:ident)+) => { // support space-separated keys
-        $(
-            const $key: &str = stringify!($key);
-        )+
-    };
-    ($($key:ident),+ $(,)?) => { // support comma-separated keys    
-        $(
-            const $key: &str = stringify!($key);
-        )+
-    };
-}
+use paste::paste;
 
 /// The Config struct gathers configuration values from environment variables
-/// and can store derived configuration values in a hash map organized by data type.
-/// Supported data types include u8 (e.g., boolean 0|1 flags), usize, i32, f64, and String.
-#[derive(Debug)]
+/// and those set in code as derived configuration values.
+/// 
+/// Values retrieved from environment variables are set using the `set_*_env`
+/// methods, which panic if the environment variable was not set or if a recovered 
+/// value cannot be parsed as the specified data type. 
+/// 
+/// Derived configuration values are set using the `set_*` or `set_*_list` methods.
+/// 
+/// Values are accessed using the `get_*` methods, which panic if the requested key 
+/// was never set to a value.
+/// 
+/// Supported data types include bool, u8, usize, i32, f64, and String.
+/// 
+/// By convention, Config objects are named `cfg`.
 pub struct Config {
-    pub u8:     HashMap<String, u8>, // including integer 0|1 boolean flags
+    // String keys used for named environment variables
+    pub bool:   HashMap<String, bool>, 
+    pub u8:     HashMap<String, u8>,
     pub usize:  HashMap<String, usize>,
     pub i32:    HashMap<String, i32>,
     pub f64:    HashMap<String, f64>,
     pub string: HashMap<String, String>,
-    pub bool:   HashMap<String, bool>,
 }
 impl Config {
     /// Create a new empty Config instance.
+    /// 
+    /// By convention, Config objects are named `cfg`.
     pub fn new() -> Self {
         Config {
+            // String keys used for named environment variables
+            bool:   HashMap::new(),
             u8:     HashMap::new(),
             usize:  HashMap::new(),
             i32:    HashMap::new(),
             f64:    HashMap::new(),
             string: HashMap::new(),
-            bool:   HashMap::new(),
         }
     }
     /* ------------------------------------------------------------------
-    environment variable setters
+    special handling of bool setting from environment variables
     ------------------------------------------------------------------ */
-    /// Set u8 configuration values from environment variables.
-    /// Panic if any of the specified keys are not found or cannot be parsed as u8.
-    pub fn set_u8_env(&mut self, keys: &[&str]) {
+    /// Set bool configuration values from environment variables.
+    /// 
+    /// Values are set to `true` unless the environment variable string value is
+    /// one of "", "\s+", "0", "false", "FALSE", "na", "NA", "null", or "NULL".
+    pub fn set_bool_env(&mut self, keys: &[&str]) {
         for &key in keys {
             let value_str = Self::get_env_string(key);
-            self.u8.insert(key.to_string(), Self::parse_env_string(key, &value_str, "u8"));
-        }
-    }
-    /// Set usize configuration values from environment variables.
-    /// Panic if any of the specified keys are not found or cannot be parsed as usize.
-    pub fn set_usize_env(&mut self, keys: &[&str]) {
-        for &key in keys {
-            let value_str = Self::get_env_string(key);
-            self.usize.insert(key.to_string(), Self::parse_env_string(key, &value_str, "usize"));
-        }
-    }
-    /// Set i32 configuration values from environment variables.
-    /// Panic if any of the specified keys are not found or cannot be parsed as i32.
-    pub fn set_i32_env(&mut self, keys: &[&str]) {
-        for &key in keys {
-            let value_str = Self::get_env_string(key);
-            self.i32.insert(key.to_string(), Self::parse_env_string(key, &value_str, "i32"));
-        }
-    }
-    /// Set f64 configuration values from environment variables.
-    /// Panic if any of the specified keys are not found or cannot be parsed as f64.
-    pub fn set_f64_env(&mut self, keys: &[&str]) {
-        for &key in keys {
-            let value_str = Self::get_env_string(key);
-            self.f64.insert(key.to_string(), Self::parse_env_string(key, &value_str, "f64"));
-        }
-    }
-    /// Set String configuration values from environment variables.
-    /// Panic if any of the specified keys are not found.
-    pub fn set_string_env(&mut self, keys: &[&str]) {
-        for &key in keys {
-            let value_str = Self::get_env_string(key);
-            self.string.insert(key.to_string(), value_str);
+            self.bool.insert(key.to_string(), 
+                value_str != "" && 
+                !value_str.chars().all(char::is_whitespace) &&
+                value_str != "0" && 
+                value_str.to_lowercase() != "false" && 
+                value_str.to_lowercase() != "na" && 
+                value_str.to_lowercase() != "null"
+            );
         }
     }
     /* ------------------------------------------------------------------
-    environment variable helpers
+    special handling of String getting to use &str as argument
+    ------------------------------------------------------------------ */
+    /// Get a reference to a String configuration value by key.
+    /// 
+    /// Panic if the key is not found.
+    pub fn get_string(&self, key: &str) -> &str {
+        self.string.get(key).unwrap_or_else(|| Self::key_not_found(key, "String"))
+    }
+    /// Check if a String configuration value in a keyed HashMap equals the specified value. 
+    /// 
+    /// Panic if the key is not found.
+    pub fn equals_string(&self, key: &str, value: &str) -> bool {
+        self.get_string(key) == value
+    }
+    /* ------------------------------------------------------------------
+    implementation helpers
     ------------------------------------------------------------------ */
     // get the initial string representation of an environment variable
     fn get_env_string(key: &str) -> String {
@@ -110,70 +98,97 @@ impl Config {
             Err(_) => panic!("Environment variable {key} string value '{value}' could not be parsed as {data_type}."),
         }
     }
-    /* ------------------------------------------------------------------
-    derived variable setters
-    ------------------------------------------------------------------ */
-    /// Set a (derived) u8 configuration value directly.
-    /// Any existing value is overridden and returned as an Option.
-    pub fn set_u8(&mut self, key: &str, value: u8) -> Option<u8> {
-        self.u8.insert(key.to_string(), value)
-    }
-    /// Set a (derived) usize configuration value directly.
-    /// Any existing value is overridden and returned as an Option.
-    pub fn set_usize(&mut self, key: &str, value: usize) -> Option<usize> {
-        self.usize.insert(key.to_string(), value)
-    }
-    /// Set a (derived) i32 configuration value directly.
-    /// Any existing value is overridden and returned as an Option.
-    pub fn set_i32(&mut self, key: &str, value: i32) -> Option<i32> {
-        self.i32.insert(key.to_string(), value)
-    }
-    /// Set a (derived) f64 configuration value directly.
-    /// Any existing value is overridden and returned as an Option.
-    pub fn set_f64(&mut self, key: &str, value: f64) -> Option<f64> {
-        self.f64.insert(key.to_string(), value)
-    }
-    /// Set a (derived) String configuration value directly.
-    /// Any existing value is overridden and returned as an Option.
-    pub fn set_string(&mut self, key: &str, value: String) -> Option<String> {
-        self.string.insert(key.to_string(), value)
-    }
-    /// Set a (derived) bool configuration value directly.
-    /// Any existing value is overridden and returned as an Option.
-    pub fn set_bool(&mut self, key: &str, value: bool) -> Option<bool> {
-        self.bool.insert(key.to_string(), value)
-    }
-    /* ------------------------------------------------------------------
-    config variable getters
-    ------------------------------------------------------------------ */
-    /// Get a u8 configuration value by key. Panic if the key is not found.
-    pub fn get_u8(&self, key: &str) -> u8 {
-        *self.u8.get(key).unwrap_or_else(|| Self::key_not_found(key, "u8"))
-    }
-    /// Get a usize configuration value by key. Panic if the key is not found.
-    pub fn get_usize(&self, key: &str) -> usize {
-        *self.usize.get(key).unwrap_or_else(|| Self::key_not_found(key, "usize"))
-    }
-    /// Get an i32 configuration value by key. Panic if the key is not found.
-    pub fn get_i32(&self, key: &str) -> i32 {
-        *self.i32.get(key).unwrap_or_else(|| Self::key_not_found(key, "i32"))
-    }
-    /// Get an f64 configuration value by key. Panic if the key is not found.
-    pub fn get_f64(&self, key: &str) -> f64 {
-        *self.f64.get(key).unwrap_or_else(|| Self::key_not_found(key, "f64"))
-    }
-    /// Get a String configuration value by key. Panic if the key is not found.
-    pub fn get_string(&self, key: &str) -> &str {
-        self.string.get(key).unwrap_or_else(|| Self::key_not_found(key, "String"))
-    }
-    /// Get a bool configuration value by key. Panic if the key is not found.
-    pub fn get_bool(&self, key: &str) -> bool {
-        *self.bool.get(key).unwrap_or_else(|| Self::key_not_found(key, "bool"))
-    }
-    /* ------------------------------------------------------------------
-    config getter helpers
-    ------------------------------------------------------------------ */
-    fn key_not_found<T>(key: &str, data_type: &str) -> T {
-        panic!("Config key {key} not found in {data_type} value map.")
+    fn key_not_found(key: &str, data_type: &str) -> ! {
+        panic!("Config key {key} not found in {data_type} HashMap.")
     }
 }
+
+// macro to fill implementation methods for different data types
+macro_rules! fill_set_env_methods {
+    () => {};
+    ($type_ident:ident, $type_ty:ty, $($tail:tt)* ) => {
+        paste! {
+            impl Config {
+                /// Set typed configuration values from environment variables.
+                /// 
+                /// Panic if an environment variable was not set of if a retrieved  
+                /// value cannot be parsed as the data type.
+                pub fn [<set_ $type_ident _env>](&mut self, keys: &[&str]) {
+                    for key in keys {
+                        let value_str = Self::get_env_string(key);
+                        self.[<$type_ident>].insert(key.to_string(), Self::parse_env_string(key, &value_str, stringify!($type_ty)));
+                    }
+                }
+            }
+        }
+        fill_set_env_methods!($($tail)*);
+    };
+}
+macro_rules! fill_set_methods {
+    () => {};
+    ($type_ident:ident, $type_ty:ty, $($tail:tt)* ) => {
+        paste! {
+            impl Config {
+                /// Set a derived and typed configuration value from a key and value.
+                /// 
+                /// Any existing value is overridden.
+                pub fn [<set_ $type_ident>](&mut self, key: &str, value: $type_ty) {
+                    self.[<$type_ident>].insert(key.to_string(), value);
+                }
+                /// Set derived and typed configuration values from key/value pairs.
+                /// 
+                /// Any existing values are overridden.
+                pub fn [<set_ $type_ident _list>](&mut self, key_value_pairs: &[(&str, $type_ty)]) {
+                    for key_value_pair in key_value_pairs {
+                        self.[<$type_ident>].insert(key_value_pair.0.to_string(), key_value_pair.1.clone());
+                    }
+                }
+            }
+        }
+        fill_set_methods!($($tail)*);
+    };
+}
+macro_rules! fill_get_methods {
+    () => {};
+    ($type_ident:ident, $type_ty:ty, $($tail:tt)* ) => {
+        paste! {
+            impl Config {
+                /// Get a reference to a typed configuration value by key.
+                /// 
+                /// Panic if the key is not found.
+                pub fn [<get_ $type_ident>](&self, key: &str) -> &$type_ty {
+                    self.[<$type_ident>].get(key).unwrap_or_else(|| Self::key_not_found(key, stringify!($type_ty)))
+                }
+                /// Check if a typed configuration value in a keyed HashMap equals the specified value. 
+                /// 
+                /// Panic if the key is not found.
+                pub fn [<equals_ $type_ident>](&self, key: &str, value: $type_ty) -> bool {
+                    self.[<get_ $type_ident>](key) == &value
+                }
+            }
+        }
+        fill_get_methods!($($tail)*);
+    };
+}
+fill_set_env_methods!(
+    u8,     u8, // everything except bool, which is handled differently
+    usize,  usize, 
+    i32,    i32, 
+    f64,    f64, 
+    string, String,
+);
+fill_set_methods!(
+    bool,   bool,
+    u8,     u8,
+    usize,  usize, 
+    i32,    i32, 
+    f64,    f64, 
+    string, String, 
+);
+fill_get_methods!(
+    bool,   bool, // everything except String, which is handled differently
+    u8,     u8,
+    usize,  usize, 
+    i32,    i32, 
+    f64,    f64, 
+);

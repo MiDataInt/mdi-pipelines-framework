@@ -27,6 +27,7 @@ impl DataFrame {
             self.n_col += other.n_col;
             self
         }
+        // cbind cannot alter the sort/group status since self columns are unchanged
     }
 
     // check cbind row numbers to support recycling

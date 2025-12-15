@@ -1,6 +1,7 @@
 //! The `rlike::data_frame::slice` module supports DataFrame slices, i.e., 
-//! a contiguous subset of the rows of a DataFrame, to support read-only 
-//! function calls for passing and examining a subset of DataFrame rows.
+//! an immutable reference to a contiguous subset of the rows of a DataFrame, 
+//! to support read-only function calls for passing and examining a subset 
+//! of DataFrame rows.
 
 // dependencies
 use super::{DataFrame, Column};
@@ -8,7 +9,8 @@ use super::{DataFrame, Column};
 /* -----------------------------------------------------------------------------
 DataFrameSlice structure definition.
 ----------------------------------------------------------------------------- */
-/// A DataFrameSlice is a reference to a DataFrame with metadata defining a slice of contiguous rows.
+/// A DataFrameSlice is an immutable reference to a DataFrame with metadata 
+/// defining a slice of contiguous rows.
 pub struct DataFrameSlice<'a> {
     pub data_frame: &'a DataFrame,
     pub start_row_i: usize, // 0-based index of the first slice row

@@ -1,16 +1,13 @@
 //! The 'inject' macros are used to create or update Columns in a DataFrame, 
 //! creating new Columns, modifying existing ones, etc., using data extracted
-//! from a different source DataFrame or DataFrameSlice.
+//! from a different source DataFrame or DataFrameSlice. Their greatest use is
+//! in 'group and do' queries.
 //!
 //! In contrast to the 'set' macros, the 'inject' macros:
 //! - take ownership of the input DataFrame and return it after modification
 //! - use data from a source DataFrame or DataFrameSlice to create or update columns
 //! - expect ops that act on an entire Vec<Option<T>> (or set of them from different columns)
 //! - do not support a pre-execution `filter()` action within the call to `df_inject!()`
-
-
-// for inject and set, df status should be cleared in a sorted column gets changed
-// if not, nothing to do, since column modification does not impact row order
 
 // internal inject macro, called iteratively to add/update one columns at a time
 #[doc(hidden)]
@@ -126,15 +123,13 @@ macro_rules! __df_inject {
     base case, no more operations, return the modified DataFrame
     ============================================================================= */
     ($df_dst:expr, $df_src:expr, $out_names:expr $(,)?) => {
-        // if any sort column data was modified, reset the status since sort (and thus grouping) is no longer valid
         {
-            $df_dst.status = $df_dst.status.reset_or_copy($df_src, $out_names);
             $df_dst
         }
     };
 }
 /// Modify a DataFrame in a manner similar to `df_set!()` but now taking ownership
-/// of the input DataFrame, modifyi ng it using caller-defined operation(s), and 
+/// of the input DataFrame, modifying it using caller-defined operation(s), and 
 /// returning it as a new DataFrame. Also, `df_inject!()` uses a different DataFrame
 /// or DataFrameSlice as the source of data for the operation(s), which act on the 
 /// entire set of RLike values from one (or multiple) columns of the source DataFrame.
@@ -143,22 +138,22 @@ macro_rules! __df_inject {
 /// add new columns to the group key columns.
 /// 
 /// The overall macro call structure is 
-/// `df_inject!(df_dst, &df_src, statement, ...)`,
+///     `df_inject!(df_dst, &df_src, statement, ...)`,
 /// where 
-/// - `df_dst` is the mutable DataFrame to be modified after taking ownership
-/// - `df_src` is the DataFrame or DataFrameSlice from which to extract data
-/// - `statement` is a set of statements that generate columns as Vec<Option<T>>
+///     - `df_dst` is the mutable DataFrame to be modified after taking ownership
+///     - `df_src` is the DataFrame or DataFrameSlice from which to extract data
+///     - `statement` is a set of statements that generate columns as Vec<Option<T>>
 ///
-/// The inject statement syntax is 
-/// `out_col:type[na_replace] = in_col ... => |a ...| ...;`,
-/// which reads from left-to-right as 
-/// "create output column of this data type [with this NA replacement value] from these input columns 
-/// mapped into this operation".
+/// The inject statement syntax is:
+///     `out_col:type[na_replace] = in_col ... => |a ...| ...;`,
+/// which reads from left-to-right as:
+///     "create output column of this name and data type [with this NA replacement value]  
+///      from these input columns mapped into this operation".
 /// 
 /// Inject statements end with a semicolon, similar to other Rust statements.
 /// 
-/// Operations to be performed are provided as closures of form 
-/// `|a| ...`, `|a, b| ...`, etc.
+/// Operations to be performed are provided as closures of form:
+///     `|a| ...`, `|a, b| ...`, etc.
 /// Up to three comma-separated input columns can specified as inputs to each closure.
 /// Any names of your choosing can be used as closure arguments but `a`, `b`, `c` are 
 /// a common shorthand.  Alternatively, you can map to a named function with an 
@@ -182,6 +177,11 @@ macro_rules! __df_inject {
 /// 
 /// # Example
 /// ```
+/// df_inject!(grp, &rows,
+///     grp_i:usize      = Some(grp_i);
+///     row_count:usize  = Some(rows.n_row());
+///     sum_record_i:i32 = record_i => Do::sum;
+/// )
 /// ```
 #[macro_export]
 macro_rules! df_inject {
