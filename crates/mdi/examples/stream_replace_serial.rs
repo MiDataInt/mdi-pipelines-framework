@@ -45,7 +45,7 @@ fn main() {
 
 // record parsing function
 // input records are immutable and must be transformed to output records
-fn record_parser(input_record: &InputRecord) -> Result<Vec<OutputRecord>, Box<dyn Error>> {
+fn record_parser(input_record: InputRecord) -> Result<Vec<OutputRecord>, Box<dyn Error>> {
 
     // filter against some records by returning and empty Vec<OutputRecord>
     if input_record.group > 5 && input_record.group < 10 {
@@ -53,7 +53,7 @@ fn record_parser(input_record: &InputRecord) -> Result<Vec<OutputRecord>, Box<dy
     } else {
 
         // create a new output record
-        let mut output_record = OutputRecord::from(input_record);
+        let mut output_record = OutputRecord::from(&input_record);
         // let mut output_record: OutputRecord = input_record.into(); // alternative syntax
 
         // update the proof fields

@@ -24,7 +24,7 @@ fn main() {
 
 // record parsing function
 // records are updated by reference, returning Vec<usize> to enact filtering and sorting at the group level
-fn record_parser(input_record_group: &mut Vec<MyRecord>) -> Result<Vec<usize>, Box<dyn Error>> {
+fn record_parser(input_record_group: &mut [MyRecord]) -> Result<Vec<usize>, Box<dyn Error>> {
 
     // filter against some record groups by returning an empty vector
     let group = input_record_group[0].group;

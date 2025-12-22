@@ -25,7 +25,7 @@ fn main() {
 
     // demonstrate passing of immutable values to the record parser
     let proof: String = METHOD.to_string();
-    let record_parser = |input_record: &mut Vec<MyRecord>| -> Result<Vec<usize>, Box<dyn Error + Send + Sync>> {
+    let record_parser = |input_record: &mut [MyRecord]| -> Result<Vec<usize>, Box<dyn Error + Send + Sync>> {
         parse_with_proof(input_record, &proof)
     };
 
@@ -36,7 +36,7 @@ fn main() {
 
 // record parsing function
 // records are updated by reference, returning None or Some(()) to enact filtering at the group level
-fn parse_with_proof(input_record_group: &mut Vec<MyRecord>, proof: &str) -> Result<Vec<usize>, Box<dyn Error + Send + Sync>> {
+fn parse_with_proof(input_record_group: &mut [MyRecord], proof: &str) -> Result<Vec<usize>, Box<dyn Error + Send + Sync>> {
 
     // filter against some record groups by returning an empty vector
     let group = input_record_group[0].group;

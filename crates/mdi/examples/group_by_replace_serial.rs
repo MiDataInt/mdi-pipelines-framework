@@ -33,7 +33,7 @@ fn main() {
 
 // record parsing function
 // input records are immutable and must be transformed to output records
-fn record_parser(input_record_group: &Vec<InputRecord>) -> Result<Vec<OutputRecord>, Box<dyn Error>> {
+fn record_parser(input_record_group: &[InputRecord]) -> Result<Vec<OutputRecord>, Box<dyn Error>> {
 
     // filter against some record groups by returning an empty vector
     let group0 = &input_record_group[0];

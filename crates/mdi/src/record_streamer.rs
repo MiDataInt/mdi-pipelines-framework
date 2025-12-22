@@ -4,9 +4,9 @@
 //! This makes it easy to create executable crates that can be chained together,
 //! with each crate performing a specific task in a data processing pipeline.
 //!
-//! Functions are written to be as fast as possible, without unnecessary copying
-//! and with efficient allocation of vectors on the heap. Record parsing can often 
-//! be done by reference, i.e., in place, unless records need to change structure.
+//! Functions are written to be fast, without unnecessary copying and with efficient 
+//! allocation of record vectors. Record parsing can often be done by reference, 
+//! i.e., in place, unless records need to change structure.
 //! 
 //! # Usage Overview
 //! 
@@ -20,16 +20,17 @@
 //! Output records can be either:
 //! - in-place modifications of input records using one of the `xxx_in_place_xxx()` functions, or
 //! - entirely new records generated from input records using one of the `xxx_replace_xxx()` functions
-//! In-place modification is faster but demands that the input and output record structures be the  
-//! same and that there be a one-to-zero or one-to-one correspondence between input and output records.
-//! New record generation to replace input records allows the input and output record structures 
-//! to differ and allows zero, one, or many output records to be generated from each input record.
+//! In-place modification is faster but demands that the input and output record structures   
+//! be the same. New record generation to replace input records allows the input and output 
+//! record structures to differ and allows any number of output records to be generated from 
+//! each input record.
 //!  
 //! Record/group parsing can be done either:
 //! - serially using one of the xxx__xxx_serial() functions, or
 //! - in parallel using one of the xxx__xxx_parallel() functions
-//! Only benchmarking can determine which is faster for a given task, which will depend on the complexity 
-//! of the parsing function. Serial and parallel versions of the functions are otherwise identical.
+//! Only benchmarking can determine which is faster for a given task, which will depend on 
+//! the complexity of the parsing function. Serial and parallel versions of the functions  
+//! are otherwise identical.
 //!
 //! Input and output records are assumed to be:
 //! - without headers, unless `has_headers()` is called on the RecordStreamer
@@ -43,28 +44,28 @@
 //! Fields in input records will be trimmed of leading and trailing whitespace 
 //! unless `no_trim()` is called on the RecordStreamer.
 //! 
-//! Field quoting is disabled by default, as is common in bioinformatics tabular formats.
-//! To enable dynamic quoting, call `quote(b'<quote_char>')` on the RecordStreamer.
+//! Field quoting is disabled by default. To enable dynamic quoting, call 
+//! `quote(b'<quote_char>')` on the RecordStreamer.
 //!
 //! # Record Parsing
 //! 
 //! Streaming is executed by calling on the RecordStreamer one of:
-//! - `stream_in_place_serial(FnMut(&mut T) -> Result<bool, Box<dyn Error>>)`
-//! - `stream_in_place_parallel(Fn(&mut T) -> Result<bool, Box<dyn Error>>, n_cpu: usize, buffer_size: usize)`
-//! - `stream_replace_serial(FnMut(&I) -> Result<Vec<O>, Box<dyn Error>>)`
+//! - `stream_in_place_serial(FnMut(&mut R) -> Result<bool, Box<dyn Error>>)`
+//! - `stream_in_place_parallel(Fn(&mut R) -> Result<bool, Box<dyn Error>>, n_cpu: usize, buffer_size: usize)`
+//! - `stream_replace_serial(FnMut(I) -> Result<Vec<O>, Box<dyn Error>>)`
 //! - `stream_replace_parallel(Fn(&I) -> Result<Vec<O>, Box<dyn Error>>, n_cpu: usize, buffer_size: usize)`
-//! - `group_by_in_place_serial(FnMut(&mut Vec<T>) -> Result<Vec<usize>, Box<dyn Error>>, grouping_fields: &[&str])`
-//! - `group_by_in_place_parallel(Fn(&mut Vec<T>) -> Result<Vec<usize>, Box<dyn Error>>, grouping_fields: &[&str], n_cpu: usize, buffer_size: usize)`
-//! - `group_by_replace_serial(FnMut(&Vec<I>) -> Result<Vec<O>, Box<dyn Error>>, grouping_fields: &[&str])`
-//! - `group_by_replace_parallel(Fn(&Vec<I>) -> Result<Vec<O>, Box<dyn Error>>, grouping_fields: &[&str], n_cpu: usize, buffer_size: usize)`
+//! - `group_by_in_place_serial(FnMut(&mut [R]) -> Result<Vec<usize>, Box<dyn Error>>, grouping_fields: &[&str])`
+//! - `group_by_in_place_parallel(Fn(&mut [R]) -> Result<Vec<usize>, Box<dyn Error>>, grouping_fields: &[&str], n_cpu: usize, buffer_size: usize)`
+//! - `group_by_replace_serial(FnMut(&[I]) -> Result<Vec<O>, Box<dyn Error>>, grouping_fields: &[&str])`
+//! - `group_by_replace_parallel(Fn(&[I]) -> Result<Vec<O>, Box<dyn Error>>, grouping_fields: &[&str], n_cpu: usize, buffer_size: usize)`
 //! where the caller defines and provides:
-//! - `Struct`s that define the input and output record structures
+//! - `Struct`s that describe the input and output structures (R for Record, I for InputRecord, O for OutputRecord)
 //! - a record parsing function that processes the data, returning:
 //!   - Err(...) if an error occurred during record processing, or
 //!   - for stream_in_place_xxx functions:
 //!     - Ok(true) or Ok(false) indicating whether the (updated) record should be written to the output stream
 //!   - for group_by_in_place_xxx functions:
-//!     - Ok(Vec<usize>) carrying the 0-referenced, (re)ordered indices of the input records that should be written to the output stream, if any
+//!     - Ok(Vec<usize>) carrying the 0-referenced indices of the (reordered) input records that should be written to the output stream, if any
 //!   - for xxx_replace_xxx functions:
 //!     - Ok(Vec<OutputRecord>) carrying the output record(s) resulting from processing of the input record(s), if any
 //!
@@ -101,7 +102,8 @@
 //! - creating a summary image or plot
 //! - updating a database
 //! If side effects are the only required actions, the caller can simply choose to never
-//! write records to the output stream, always returning false or an empty Vec from the record_parser.
+//! write records to the output stream, always returning false or an empty Vec from the 
+//! record_parser.
 //! 
 //! # Error Handling
 //! 
@@ -219,13 +221,13 @@ impl RecordStreamer {
     /// `stream_in_place_serial()` processes input records from STDIN to STDOUT:
     ///     - one at a time as they are encountered, without parallel processing
     ///     - in place, i.e., only filtering or updating the input record structure
-    pub fn stream_in_place_serial <T, F>(
+    pub fn stream_in_place_serial <R, F>(
         &mut self, 
         mut record_parser: F
     )
     where
-        T: DeserializeOwned + Serialize,
-        F: FnMut(&mut T) -> Result<bool, Box<dyn Error>>,
+        R: DeserializeOwned + Serialize,
+        F: FnMut(&mut R) -> Result<bool, Box<dyn Error>>,
     {
         self.mode = "RecordStreamer::stream_in_place_serial()".to_string();
         let (mut rdr, mut wtr) = self.init_io_streams(None);
@@ -249,19 +251,19 @@ impl RecordStreamer {
     /// `stream_in_place_parallel()` processes input records from STDIN to STDOUT:
     ///     - one at a time as they are encountered, with parallel processing in batches
     ///     - in place, i.e., only filtering or updating the input record structure
-    pub fn stream_in_place_parallel <T, F>(
+    pub fn stream_in_place_parallel <R, F>(
         &mut self, 
         record_parser: F, 
         n_cpu: usize, 
         buffer_size: usize
     )
     where
-        T: DeserializeOwned + Serialize + Send + Sync,
-        F: Fn(&mut T) -> Result<bool, Box<dyn Error + Send + Sync>> + Send + Sync,
+        R: DeserializeOwned + Serialize + Send + Sync,
+        F: Fn(&mut R) -> Result<bool, Box<dyn Error + Send + Sync>> + Send + Sync,
     {
         self.mode = "RecordStreamer::stream_in_place_parallel()".to_string();
         let (mut rdr, mut wtr) = self.init_io_streams(Some(n_cpu));
-        let mut input_record_buffer: Vec<T> = Vec::with_capacity(buffer_size);
+        let mut input_record_buffer: Vec<R> = Vec::with_capacity(buffer_size);
         for (i0, line) in rdr.deserialize().enumerate() {
             let input_record = line.unwrap_or_else(|e| 
                 self.line_error(DESERIALIZING, Some(i0 + 1), &e)
@@ -286,7 +288,7 @@ impl RecordStreamer {
     where
         I: DeserializeOwned + Serialize,
         O: Serialize,
-        F: FnMut(&I) -> Result<Vec<O>, Box<dyn Error>>,
+        F: FnMut(I) -> Result<Vec<O>, Box<dyn Error>>,
     {
         self.mode = "RecordStreamer::stream_replace_serial()".to_string();
         let (mut rdr, mut wtr) = self.init_io_streams(None);
@@ -295,7 +297,7 @@ impl RecordStreamer {
             let input_record = line.unwrap_or_else(|e| 
                 self.line_error(DESERIALIZING, i1, &e)
             );
-            let output_records = record_parser(&input_record).unwrap_or_else(|e| 
+            let output_records = record_parser(input_record).unwrap_or_else(|e| 
                 self.line_error(PROCESSING, i1, e.as_ref())
             );
             for output_record in output_records {
@@ -341,18 +343,18 @@ impl RecordStreamer {
     /// `group_by_in_place_serial()` processes input records from STDIN to STDOUT:
     ///     - in groups of records with the same sequential key, without parallel processing
     ///     - in place, i.e., only filtering, sorting or updating the input records
-    pub fn group_by_in_place_serial <T, F>(
+    pub fn group_by_in_place_serial <R, F>(
         &mut self, 
         mut record_parser: F, 
         grouping_fields: &[&str]
     )
     where
-        T: DeserializeOwned + Serialize,
-        F: FnMut(&mut Vec<T>) -> Result<Vec<usize>, Box<dyn Error>>,
+        R: DeserializeOwned + Serialize,
+        F: FnMut(&mut [R]) -> Result<Vec<usize>, Box<dyn Error>>,
     {
         self.mode = "RecordStreamer::group_by_in_place_serial()".to_string();
         let (mut rdr, mut wtr) = self.init_io_streams(None);
-        let mut input_record_group: Vec<T> = Vec::new();
+        let mut input_record_group: Vec<R> = Vec::new();
         let mut previous_key: Option<String> = None;
         for (i0, line) in rdr.deserialize().enumerate() {
             let input_record = line.unwrap_or_else(|e| 
@@ -373,7 +375,7 @@ impl RecordStreamer {
     /// `group_by_in_place_parallel()` processes input records from STDIN to STDOUT:
     ///     - in groups of records with the same sequential key, with parallel processing
     ///     - in place, i.e., only filtering, sorting or updating the input records
-    pub fn group_by_in_place_parallel <T, F>(
+    pub fn group_by_in_place_parallel <R, F>(
         &mut self, 
         record_parser: F, 
         grouping_fields: &[&str],
@@ -381,13 +383,13 @@ impl RecordStreamer {
         buffer_size: usize
     )
     where
-        T: DeserializeOwned + Serialize + Send + Sync,
-        F: Fn(&mut Vec<T>) -> Result<Vec<usize>, Box<dyn Error + Send + Sync>> + Send + Sync,
+        R: DeserializeOwned + Serialize + Send + Sync,
+        F: Fn(&mut [R]) -> Result<Vec<usize>, Box<dyn Error + Send + Sync>> + Send + Sync,
     {
         self.mode = "RecordStreamer::group_by_in_place_parallel()".to_string();
         let (mut rdr, mut wtr) = self.init_io_streams(Some(n_cpu));
-        let mut input_record_group_buffer: Vec<Vec<T>> = Vec::new();
-        let mut input_record_group: Vec<T> = Vec::new();
+        let mut input_record_group_buffer: Vec<Vec<R>> = Vec::new();
+        let mut input_record_group: Vec<R> = Vec::new();
         let mut previous_key: Option<String> = None;
         for (i0, line) in rdr.deserialize().enumerate() {
             let input_record = line.unwrap_or_else(|e| 
@@ -421,7 +423,7 @@ impl RecordStreamer {
     where
         I: DeserializeOwned + Serialize,
         O: Serialize,
-        F: FnMut(&Vec<I>) -> Result<Vec<O>, Box<dyn Error>>,
+        F: FnMut(&[I]) -> Result<Vec<O>, Box<dyn Error>>,
     {
         self.mode = "RecordStreamer::group_by_replace_serial()".to_string();
         let (mut rdr, mut wtr) = self.init_io_streams(None);
@@ -456,7 +458,7 @@ impl RecordStreamer {
     where
         I: DeserializeOwned + Serialize + Send + Sync,
         O: Serialize + Send,
-        F: Fn(&Vec<I>) -> Result<Vec<O>, Box<dyn Error + Send + Sync>> + Send + Sync,
+        F: Fn(&[I]) -> Result<Vec<O>, Box<dyn Error + Send + Sync>> + Send + Sync,
     {
         self.mode = "RecordStreamer::group_by_replace_parallel()".to_string();
         let (mut rdr, mut wtr) = self.init_io_streams(Some(n_cpu));
@@ -579,16 +581,16 @@ impl RecordStreamer {
     /*  ------------------------------------------------------------------
     private methods for parallel processing (names match the corresponding calling methods above)
     ------------------------------------------------------------------ */
-    fn do_stream_in_place_parallel<T, F>(
+    fn do_stream_in_place_parallel<R, F>(
         &self,
         wtr: &mut csv::Writer<Stdout>, 
-        input_record_buffer: &mut Vec<T>, 
+        input_record_buffer: &mut [R], 
         record_parser: F,
         i0: Option<usize>,
     )
     where
-        T: DeserializeOwned + Serialize + Send + Sync,
-        F: Fn(&mut T) -> Result<bool, Box<dyn Error + Send + Sync>> + Send + Sync,
+        R: DeserializeOwned + Serialize + Send + Sync,
+        F: Fn(&mut R) -> Result<bool, Box<dyn Error + Send + Sync>> + Send + Sync,
     {
         let keep: Vec<_> = input_record_buffer
             .into_par_iter()
@@ -612,7 +614,7 @@ impl RecordStreamer {
     fn do_stream_replace_parallel<I, O, F>(
         &self,
         wtr: &mut csv::Writer<Stdout>, 
-        input_record_buffer: &Vec<I>, 
+        input_record_buffer: &[I], 
         record_parser: F,
         i0: Option<usize>,
     )
@@ -641,21 +643,21 @@ impl RecordStreamer {
             }
         }
     }
-    fn do_group_by_in_place_serial<T, F>(
+    fn do_group_by_in_place_serial<R, F>(
         &self,
         wtr: &mut csv::Writer<Stdout>, 
-        input_record_group: &mut Vec<T>, 
+        input_record_group: &mut [R], 
         record_parser: &mut F,
         i0: Option<usize>,
     )
     where
-        T: DeserializeOwned + Serialize,
-        F: FnMut(&mut Vec<T>) -> Result<Vec<usize>, Box<dyn Error>>,
+        R: DeserializeOwned + Serialize,
+        F: FnMut(&mut [R]) -> Result<Vec<usize>, Box<dyn Error>>,
     {
         let result = record_parser(input_record_group);
         let n_in  = input_record_group.len();
         match &result {
-            Ok(indices) => {
+            Ok(indices) => { // indices should reflect the order of the input records after any sorting by the record_parser
                 let n_out = indices.len();
                 if n_out > n_in {
                     let err_msg = format!("Record parser returned {} indices, input record group only has {} records", n_out, n_in);
@@ -675,20 +677,20 @@ impl RecordStreamer {
             }
         }
     }
-    fn do_group_by_in_place_parallel<T, F>(
+    fn do_group_by_in_place_parallel<R, F>(
         &self,
         wtr: &mut csv::Writer<Stdout>, 
-        input_record_group_buffer: &mut Vec<Vec<T>>, 
+        input_record_group_buffer: &mut [Vec<R>], 
         record_parser: F,
         i0: Option<usize>,
     )
     where
-        T: DeserializeOwned + Serialize + Send + Sync,
-        F: Fn(&mut Vec<T>) -> Result<Vec<usize>, Box<dyn Error + Send + Sync>> + Send + Sync,
+        R: DeserializeOwned + Serialize + Send + Sync,
+        F: Fn(&mut [R]) -> Result<Vec<usize>, Box<dyn Error + Send + Sync>> + Send + Sync,
     {
         let results: Vec<_> = input_record_group_buffer
-            .into_par_iter()
-            .map(record_parser)
+            .par_iter_mut()
+            .map(|group | record_parser(group.as_mut_slice()))
             .collect();
         for j in 0..results.len() {
             let n_in = input_record_group_buffer[j].len();
@@ -717,14 +719,14 @@ impl RecordStreamer {
     fn do_group_by_replace_serial<I, O, F>(
         &self,
         wtr: &mut csv::Writer<Stdout>, 
-        input_record_group: &Vec<I>, 
+        input_record_group: &[I], 
         record_parser: &mut F,
         i0: Option<usize>,
     )
     where
         I: DeserializeOwned + Serialize,
         O: Serialize,
-        F: FnMut(&Vec<I>) -> Result<Vec<O>, Box<dyn Error>>,
+        F: FnMut(&[I]) -> Result<Vec<O>, Box<dyn Error>>,
     {
         let result = record_parser(input_record_group);
         match &result {
@@ -743,18 +745,18 @@ impl RecordStreamer {
     fn do_group_by_replace_parallel<I, O, F>(
         &self,
         wtr: &mut csv::Writer<Stdout>, 
-        input_record_group_buffer: &Vec<Vec<I>>, 
+        input_record_group_buffer: &[Vec<I>], 
         record_parser: F,
         i0: Option<usize>,
     )
     where
         I: DeserializeOwned + Serialize + Send + Sync,
         O: Serialize + Send,
-        F: Fn(&Vec<I>) -> Result<Vec<O>, Box<dyn Error + Send + Sync>> + Send + Sync,
+        F: Fn(&[I]) -> Result<Vec<O>, Box<dyn Error + Send + Sync>> + Send + Sync,
     {
         let results: Vec<_> = input_record_group_buffer
             .par_iter()
-            .map(record_parser)
+            .map(|group| record_parser(group.as_slice()))
             .collect();
         for j in 0..results.len() {
             match &results[j] {

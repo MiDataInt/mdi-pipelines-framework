@@ -110,8 +110,8 @@ impl DataFrame {
     /// A caller-provided magic key is used to identify the DataFrame type in the file.
     pub fn load<R: Read>(
         &mut self, 
-        reader:   BufReader<R>, 
-        magic_key: &str,
+        _reader:   BufReader<R>, 
+        _magic_key: &str,
     ) -> &mut Self {
         self
     }
