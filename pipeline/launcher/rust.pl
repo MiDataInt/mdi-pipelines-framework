@@ -28,8 +28,11 @@ sub createRustEnvironment {
         print $outH "  - conda-forge\n";
         print $outH "  - defaults\n";
         print $outH "dependencies:\n";
-        print $outH "  - rust=$rustVersion\n";
+        print $outH "  - rust=$rustVersion\n"; # rustc and cargo    
         print $outH "  - rust-src=$rustVersion\n";
+        print $outH "  - clangdev\n"; # allow rustc to compile C/C++ code using system libraries
+        print $outH "  - pkg-config\n";
+        print $outH "  - sysroot_linux-64\n";
         close $outH;
         my $condaCommand = "env create --prefix $$cnd{dir} --file $$cnd{initFile}";
         my $bash = 
@@ -126,9 +129,9 @@ sub compileRustExecutables {
         "conda activate $$cnd{dir}"
     )."\n";
 
-    # iterate through each Rust crate defined for this pipeline
-    my $rustFile = "$pipelineDir/rust.txt";
-    -f $rustFile or throwError("no Rust crate definitions found for pipeline '$pipelineName' at:\n    $rustFile");
+    # iterate through each Rust crate defined for the tool suite containing the index pipeline
+    my $rustFile = "$pipelineSuiteDir/rust.txt";
+    -f $rustFile or throwError("no Rust crate definitions found for suite '$pipelineSuite' at:\n    $rustFile");
     open my $inH, "<", $rustFile or throwError("could not read $rustFile: $!");
     while (my $cratePath = <$inH>) {
         chomp $cratePath;

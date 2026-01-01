@@ -1,5 +1,6 @@
 use strict;
 use warnings;
+use File::Basename;
 
 # subs for handling universal pipeline commands
 # most terminate execution or never return
@@ -356,6 +357,7 @@ sub runRust {
 
     # if requested, show custom action help
     my $pname = $$config{pipeline}{name}[0];
+    my $suiteName = basename($pipelineSuiteDir);
     if($options{$help} or $isError){
         my $usage;
         my $desc = getTemplateValue($$config{actions}{rust}{description});
@@ -364,7 +366,7 @@ sub runRust {
         $usage .=  "\n    -v/--$version   the suite version to query, as a git release tag or branch [latest]";
         $usage .=  "\n    -c/--$create    create a versioned Rust development environment";
         $usage .=  "\n    -e/--$exec      execute a command in a Rust development environment";
-        $usage .=  "\n    -p/--$compile   compile Rust crates listed in pipelines/$pipelineName/rust.txt";
+        $usage .=  "\n    -p/--$compile   compile Rust crates listed in $suiteName/rust.txt";
         $usage  .= "\n    -d/--$vscode    generate rust-analyzer startup script for VSCode integration";
         $isError and throwError($usage);
         print "$usage\n\n";
