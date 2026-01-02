@@ -29,9 +29,10 @@ sub createRustEnvironment {
         print $outH "dependencies:\n";
         print $outH "  - rust=$rustVersion\n"; # rustc and cargo    
         print $outH "  - rust-src=$rustVersion\n";
-        # failed to support gcc C compilation via Rust in Conda environment due to linking issues
-        # must load gcc into the system environment oustide of the container, likely to be readily available
-        # note that conda gcc has issues linking with Rust, but is partially available in the Rust toolchain
+        # print $outH "  - compilers\n";
+        # print $outH "  - pkg-config\n";
+        # print $outH "  - gcc_linux-64\n";
+        # print $outH "  - gxx_linux-64\n";
         close $outH;
         my $condaCommand = "env create --prefix $$cnd{dir} --file $$cnd{initFile}";
         my $bash = 
@@ -117,20 +118,23 @@ sub generateRustAnalyzerScript {
 # executable targets are copied into directory '$MDI_DIR/bin/<pipeline_suite>/<pipeline_name>/<target_name>'
 #------------------------------------------------------------------------------
 sub compileRustExecutables {
-    my ($rustVersion, $gccLoadCommand) = @_;
-    my $cnd = getRustCondaPaths($rustVersion);
-
-    # check for the existence of the environment; create it if missing
-    if (! -f $$cnd{showFile} ) {
-        throwError("Rust environment does not exist at $$cnd{dir}\n".
-                   "Please create it first with:\n    mdi $pipelineName rust --create $rustVersion\n");
-    }
+    my ($rustVersion, $gccLoadCommand, $noConda) = @_;
 
     # initalize the bash script
-    my $script = join("\n",
-        $$cnd{loadCommand},
-        "source $$cnd{profileScript}",
-        "conda activate $$cnd{dir}",
+    my $script;
+    if (!$noConda){
+        my $cnd = getRustCondaPaths($rustVersion);
+        if ( ! -f $$cnd{showFile} ) {
+            throwError("Rust environment does not exist at $$cnd{dir}\n".
+                    "Please create it first with:\n    mdi $pipelineName rust --create $rustVersion\n");
+        }
+        $script = join("\n",
+            $$cnd{loadCommand},
+            "source $$cnd{profileScript}",
+            "conda activate $$cnd{dir}",
+        )."\n";
+    }
+    $script .= join("\n",
         $gccLoadCommand ? $gccLoadCommand : "", # use the --gcc option to load a GCC environment for C linking
         "export RUSTFLAGS=\"-C linker=gcc\""    # ensure system gcc is used for C linking to avoid conda gcc issues
     )."\n";

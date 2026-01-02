@@ -324,6 +324,7 @@ sub runRust {
     my $help    = "help";
     my $version = "version";
     my $gcc     = "gcc";
+    my $noConda = "no-conda";
     my $create  = "create";
     my $exec    = "exec";
     my $compile = "compile";
@@ -341,6 +342,9 @@ sub runRust {
                 my $bit = shift @args;
                 $gccLoadCommand .= $bit . " ";
             }
+        }
+        if($arg eq '-n' or $arg eq "--$noConda"){
+            $options{$noConda} = 1;
         }
         if($arg eq '-c' or $arg eq "--$create"){
             $options{$create} = 1;
@@ -373,6 +377,7 @@ sub runRust {
         $usage .=  "\nusage: mdi $pname rust [options] <rust_version>\n";
         $usage .=  "\n    -v/--$version   the suite version to query, as a git release tag or branch [latest]";
         $usage .=  "\n    -g/--$gcc       load a GCC environment for Rust C compilation; must come before --compile or --vscode";
+        $usage .=  "\n    -n/--$noConda   do not use conda to compile Rust code; must come before --compile";
         $usage .=  "\n    -c/--$create    create a versioned Rust development environment";
         $usage .=  "\n    -e/--$exec      execute a command in a Rust development environment";
         $usage .=  "\n    -p/--$compile   compile Rust crates listed in $suiteName/rust.txt";
@@ -388,7 +393,7 @@ sub runRust {
     } elsif ($options{$exec}){
         execRustEnvironment($rustVersion, @args);
     } elsif ($options{$compile}){
-        compileRustExecutables($rustVersion, $gccLoadCommand);
+        compileRustExecutables($rustVersion, $gccLoadCommand, $options{$noConda});
     } else {
         generateRustAnalyzerScript($rustVersion, $gccLoadCommand);
     }
