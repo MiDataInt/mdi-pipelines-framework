@@ -208,7 +208,7 @@ impl RowIndex {
     pub fn get_indexed(
         df: &DataFrame, // the indexed DataFrame being queried
         mut dk: DataFrame   // a DataFrame[Slice] whose first (and usually only) row will be used as the key
-    ) -> DataFrameSlice {
+    ) -> DataFrameSlice<'_> {
         let key_cols = df.row_index.key_cols.clone();
         let n_key_cols = key_cols.len();
         if let RowIndexType::None = df.row_index.index_type {

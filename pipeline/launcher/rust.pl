@@ -7,7 +7,7 @@ use File::Basename;
 # load a Rust environment or compile pipeline Rust executables (for developers)
 
 use vars qw($launcherDir $environmentsDir $config %optionArrays 
-            $pipelineSuite $pipelineName $pipelineSuiteDir $pipelineDir $pipelineBinDir);
+            $pipelineSuite $pipelineName $pipelineSuiteDir $pipelineDir $suiteBinDir);
 
 #------------------------------------------------------------------------------
 # create a versioned Rust development environment
@@ -26,13 +26,12 @@ sub createRustEnvironment {
         print $outH "---\n";
         print $outH "channels:\n";
         print $outH "  - conda-forge\n";
-        print $outH "  - defaults\n";
         print $outH "dependencies:\n";
         print $outH "  - rust=$rustVersion\n"; # rustc and cargo    
         print $outH "  - rust-src=$rustVersion\n";
-        print $outH "  - clangdev\n"; # allow rustc to compile C/C++ code using system libraries
-        print $outH "  - pkg-config\n";
-        print $outH "  - sysroot_linux-64\n";
+        # failed to support gcc C compilation via Rust in Conda environment due to linking issues
+        # must load gcc into the system environment oustide of the container, likely to be readily available
+        # note that conda gcc has issues linking with Rust, but is partially available in the Rust toolchain
         close $outH;
         my $condaCommand = "env create --prefix $$cnd{dir} --file $$cnd{initFile}";
         my $bash = 
@@ -87,7 +86,7 @@ sub execRustEnvironment {
 # generate rust-analyzer startup script for VSCode integration
 #------------------------------------------------------------------------------
 sub generateRustAnalyzerScript {
-    my ($rustVersion) = @_;
+    my ($rustVersion, $gccLoadCommand) = @_;
     my $cnd = getRustCondaPaths($rustVersion);
 
     # initalize the bash script
@@ -98,13 +97,18 @@ sub generateRustAnalyzerScript {
     print $outH "\n# creates a rust-analyzer launch wrapper for versioned Rust environments in VS Code\n";
     print $outH "\n# override system rust commands to the versioned environment\n";
     print $outH "export PATH=$$cnd{dir}/bin:\$PATH\n";
+    if ($gccLoadCommand) { # load GCC environment for Rust C compilation
+        print $outH "\n# load GCC environment for Rust C compilation\n";
+        print $outH "$gccLoadCommand\n";
+    }
     print $outH "\n# find and execute the call to VS Code rust-analyzer extension\n";
     print $outH "RUST_ANALYZER_DIR=`ls -1dr /\$HOME/.vscode-server/extensions/rust-lang.rust-analyzer* | head -n 1`\n";
     print $outH "RUST_ANALYZER=`echo \"\$RUST_ANALYZER_DIR/server/rust-analyzer\"`\n";
     print $outH "exec \$RUST_ANALYZER \"\$@\"\n"; 
     close $outH;
     chmod 0755, $scriptFile or throwError("could not set execute permissions on $scriptFile: $!");
-    print "generated rust-analyzer startup script for VSCode at:\n    $scriptFile\n";
+    print "generated rust-analyzer startup script for VSCode at:\n    $scriptFile\n\n";
+    system("cat $scriptFile");
     releaseMdiGitLock();
 }
 
@@ -113,7 +117,7 @@ sub generateRustAnalyzerScript {
 # executable targets are copied into directory '$MDI_DIR/bin/<pipeline_suite>/<pipeline_name>/<target_name>'
 #------------------------------------------------------------------------------
 sub compileRustExecutables {
-    my ($rustVersion) = @_;
+    my ($rustVersion, $gccLoadCommand) = @_;
     my $cnd = getRustCondaPaths($rustVersion);
 
     # check for the existence of the environment; create it if missing
@@ -126,7 +130,9 @@ sub compileRustExecutables {
     my $script = join("\n",
         $$cnd{loadCommand},
         "source $$cnd{profileScript}",
-        "conda activate $$cnd{dir}"
+        "conda activate $$cnd{dir}",
+        $gccLoadCommand ? $gccLoadCommand : "", # use the --gcc option to load a GCC environment for C linking
+        "export RUSTFLAGS=\"-C linker=gcc\""    # ensure system gcc is used for C linking to avoid conda gcc issues
     )."\n";
 
     # iterate through each Rust crate defined for the tool suite containing the index pipeline
@@ -142,9 +148,8 @@ sub compileRustExecutables {
         my $script = $script;
         $script .= "cd $pipelineSuiteDir/$cratePath\n"; # crate paths are relative to pipeline suite directory
         $script .= "cargo build --release --bin $targetName\n";
-        $script .= "mkdir -p $pipelineBinDir\n";
-        $script .= "cp -f target/release/$targetName $pipelineBinDir/$targetName\n";
-        $script .= "echo 'compiled Rust executable: $pipelineBinDir/$targetName'\n";
+        $script .= "mkdir -p $suiteBinDir\n";
+        $script .= "cp -f target/release/$targetName $suiteBinDir/$targetName\n";
         my $bash = "bash -c '\n$script\n'";
         print "executing command sequence: $bash\n";
         if(system($bash)){

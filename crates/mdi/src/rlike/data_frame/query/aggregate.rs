@@ -216,7 +216,7 @@ impl Query<'_> {
     fn get_group_map_unsorted<'a>(
         &'a mut self, df_src: &DataFrame, 
         n_group_cols: usize
-    ) -> (Option<DataFrame>, Vec<&[(usize, usize, usize)]>) {
+    ) -> (Option<DataFrame>, Vec<&'a [(usize, usize, usize)]>) {
 
         // single column group
         if n_group_cols == 1 {

@@ -66,7 +66,7 @@ impl DataFrameTrait<'_> for DataFrame {
     where Vec<Option<T>>: ColVec {
         self.get_ref(col_name).to_vec()
     }
-    fn get_ref<'a, T>(&'a self, col_name: &str) -> &'_ [Option<T>] 
+    fn get_ref<'a, T>(&'a self, col_name: &str) -> &'a [Option<T>] 
     where Vec<Option<T>>: ColVec {
         let col = self.get_column(col_name, "get_col_data");
         col.get_ref(col_name)

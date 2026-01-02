@@ -5,7 +5,7 @@ use File::Path qw(make_path);
 # main sub for executing a pipeline action
 
 # working variables
-use vars qw($pipelineName $pipelineSuite $pipelineDir $pipelineSuiteDir $modulesDir $pipelineBinDir
+use vars qw($pipelineName $pipelineSuite $pipelineDir $pipelineSuiteDir $modulesDir $suiteBinDir
             @args $config $isSingleAction
             %longOptions %optionArrays $isNTasks
             $launcherDir $workFlowDir $workflowScript
@@ -205,7 +205,7 @@ sub manageTaskEnvironment { # set all task environment variables (listed in tool
     $ENV{SUITE_DIR}         = "$ENV{SUITES_DIR}/$pipelineSuite"; 
     $ENV{PIPELINE_DIR}      = "$ENV{SUITE_DIR}/pipelines/$pipelineName"; 
     $ENV{MODULES_DIR}       = "$ENV{SUITE_DIR}/shared/modules";
-    $ENV{PIPELINE_BIN_DIR}  = $pipelineBinDir;
+    $ENV{SUITE_BIN_DIR}     = $suiteBinDir;
 
     # (re)initialize the log file for this task (always carries just the most recent execution)
     $ENV{LOGS_DIR}        = "$ENV{TASK_ACTION_DIR}/logs"; 

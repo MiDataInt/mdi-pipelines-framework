@@ -270,7 +270,7 @@ impl DataFrame {
     /* -----------------------------------------------------------------------------
     DataFrame slices as collections of contiguous, read-only Column slices, i.e., a DataFrameSlice
     ----------------------------------------------------------------------------- */
-    pub fn slice(&self, start_row_i: usize, n_row: usize) -> DataFrameSlice {
+    pub fn slice(&self, start_row_i: usize, n_row: usize) -> DataFrameSlice<'_> {
         DataFrameSlice::new(self, start_row_i, n_row)
     }
     /* -----------------------------------------------------------------------------
@@ -526,7 +526,7 @@ impl DataFrame {
     }
     /// Return a DataFrameSlice of the rows in an indexed DataFrame that match the 
     /// specific key column values.
-    pub fn get_indexed(&self, dk: DataFrame) -> DataFrameSlice {
+    pub fn get_indexed(&self, dk: DataFrame) -> DataFrameSlice<'_> {
         RowIndex::get_indexed(self, dk)
     }
 }

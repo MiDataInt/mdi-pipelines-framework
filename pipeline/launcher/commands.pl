@@ -323,16 +323,24 @@ sub runRust {
     my %options;
     my $help    = "help";
     my $version = "version";
+    my $gcc     = "gcc";
     my $create  = "create";
     my $exec    = "exec";
     my $compile = "compile";
     my $vscode  = "vscode";
     my $rustVersion;
+    my $gccLoadCommand;
     while (@args > 0) {
         my $arg = shift @args;
         if($arg eq '-h' or $arg eq "--$help"){
             $options{$help} = 1;    
             last;
+        }
+        if($arg eq '-g' or $arg eq "--$gcc"){
+            while (@args > 0 and $args[0] !~ m/^-/) {
+                my $bit = shift @args;
+                $gccLoadCommand .= $bit . " ";
+            }
         }
         if($arg eq '-c' or $arg eq "--$create"){
             $options{$create} = 1;
@@ -364,6 +372,7 @@ sub runRust {
         $usage .= "\n$pname rust: $desc\n";
         $usage .=  "\nusage: mdi $pname rust [options] <rust_version>\n";
         $usage .=  "\n    -v/--$version   the suite version to query, as a git release tag or branch [latest]";
+        $usage .=  "\n    -g/--$gcc       load a GCC environment for Rust C compilation; must come before --compile or --vscode";
         $usage .=  "\n    -c/--$create    create a versioned Rust development environment";
         $usage .=  "\n    -e/--$exec      execute a command in a Rust development environment";
         $usage .=  "\n    -p/--$compile   compile Rust crates listed in $suiteName/rust.txt";
@@ -379,9 +388,9 @@ sub runRust {
     } elsif ($options{$exec}){
         execRustEnvironment($rustVersion, @args);
     } elsif ($options{$compile}){
-        compileRustExecutables($rustVersion);
+        compileRustExecutables($rustVersion, $gccLoadCommand);
     } else {
-        generateRustAnalyzerScript($rustVersion);
+        generateRustAnalyzerScript($rustVersion, $gccLoadCommand);
     }
     releaseMdiGitLock(0);
 }
