@@ -1,3 +1,7 @@
+---
+published: false
+---
+
 # RLike Rust crate
 
 `rlike` is a Rust crate with a DataFrame and other data types that 

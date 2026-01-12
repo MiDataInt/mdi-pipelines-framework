@@ -1,3 +1,7 @@
+---
+published: false
+---
+
 # RLike DataFrame
 
 `rlike::DataFrame` offers a columnar data structure stored 
