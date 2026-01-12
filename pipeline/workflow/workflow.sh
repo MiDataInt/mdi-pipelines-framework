@@ -88,7 +88,7 @@ function runWorkflowStep {
             TARGET_SCRIPT=$ACTION_DIR/$STEP_SCRIPT # path interpreted relative to current action step
         fi
         echo
-        echo "executing: $STEP_SUMMARY"
+        echo "executing: $STEP_SUMMARY ($(date '+%Y-%m-%d %H:%M:%S'))"
         source $TARGET_SCRIPT # NB: script is responsible for calling checkPipe to validate execution success
         setWorkflowStatus $STEP_NUMBER $STEP_NAME $STEP_SCRIPT
     else

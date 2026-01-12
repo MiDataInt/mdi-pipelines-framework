@@ -262,7 +262,7 @@ sub createCondaEnvironment { # handles both create and update actions
 
     # Singularity container build always uses conda, not mamba
     my $bash;
-    my $condaCommand = "env $condaAction --yes --prefix $$cnd{dir} --file $$cnd{initFile}";
+    my $condaCommand = "env $condaAction --prefix $$cnd{dir} --file $$cnd{initFile}";
     if($ENV{IS_CONTAINER_BUILD}){
         $bash = 
 "bash -c 'conda $condaCommand'";
@@ -287,7 +287,7 @@ conda $condaCommand
 $$cnd{loadCommand}
 source $$cnd{profileScript}
 conda activate $mambaDir
-mamba $condaCommand
+mamba $condaCommand --yes
 conda deactivate
 '";
     }

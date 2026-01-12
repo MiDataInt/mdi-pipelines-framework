@@ -1,10 +1,9 @@
-//! A simple app to show the use of mdi::stream::RecordStreamer::group_by_in_place_serial().
-//! Compatible with output streamed from mdi_streamer/make_tsv.pl.
+//! A simple app to show the use of mdi::RecordStreamer::group_by_in_place_serial().
+//! Compatible with output streamed from make_tsv.pl.
 
 // dependencies
-// use std::{thread, time};
-// use rand::Rng;
-use mdi::stream::RecordStreamer;
+use std::error::Error;
+use mdi::RecordStreamer;
 use serde::{Deserialize, Serialize};
 
 // structures, with support for record parsing using serde
@@ -24,18 +23,13 @@ fn main() {
 }
 
 // record parsing function
-// records are updated by reference, returning None or Some(()) to enact filtering at the group level
-fn record_parser(input_record_group: &mut Vec<MyRecord>) -> Option<()> {
+// records are updated by reference, returning Vec<usize> to enact filtering and sorting at the group level
+fn record_parser(input_record_group: &mut [MyRecord]) -> Result<Vec<usize>, Box<dyn Error>> {
 
-    // // simulate a slow process by sleeping for a random number of milliseconds
-    // // output order will be retained (obligatorily since records are processed serially)
-    // let milli_seconds: u64 = rand::thread_rng().gen_range(0..5);
-    // thread::sleep(time::Duration::from_millis(milli_seconds)); 
-
-    // filter against some record groups by returning None
+    // filter against some record groups by returning an empty vector
     let group = input_record_group[0].group;
     if group > 5 && group < 10 {
-        None
+        Ok(vec![])
 
     // update the remaining records to show we did something
     } else {
@@ -44,8 +38,10 @@ fn record_parser(input_record_group: &mut Vec<MyRecord>) -> Option<()> {
             input_record.name = format!("{}-{}-{}", input_record.name, "group_by_in_place_serial", group);
         }
 
-        // return Some(()) to indicate success
+        // return Vec<usize> to enact filtering and sorting at the group level
         // do not need to return the record since it is updated in place
-        Some(())
+        Ok((0..input_record_group.len()).collect())
+        // Ok(vec![0]) // return only the first record in each group
+        // Ok((0..input_record_group.len()).rev().collect()) // reverse the group order, etc.
     }
 }

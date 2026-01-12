@@ -1,21 +1,24 @@
 # action:
-#   generate a simple tab-delimited stream on STDOUT useful for testing mdi_streamer
+#   generate a simple tab-delimited stream on STDOUT 
+#   useful for testing mdi_streamer and rlike data frames
 # output:
 #   unheadered tab-delimited stream on STDOUT with columns:
 #       group (integer)
 #       record_in_group (integer)
+#       name (string)
 #       random_value (integer)
 # consistent with Rust:
 #    struct InputRecord {
 #        group:  u32,
 #        record: u32,
+#        name:   String,
 #        random: u32,
 #    }
 
 use strict;
 use warnings;
 
-my $n_groups = 10000;
+my $n_groups = $ARGV[0] || 1000;
 my $max_records_per_group = 5;
 my @names = map { $_ x 5 } qw(A B C D E);
 

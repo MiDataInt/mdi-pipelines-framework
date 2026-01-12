@@ -1,5 +1,6 @@
 use strict;
 use warnings;
+use File::Basename;
 
 # subs for handling universal pipeline commands
 # most terminate execution or never return
@@ -16,11 +17,11 @@ sub doRestrictedCommand {
         # commands advertised to users
         template => \&runTemplate,
         conda    => \&runConda,
-        compile  => \&runCompile,
         build    => \&runBuild,
         shell    => \&runShell,
         status   => \&runStatus,
         rollback => \&runRollback,
+        rust     => \&runRust,
 
         # commands for developers or MDI-internal use
         options         => \&runOptions, 
@@ -114,58 +115,6 @@ sub runConda {
     # list or create conda environments in action order
     @args = @newArgs;
     showCreateCondaEnvironments($options{$create}, $options{$force}, $options{$noMamba});
-    releaseMdiGitLock(0);
-}
-
-#------------------------------------------------------------------------------
-# compile any executable programs defined by and required by a pipeline"
-#------------------------------------------------------------------------------
-sub runCompile {
-    
-    # see if user provided server.yml
-    my $defaultServerYml = Cwd::abs_path("$mdiDir/config/stage1-pipelines.yml");
-    my @newArgs = ($args[0] and $args[$#args] =~ m/\.yml$/) ? (pop @args) : ();
-    
-    # special handling of command line option flags
-    # NOTE: as always, --version was already handled by launcher.pl: setPipelineSuiteVersion()
-    my %options;
-    my $help    = "help";
-    my $version = "version";
-    my $list    = "list";
-    my $create  = "create";
-    my $force   = "force";
-    my $noMamba = "no-mamba";
-    foreach my $arg(@args){
-        ($arg eq '-h' or $arg eq "--$help")    and $options{$help}    = 1;
-        ($arg eq '-l' or $arg eq "--$list")    and $options{$list}    = 1;
-        ($arg eq '-c' or $arg eq "--$create")  and $options{$create}  = 1;
-        ($arg eq '-f' or $arg eq "--$force")   and $options{$force}   = 1;
-        ($arg eq '-M' or $arg eq "--$noMamba") and $options{$noMamba} = 1;
-    }
-    (!$options{$list} and !$options{$create}) and $options{$help}  = 1;
-    my $error = ($options{$list} and $options{$create}) ?
-                "\noptions '--$list' and '--$create' are mutually exclusive\n" : "";
-                
-    # if requested, show custom action help
-    my $pname = $$config{pipeline}{name}[0];
-    if($options{$help} or $error){
-        my $usage;
-        my $desc = getTemplateValue($$config{actions}{compile}{description});
-        $usage .= "\n$pname compile: $desc\n";
-        $usage .=  "\nusage: mdi $pname compile [options]\n";
-        $usage .=  "\n    -v/--$version   the suite version to query, as a git release tag or branch [latest]";
-        $usage .=  "\n    -l/--$list      show expected and compiled executables required by the pipeline";
-        $usage .=  "\n    -c/--$create    if needed, compile any missing executables";
-        $usage .=  "\n    -f/--$force     do not prompt for permission to compile executables"; 
-        $usage .=  "\n    -M/--$noMamba  do not use Mamba to create the compilation environment, only use Conda";
-        $error and throwError($error.$usage);
-        print "$usage\n\n";
-        releaseMdiGitLock(0);
-    }
-    
-    # compile any executable programs
-    @args = @newArgs;
-    showCompileExecutables($options{$create}, $options{$force}, $options{$noMamba});
     releaseMdiGitLock(0);
 }
 
@@ -362,6 +311,93 @@ sub doRollback {
     # do the work
     system("bash -c 'source $workflowScript; resetWorkflowStatus'");
     $exit and releaseMdiGitLock(0);
+}
+
+#------------------------------------------------------------------------------
+# load a Rust environment or compile pipeline Rust executables (for developers)
+#------------------------------------------------------------------------------
+sub runRust {
+
+    # special handling of command line option flags
+    # NOTE: as always, --version was already handled by launcher.pl: setPipelineSuiteVersion()
+    my %options;
+    my $help    = "help";
+    my $version = "version";
+    my $gcc     = "gcc";
+    my $noConda = "no-conda";
+    my $create  = "create";
+    my $exec    = "exec";
+    my $compile = "compile";
+    my $vscode  = "vscode";
+    my $rustVersion;
+    my $gccLoadCommand;
+    while (@args > 0) {
+        my $arg = shift @args;
+        if($arg eq '-h' or $arg eq "--$help"){
+            $options{$help} = 1;    
+            last;
+        }
+        if($arg eq '-g' or $arg eq "--$gcc"){
+            while (@args > 0 and $args[0] !~ m/^-/) {
+                my $bit = shift @args;
+                $gccLoadCommand .= $bit . " ";
+            }
+        }
+        if($arg eq '-n' or $arg eq "--$noConda"){
+            $options{$noConda} = 1;
+        }
+        if($arg eq '-c' or $arg eq "--$create"){
+            $options{$create} = 1;
+            $rustVersion = shift @args;
+        }
+        if($arg eq '-e' or $arg eq "--$exec"){
+            $options{$exec} = 1;
+            $rustVersion = shift @args;
+        }
+        if($arg eq '-p' or $arg eq "--$compile"){
+            $options{$compile} = 1;
+            $rustVersion = shift @args;
+        }
+        if($arg eq '-d' or $arg eq "--$vscode"){
+            $options{$vscode} = 1;
+            $rustVersion = shift @args;
+        }
+        $rustVersion and last;
+    }
+    $rustVersion or $options{$help} = 1;
+    my $isError = !($options{$help} or $rustVersion =~ m/\d+\.\d+/);
+
+    # if requested, show custom action help
+    my $pname = $$config{pipeline}{name}[0];
+    my $suiteName = basename($pipelineSuiteDir);
+    if($options{$help} or $isError){
+        my $usage;
+        my $desc = getTemplateValue($$config{actions}{rust}{description});
+        $usage .= "\n$pname rust: $desc\n";
+        $usage .=  "\nusage: mdi $pname rust [options] <rust_version>\n";
+        $usage .=  "\n    -v/--$version   the suite version to query, as a git release tag or branch [latest]";
+        $usage .=  "\n    -g/--$gcc       load a GCC environment for Rust C compilation; must come before --compile or --vscode";
+        $usage .=  "\n    -n/--$noConda   do not use conda to compile Rust code; must come before --compile";
+        $usage .=  "\n    -c/--$create    create a versioned Rust development environment";
+        $usage .=  "\n    -e/--$exec      execute a command in a Rust development environment";
+        $usage .=  "\n    -p/--$compile   compile Rust crates listed in $suiteName/rust.txt";
+        $usage  .= "\n    -d/--$vscode    generate rust-analyzer startup script for VSCode integration";
+        $isError and throwError($usage);
+        print "$usage\n\n";
+        releaseMdiGitLock(0);
+    }
+    
+    # # compile any executable programs
+    if ($options{$create}){
+        createRustEnvironment($rustVersion);
+    } elsif ($options{$exec}){
+        execRustEnvironment($rustVersion, @args);
+    } elsif ($options{$compile}){
+        compileRustExecutables($rustVersion, $gccLoadCommand, $options{$noConda});
+    } else {
+        generateRustAnalyzerScript($rustVersion, $gccLoadCommand);
+    }
+    releaseMdiGitLock(0);
 }
 
 #------------------------------------------------------------------------------

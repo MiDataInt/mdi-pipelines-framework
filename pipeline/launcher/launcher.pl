@@ -80,6 +80,7 @@ our $sharedDir = "$pipelineSuiteDir/shared";
 our $environmentsDir = "$sharedDir/environments";
 our $optionsDir      = "$sharedDir/options";
 our $modulesDir      = "$sharedDir/modules";
+our $suiteBinDir     = "$mdiDir/bin/$pipelineSuite";
 
 # load launcher scripts
 map { $_ =~ m/launcher\.pl$/ or require $_ } glob("$launcherDir/*.pl");

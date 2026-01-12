@@ -1,10 +1,9 @@
-//! A simple app to show the use of mdi::stream::RecordStreamer::stream_replace_parallel().
-//! Compatible with output streamed from mdi_streamer/make_tsv.pl.
+//! A simple app to show the use of mdi::RecordStreamer::stream_replace_parallel().
+//! Compatible with output streamed from make_tsv.pl.
 
 // dependencies
-// use std::{thread, time};
-// use rand::Rng;
-use mdi::stream::RecordStreamer;
+use std::error::Error;
+use mdi::RecordStreamer;
 use serde::{Deserialize, Serialize};
 
 // structures, with support for record parsing using serde
@@ -48,7 +47,7 @@ fn main() {
 
     // demonstrate passing of immutable values to the record parser
     let proof: String = METHOD.to_string();
-    let record_parser = |input_record: &InputRecord| -> Option<Vec<OutputRecord>> {
+    let record_parser = |input_record: &InputRecord| -> Result<Vec<OutputRecord>, Box<dyn Error + Send + Sync>> {
         parse_with_proof(input_record, &proof)
     };
     RecordStreamer::new()
@@ -57,16 +56,11 @@ fn main() {
 
 // record parsing function
 // input records are immutable and must be transformed to output records
-fn parse_with_proof(input_record: &InputRecord, proof: &str) -> Option<Vec<OutputRecord>> {
+fn parse_with_proof(input_record: &InputRecord, proof: &str) -> Result<Vec<OutputRecord>, Box<dyn Error + Send + Sync>> {
 
-    // // simulate a slow process by sleeping for a random number of milliseconds
-    // // output order will be retained by par_iter.map()
-    // let milli_seconds: u64 = rand::thread_rng().gen_range(0..5);
-    // thread::sleep(time::Duration::from_millis(milli_seconds)); 
-
-    // filter against some records by returning None
+    // filter against some records by returning and empty Vec<OutputRecord>
     if input_record.group > 5 && input_record.group < 10 {
-        None
+        Ok(vec![])
     } else {
 
         // create a new output record
@@ -77,9 +71,9 @@ fn parse_with_proof(input_record: &InputRecord, proof: &str) -> Option<Vec<Outpu
         output_record.random *= 100;
         output_record.proof = format!("{}-{}", output_record.name, proof);
 
-        // return the new output record(s)
+        // return the new output record(s) as Ok(Vec<OutputRecord>)
         // returning a vector of records transfers metadata ownership to RecordStreamer
         // without a deep copy of the allocated record data on the heap
-        Some(vec![output_record])
+        Ok(vec![output_record])
     }
 }
