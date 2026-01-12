@@ -1,3 +1,7 @@
+---
+published: false
+---
+
 ## vsCode rust-analyzer remote setup
 
 The following describes how to use vsCode remotely for Rust development.
