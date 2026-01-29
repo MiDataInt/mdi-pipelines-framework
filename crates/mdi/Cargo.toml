@@ -1,7 +1,8 @@
 [package]
 name = "mdi"
 version = "0.1.0"
-edition = "2021"
+rust-version = "1.92"
+edition = "2024"
 authors = ["Thomas E. Wilson"]
 
 [dependencies]
@@ -10,6 +11,7 @@ rayon = "1.11"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 flate2 = "1.1"
+rust-htslib = "0.51"
 paste = "1.0"
 num-format = "0.4"
 chrono = "0.4"

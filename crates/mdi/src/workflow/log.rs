@@ -28,4 +28,14 @@ impl Log {
             Local::now().to_rfc3339()
         );
     }
+
+    /// Print a time-stamped 'initializing' message to STDERR for logging purposes.
+    /// Includes a preceding newline for spacing clarity.
+    pub fn initializing(&self) {
+        eprintln!("\n{}: {} ({})", 
+            self.tool, 
+            "initializing", 
+            Local::now().to_rfc3339()
+        );
+    }
 }

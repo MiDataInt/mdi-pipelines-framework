@@ -26,6 +26,7 @@ pub struct Config {
     // String keys used for named environment variables
     pub bool:   HashMap<String, bool>, 
     pub u8:     HashMap<String, u8>,
+    pub u32:    HashMap<String, u32>,
     pub usize:  HashMap<String, usize>,
     pub i32:    HashMap<String, i32>,
     pub f64:    HashMap<String, f64>,
@@ -40,6 +41,7 @@ impl Config {
             // String keys used for named environment variables
             bool:   HashMap::new(),
             u8:     HashMap::new(),
+            u32:    HashMap::new(),
             usize:  HashMap::new(),
             i32:    HashMap::new(),
             f64:    HashMap::new(),
@@ -99,7 +101,7 @@ impl Config {
         }
     }
     fn key_not_found(key: &str, data_type: &str) -> ! {
-        panic!("Config key {key} not found in {data_type} HashMap.")
+        panic!("Config key {key} not found in {data_type} config HashMap; please call set_{data_type}[_env] first.")
     }
 }
 
@@ -172,6 +174,7 @@ macro_rules! fill_get_methods {
 }
 fill_set_env_methods!(
     u8,     u8, // everything except bool, which is handled differently
+    u32,    u32,
     usize,  usize, 
     i32,    i32, 
     f64,    f64, 
@@ -180,6 +183,7 @@ fill_set_env_methods!(
 fill_set_methods!(
     bool,   bool,
     u8,     u8,
+    u32,    u32,
     usize,  usize, 
     i32,    i32, 
     f64,    f64, 
@@ -188,6 +192,7 @@ fill_set_methods!(
 fill_get_methods!(
     bool,   bool, // everything except String, which is handled differently
     u8,     u8,
+    u32,    u32,
     usize,  usize, 
     i32,    i32, 
     f64,    f64, 
