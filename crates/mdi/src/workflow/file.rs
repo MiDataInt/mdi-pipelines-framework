@@ -1,7 +1,7 @@
 //! Wrappers to help open and read/write to input/output files
 //! identified by their environment variable keys or as file paths.
 //! 
-//! `Input/OutputFile` methods handle files as Vec<String<> and 
+//! `Input/OutputFile` methods handle files as Vec<String> and 
 //! assume tab-delimited, headerless files. Extended methods allow 
 //! headers and custom delimiters to be used.
 //! 
@@ -11,12 +11,16 @@
 
 // dependencies
 use std::fs::{File, read_to_string};
-use std::io::{Read, Write, BufReader};
+use std::io::{Read, Write, BufReader, BufWriter};
 use csv::{Reader, ReaderBuilder, Writer, WriterBuilder, StringRecord};
 use flate2::{Compression, read::MultiGzDecoder, write::GzEncoder};
 use rust_htslib::bgzf::Writer as BgzWriter;
+use rust_htslib::tpool::ThreadPool;
 use serde::{Serialize, de::DeserializeOwned};
 use crate::workflow::Config;
+
+// constants
+const BUFFER_CAPACITY: usize = 8 * 1024 * 1024; // 8 MB buffer to limit I/O calls
 
 /* --------------------------------------------------------------------
 Input/OutputFile structs for files handled as Vec<String>
@@ -36,7 +40,7 @@ impl InputFile {
         let file = File::open(filepath).unwrap_or_else(|e| {
             panic!("failed to open file for reading {}: {}", filepath, e);
         });
-        let buffered_file = BufReader::new(file);
+        let buffered_file = BufReader::with_capacity(BUFFER_CAPACITY, file);
         let reader: Box<dyn Read> = if filepath.ends_with(".gz") || filepath.ends_with(".bgz") {
             Box::new(MultiGzDecoder::new(buffered_file))
         } else {
@@ -85,7 +89,7 @@ impl InputFile {
             let file = File::open(filepath).expect(
                 &format!("could not open {}: ", filepath)
             );
-            let buffered_file = BufReader::new(file);
+            let buffered_file = BufReader::with_capacity(BUFFER_CAPACITY, file);
             let mut decoder = MultiGzDecoder::new(buffered_file);
             let mut content = String::new();
             decoder.read_to_string(&mut content).expect(
@@ -116,10 +120,11 @@ impl OutputFile {
         let file = File::create(filepath).unwrap_or_else(|e| {
             panic!("failed to create file for writing {}: {}", filepath, e);
         });
+        let buffered_file = BufWriter::with_capacity(BUFFER_CAPACITY, file);
         let writer: Box<dyn Write> = if filepath.ends_with(".gz") {
-            Box::new(GzEncoder::new(file, Compression::default()))
+                Box::new(GzEncoder::new(buffered_file, Compression::default()))
         } else {
-            Box::new(file)
+            Box::new(buffered_file)
         };
         let mut writer = WriterBuilder::new()
             .has_headers(false) // false since we write the header ourselves below
@@ -187,7 +192,7 @@ impl InputCsv {
         let file = File::open(filepath).unwrap_or_else(|e| {
             panic!("failed to open file for reading {}: {}", filepath, e);
         });
-        let buffered_file = BufReader::new(file);
+        let buffered_file = BufReader::with_capacity(BUFFER_CAPACITY, file);
         let reader: Box<dyn Read> = if filepath.ends_with(".gz") || filepath.ends_with(".bgz") {
             Box::new(MultiGzDecoder::new(buffered_file))
         } else {
@@ -235,20 +240,27 @@ impl OutputCsv {
     ------------------------------------------------------------------ */
     /// Open a CSV writer for an output file with full options definition.
     /// Supports gzip and bgzip compression based on file extension as well
-    /// as uncompressed files.
-    pub fn open_csv(filepath: &str, delimiter: u8, has_headers: bool) -> Self {
+    /// as uncompressed files. For bgzip, pass `n_cpu` to set the number of 
+    /// compression threads.
+    pub fn open_csv(filepath: &str, delimiter: u8, has_headers: bool, n_cpu: Option<u32>) -> Self {
         let writer: Box<dyn Write> = if filepath.ends_with(".bgz") {
-            Box::new(BgzWriter::from_path(filepath).unwrap_or_else(|e| {
+            let mut writer = BgzWriter::from_path(filepath).unwrap_or_else(|e| {
                 panic!("failed to create BGZ file for writing {}: {}", filepath, e);
-            }))
+            });
+            if let Some(n_cpu) = n_cpu {
+                let tpool = ThreadPool::new(n_cpu).unwrap();
+                writer.set_thread_pool(&tpool).unwrap();
+            }
+            Box::new(writer)
         } else {
             let file = File::create(filepath).unwrap_or_else(|e| {
                 panic!("failed to create file for writing {}: {}", filepath, e);
-            });            
+            });
+            let buffered_file = BufWriter::with_capacity(BUFFER_CAPACITY, file);
             if filepath.ends_with(".gz") {
-                Box::new(GzEncoder::new(file, Compression::default()))
+                Box::new(GzEncoder::new(buffered_file, Compression::default()))
             } else {
-                Box::new(file)
+                Box::new(buffered_file)
             }
         };
         let writer = WriterBuilder::new()
@@ -263,17 +275,19 @@ impl OutputCsv {
     /// Open a CSV writer for an output tab-delimited file with headers at a 
     /// filepath provided as a reference to an environment variable key.
     /// Supports gzip and bgzip compression based on file extension as well
-    /// as uncompressed files.
-    pub fn open_env(cfg: &mut Config, key: &str) -> Self {
+    /// as uncompressed files. For bgzip, pass `n_cpu` to set the number of 
+    /// compression threads.
+    pub fn open_env(cfg: &mut Config, key: &str, n_cpu: Option<u32>) -> Self {
         cfg.set_string_env(&[key]);
-        Self::open_csv(cfg.get_string(key), b'\t', true)
+        Self::open_csv(cfg.get_string(key), b'\t', true, n_cpu)
     }
     /// Open a CSV writer for an output tab-delimited file with headers at a 
     /// filepath provided as &str.
     /// Supports gzip and bgzip compression based on file extension as well
-    /// as uncompressed files.
-    pub fn open(filepath: &str) -> Self {
-        Self::open_csv(filepath, b'\t', true)
+    /// as uncompressed files. For bgzip, pass `n_cpu` to set the number of 
+    /// compression threads.
+    pub fn open(filepath: &str, n_cpu: Option<u32>) -> Self {
+        Self::open_csv(filepath, b'\t', true, n_cpu)
     }
     /* ------------------------------------------------------------------
     writing to file
