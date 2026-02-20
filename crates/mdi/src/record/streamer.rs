@@ -1,12 +1,18 @@
 //! RecordStreamer supports MDI pipelines by providing
 //! a structure to manipulate tabular records in data streams.
+//! 
 //! Data are read from STDIN and written to STDOUT to function in a Unix stream.
 //! This makes it easy to create executable crates that can be chained together,
 //! with each crate performing a specific task in a data processing pipeline.
+//! 
+//! A `record_parser` closure passed to a RecordStreamer does work on each record 
+//! or group of records. This makes it easy to create executable crates that can 
+//! be chained together, with each crate performing a specific task in a data 
+//! processing pipeline.
 //!
-//! Functions are written to be fast, without unnecessary copying and with efficient 
-//! allocation of record vectors. Record parsing can often be done by reference, 
-//! i.e., in place, unless records need to change structure.
+//! Functions are fast, without unnecessary copying and with efficient allocation 
+//! of record vectors. Record parsing can often be done by reference to a record 
+//! buffer, i.e., in place, unless records need to change structure.
 //! 
 //! # Usage Overview
 //! 
@@ -26,11 +32,13 @@
 //! each input record.
 //!  
 //! Record/group parsing can be done either:
-//! - serially using one of the xxx__xxx_serial() functions, or
-//! - in parallel using one of the xxx__xxx_parallel() functions
+//! - serially using one of the xxx_xxx_serial() functions, or
+//! - in parallel using one of the xxx_xxx_parallel() functions
 //! Only benchmarking can determine which is faster for a given task, which will depend on 
-//! the complexity of the parsing function. Serial and parallel versions of the functions  
-//! are otherwise identical.
+//! the complexity of the parsing function. Notably, parallel processing if often
+//! better handled using the mdi::RecordFanner, which uses Crossbeam channels for parallel
+//! processing, in constrast to the RecordStreamer, which uses Rayon to iterate in parallel
+//! over buffered vectors of input records.
 //!
 //! Input and output records are assumed to be:
 //! - without headers, unless `has_headers()` is called on the RecordStreamer
@@ -49,18 +57,18 @@
 //!
 //! # Record Parsing
 //! 
-//! Streaming is executed by calling on the RecordStreamer one of:
-//! - `stream_in_place_serial(FnMut(&mut R) -> Result<bool, Box<dyn Error>>)`
-//! - `stream_in_place_parallel(Fn(&mut R) -> Result<bool, Box<dyn Error>>, n_cpu: usize, buffer_size: usize)`
-//! - `stream_replace_serial(FnMut(I) -> Result<Vec<O>, Box<dyn Error>>)`
-//! - `stream_replace_parallel(Fn(&I) -> Result<Vec<O>, Box<dyn Error>>, n_cpu: usize, buffer_size: usize)`
-//! - `group_by_in_place_serial(FnMut(&mut [R]) -> Result<Vec<usize>, Box<dyn Error>>, grouping_fields: &[&str])`
-//! - `group_by_in_place_parallel(Fn(&mut [R]) -> Result<Vec<usize>, Box<dyn Error>>, grouping_fields: &[&str], n_cpu: usize, buffer_size: usize)`
-//! - `group_by_replace_serial(FnMut(&[I]) -> Result<Vec<O>, Box<dyn Error>>, grouping_fields: &[&str])`
-//! - `group_by_replace_parallel(Fn(&[I]) -> Result<Vec<O>, Box<dyn Error>>, grouping_fields: &[&str], n_cpu: usize, buffer_size: usize)`
+//! Streaming is executed by calling one of the following methods on the RecordStreamer:
+//! - `stream_in_place_serial()`
+//! - `stream_in_place_parallel()`
+//! - `stream_replace_serial()`
+//! - `stream_replace_parallel()`
+//! - `group_by_in_place_serial()`
+//! - `group_by_in_place_parallel()`
+//! - `group_by_replace_serial()`
+//! - `group_by_replace_parallel()`
 //! where the caller defines and provides:
-//! - `Struct`s that describe the input and output structures (R for Record, I for InputRecord, O for OutputRecord)
-//! - a record parsing function that processes the data, returning:
+//! - data structures that describe the input and output data format (I for InputRecord, O for OutputRecord)
+//! - a `record_parser` function or closure that processes the data, returning:
 //!   - Err(...) if an error occurred during record processing, or
 //!   - for stream_in_place_xxx functions:
 //!     - Ok(true) or Ok(false) indicating whether the (updated) record should be written to the output stream
@@ -71,72 +79,43 @@
 //!
 //! The work to be done on input records is arbitrary and defined by the caller.
 //! Some examples of work that can be done include:
-//! - when using in_place or replace functions:
-//!   - filtering records based on a condition
-//!   - updating field(s) in a record
-//! - when using group_by_in_place_xxx functions:
-//!   - reordering records within each group
-//! - when using replace functions only:
-//!   - transforming records into distinct output records, e.g., adding a new field
-//!   - aggregating records into a single output record
-//!   - splitting records into multiple output records
+//! - filtering records based on a condition
+//! - updating field(s) in a record
+//! - transforming records into distinct output records, e.g., adding a new field
+//! - splitting records into multiple output records
+//! - reordering records within each group
+//! - aggregating grouped records into a single output record
+//! - generating side effects distinct from passing output records, for example:
+//!     - writing aggregated summary information such as counts to a log 
+//!     - creating a summary image or plot
+//!     - updating a database
 //! 
 //! # Mutable Captures
 //! 
 //! It is common for calling code to pass a closure to the RecordStreamer as
-//! the record_parser argument, so that the closure can capture additional variables from
-//! the calling environment. Only the `xxx__xxx_serial` RecordStreamer functions support
-//! mutable captures, i.e., that allow the record_parser to modify captured local variables,
+//! the record_parser argument, so that the closure can capture variables from
+//! its environment. Only the `xxx__xxx_serial` RecordStreamer functions support
+//! mutable captures, i.e., that allow the record_parser to modify captured variables,
 //! as parallel functions cannot modify shared local variables safely due to concurrency
-//! restrictions. If you need to modify something other than the record stream itself,
-//! e.g., a counter or a summary vector, you should use serial record parsing functions.
-//! Immutable local variable captures are supported by all RecordStreamer functions.
-//! 
-//! # Additional Program Actions (side effects)
-//! 
-//! While the primary purpose of the RecordStreamer is to process records in a stream,
-//! programs consuming the input data stream can also perform actions in addition 
-//! to writing to the output stream, known as "side effects". Examples include:
-//! - writing summary information to a log 
-//! - writing output records or other information to an output file
-//! - creating a summary image or plot
-//! - updating a database
-//! If side effects are the only required actions, the caller can simply choose to never
-//! write records to the output stream, always returning false or an empty Vec from the 
-//! record_parser.
+//! restrictions. Immutable local  captures are supported by all RecordStreamers.
 //! 
 //! # Error Handling
 //! 
-//! RecordStreamer is designed to work in an HPC data stream where the presumption is
+//! RecordStreamers are designed to work in an HPC data stream where the presumption is
 //! that all records are valid and will be processed successfully, even if they are
-//! filtered out and not written to the output stream. Accordingly, all RecordStreamer
-//! streaming functions panic on any error encountered during processing. Importantly,
-//! the streaming functions create detailed error messages that identify the specific 
-//! line in the input data stream that caused a failure, which can greatly facilitate 
-//! debugging of data processing pipelines when errors are isolated to rare lines in input 
-//! data. Accordingly, your record parsing functions should not panic on errors, but should  
-//! instead return Err(...) with a descriptive error message or simply propagate errors from
-//! called functions using the `?` operator. RecordStreamer will panic on such errors with 
-//! information on the offending data lines appended to the error message.
-//! 
-//! # CSV Deserialization of Trailing Fields
-//! 
-//! In bioinformatics, it is common for tabular data formats to have a fixed number of
-//! columns followed by a variable number of trailing fields known as tags, e.g., in 
-//! the SAM format. Support function `trailing_to_vec_string()` is provided to
-//! deserialize all trailing fields of a record into a final Vec<String> field in
-//! your data structure. See the function documentation for usage details.
-//! 
-//! # Examples
-//! 
-//! See the examples in the mdi/examples directory for detailed information on how to use the RecordStreamer.
+//! filtered out and not written to the output stream. Accordingly, all RecordStreamers
+//! panic on any error encountered during processing and create detailed error messages 
+//! that identify the specific line in the input data stream that caused a failure. This
+//! facilitates debugging when errors are isolated to rare lines in input data. Accordingly, 
+//! your record_parser should not panic but should return Err(...) with a descriptive error 
+//! message, or simply propagate errors `?`. RecordStreamers will append additional 
+//! information including the input line number to your error message.
 
 // dependencies
 use std::error::Error;
 use std::io::{stdin, stdout, Stdin, Stdout, BufRead, BufReader, Read, Write, Cursor};
 use rayon::prelude::*;
-use serde::{de::{Deserializer, Visitor, SeqAccess, DeserializeOwned}, Serialize};
-use std::fmt;
+use serde::{de::{DeserializeOwned}, Serialize};
 
 /// Error types.
 const DESERIALIZING:   &str = "deserializing data fields";
@@ -312,6 +291,9 @@ impl RecordStreamer {
     /// `stream_replace_parallel()` processes input records from STDIN to STDOUT:
     ///     - one at a time as they are encountered, with parallel processing
     ///     - where output records of arbitrary number and structure replace input records
+    /// 
+    /// Notably, mdi::RecordFanner::stream() is often a better choice for parallel
+    /// processing of single records with record replacement.
     pub fn stream_replace_parallel <I, O, F>(
         &mut self, 
         record_parser: F, 
@@ -448,6 +430,9 @@ impl RecordStreamer {
     /// `group_by_replace_parallel()` processes input records from STDIN to STDOUT:
     ///     - in groups of records with the same sequential key, with parallel processing
     ///     - where output records of arbitrary number and structure replace input records
+    /// 
+    /// Notably, mdi::RecordFanner::stream_by() is often a better choice for parallel
+    /// processing of grouped records with record replacement.
     pub fn group_by_replace_parallel <I, O, F>(
         &mut self, 
         record_parser: F, 
@@ -816,37 +801,5 @@ impl RecordStreamer {
                 self.line_error(SERIALIZING, Some(i0 + 1), &*Box::<dyn Error>::from(err_msg))
             }
         }
-    }
-
-    /* ------------------------------------------------------------------
-    deserialization support methods
-    ------------------------------------------------------------------ */
-    /// Deserialize all trailing fields of a record into a Vec<String>.
-    /// Add `#[serde(deserialize_with = "RecordStreamer::trailing_to_vec_string")]`
-    /// before the last field definition in your record struct, which should be of
-    /// type `Vec<String>`. Set `rs.flexible(true)` when initializing the RecordStreamer
-    /// if the number of trailing fields may vary between records.
-    pub fn trailing_to_vec_string<'de, D>(deserializer: D) -> Result<Vec<String>, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        struct TrailingVisitor;
-        impl<'de> Visitor<'de> for TrailingVisitor {
-            type Value = Vec<String>;
-            fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-                formatter.write_str("a sequence of column values as strings")
-            }
-            fn visit_seq<A>(self, mut seq: A) -> Result<Self::Value, A::Error>
-            where
-                A: SeqAccess<'de>,
-            {
-                let mut value = Vec::new();
-                while let Some(col) = seq.next_element::<String>()? {
-                    value.push(col);
-                }
-                Ok(value)
-            }
-        }
-        deserializer.deserialize_seq(TrailingVisitor)
     }
 }
