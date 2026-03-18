@@ -286,6 +286,7 @@ conda $condaCommand
 "bash -c '
 $$cnd{loadCommand}
 source $$cnd{profileScript}
+conda deactivate
 conda activate $mambaDir
 mamba $condaCommand --yes
 conda deactivate

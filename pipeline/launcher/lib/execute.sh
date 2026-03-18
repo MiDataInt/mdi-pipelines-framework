@@ -5,6 +5,7 @@
 # acivate the conda environment
 ${CONDA_LOAD_COMMAND}
 source ${CONDA_PROFILE_SCRIPT}
+conda deactivate
 conda activate ${ENVIRONMENTS_DIR}/${CONDA_NAME}
 
 # load singularity in the running job if instructed by the pipeline via env-vars
