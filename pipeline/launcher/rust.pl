@@ -39,6 +39,7 @@ sub createRustEnvironment {
 "bash -c '
 $$cnd{loadCommand}
 source $$cnd{profileScript}
+conda deactivate
 conda $condaCommand
 '";
         print "executing command sequence: $bash\n";
@@ -71,6 +72,7 @@ sub execRustEnvironment {
         "rm -f $scriptFile", # the script file deletes itself
         $$cnd{loadCommand},
         "source $$cnd{profileScript}",
+        "conda deactivate", 
         "conda activate $$cnd{dir}"
     )."\n";
     $script .= "exec ".join(" ", @args)."\n";
@@ -131,12 +133,18 @@ sub compileRustExecutables {
         $script = join("\n",
             $$cnd{loadCommand},
             "source $$cnd{profileScript}",
+            "conda deactivate", 
             "conda activate $$cnd{dir}",
         )."\n";
     }
     $script .= join("\n",
-        $gccLoadCommand ? $gccLoadCommand : "", # use the --gcc option to load a GCC environment for C linking
-        "export RUSTFLAGS=\"-C linker=gcc\""    # ensure system gcc is used for C linking to avoid conda gcc issues
+        # use the --gcc option to load a GCC environment for C linking
+        $gccLoadCommand ? $gccLoadCommand : "", 
+        "unset RUSTFLAGS",
+        # ensure system gcc is used for C linking to avoid conda gcc issues
+        # build for x86-64-v3 architecture for modern CPU optimization with high portability
+        # do not strip debuginfo since locally compiled binaries are usually used for development
+        "export RUSTFLAGS=\"-C linker=gcc -C target-cpu=x86-64-v3\"" 
     )."\n";
 
     # iterate through each Rust crate defined for the tool suite containing the index pipeline
@@ -151,6 +159,7 @@ sub compileRustExecutables {
         my $targetName = basename($cratePath);
         my $script = $script;
         $script .= "cd $pipelineSuiteDir/$cratePath\n"; # crate paths are relative to pipeline suite directory
+        # $script .= "rustc --print target-cpus\n";
         $script .= "cargo build --release --bin $targetName\n";
         $script .= "mkdir -p $suiteBinDir\n";
         $script .= "cp -f target/release/$targetName $suiteBinDir/$targetName\n";

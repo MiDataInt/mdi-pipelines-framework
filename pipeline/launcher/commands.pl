@@ -230,10 +230,10 @@ sub runShell {
             "source $$conda{profileScript}"
         )."\n";
         if($commandArgs =~ m/\S/){ # run a single command using "conda run"
-            $script .= "conda run --prefix $$conda{dir} $commandArgs\n";
+            $script .= "conda deactivate\nconda run --prefix $$conda{dir} $commandArgs\n";
             $shellCommand = "bash $scriptFile";
         } else { # open an interactive shell in the activated conda environment
-            $script .= "conda activate $$conda{dir}\n";
+            $script .= "conda deactivate\nconda activate $$conda{dir}\n";
             $shellCommand = "bash --rcfile $scriptFile"; # --rcfile configures environment before passing interactive shell to user
         }
 	    open my $outH, ">", $scriptFile or throwError("could not write to $scriptFile: $!");
