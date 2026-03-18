@@ -183,3 +183,47 @@ function checkFileExists {  # verify non-empty file, or first of glob if called 
     fi
 }
 #--------------------------------------------------------------------
+
+#--------------------------------------------------------------------
+# download a binary from GitHub as needed and return its path in mdi/bin
+#--------------------------------------------------------------------
+function getVersionedBinary {
+    local GITHUB_REPO=$1 # e.g., wilsontelab/hf3_tools
+    local BINARY_NAME=$2
+
+    # developer mode expects that the developer has compiled their working binary
+    # or otherwise obtained it so they are in full control of the binary in use
+    if [ "$DEVELOPER_MODE" != "" ]; then
+        local VERSION_DIR=${SUITE_BIN_DIR}/dev
+        mkdir -p ${VERSION_DIR}
+        export VERSIONED_BINARY_PATH=${VERSION_DIR}/${BINARY_NAME}
+        if [ ! -f ${VERSIONED_BINARY_PATH} ]; then
+            echo "missing developer ${BINARY_NAME} binary"
+            echo "expected file: ${VERSIONED_BINARY_PATH}"
+            echo "developers must compile the binary using CLI commands, or manually download it"
+            exit 1
+        fi
+
+    # otherwise use the working suite version to download the binary from GitHub as needed
+    else 
+        local VERSION_TAG=${SUITE_VERSION}
+        if [[ "${VERSION_TAG}" = "latest" || "${VERSION_TAG}" = "main" ]]; then
+            local VERSION_TAG=$(curl -s https://api.github.com/repos/${GITHUB_REPO}/releases/latest | jq -r .tag_name)
+        fi
+        local VERSION_DIR=${SUITE_BIN_DIR}/${VERSION_TAG}
+        mkdir -p ${VERSION_DIR}
+        export VERSIONED_BINARY_PATH=${VERSION_DIR}/${BINARY_NAME}
+        if [ ! -f ${VERSIONED_BINARY_PATH} ]; then
+            local ASSET="${VERSION_TAG}/${BINARY_NAME}-x86_64-unknown-linux-gnu.tar.gz" # as created by taiki-e/upload-rust-binary-action
+            local URL="https://github.com/${GITHUB_REPO}/releases/download/${ASSET}"
+            curl -sLf ${URL} | tar -xz -C ${VERSION_DIR}
+            if [ ! -f ${VERSIONED_BINARY_PATH} ]; then
+                echo "failed to download ${BINARY_NAME} binary from GitHub"
+                echo "expected URL: ${URL}"
+                exit 1
+            fi
+            chmod +x ${VERSIONED_BINARY_PATH}
+        fi
+    fi
+}
+#--------------------------------------------------------------------

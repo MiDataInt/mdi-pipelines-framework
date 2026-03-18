@@ -6,7 +6,7 @@ use File::Basename;
 
 # load a Rust environment or compile pipeline Rust executables (for developers)
 
-use vars qw($launcherDir $environmentsDir $config %optionArrays 
+use vars qw($launcherDir $environmentsDir $config %optionArrays %workingSuiteVersions
             $pipelineSuite $pipelineName $pipelineSuiteDir $pipelineDir $suiteBinDir);
 
 #------------------------------------------------------------------------------
@@ -147,6 +147,9 @@ sub compileRustExecutables {
         "export RUSTFLAGS=\"-C linker=gcc -C target-cpu=x86-64-v3\"" 
     )."\n";
 
+    # set binary type based on version and developer-mode
+    my $binaryVersion = $ENV{DEVELOPER_MODE} ?  "dev" : $workingSuiteVersions{$pipelineSuiteDir};
+
     # iterate through each Rust crate defined for the tool suite containing the index pipeline
     my $rustFile = "$pipelineSuiteDir/rust.txt";
     -f $rustFile or throwError("no Rust crate definitions found for suite '$pipelineSuite' at:\n    $rustFile");
@@ -157,12 +160,13 @@ sub compileRustExecutables {
         $cratePath =~ s/^\s+|\s+$//g; # trim whitespace
         next if !$cratePath; # skip blank lines
         my $targetName = basename($cratePath);
+        my $binaryPath = "$suiteBinDir/$binaryVersion/$targetName";
         my $script = $script;
         $script .= "cd $pipelineSuiteDir/$cratePath\n"; # crate paths are relative to pipeline suite directory
         # $script .= "rustc --print target-cpus\n";
         $script .= "cargo build --release --bin $targetName\n";
-        $script .= "mkdir -p $suiteBinDir\n";
-        $script .= "cp -f target/release/$targetName $suiteBinDir/$targetName\n";
+        $script .= "mkdir -p $suiteBinDir/$binaryVersion\n";
+        $script .= "cp -f target/release/$targetName $binaryPath\n";
         my $bash = "bash -c '\n$script\n'";
         print "executing command sequence: $bash\n";
         if(system($bash)){

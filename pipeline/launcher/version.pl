@@ -21,7 +21,8 @@ sub setPipelineSuiteVersion {
     my ($version) = @_;
     $version or $version = getRequestedSuiteVersion();
     $version = convertSuiteVersion($pipelineSuiteDir, $version);
-    setSuiteVersion($pipelineSuiteDir, $version, $pipelineSuite);   
+    $ENV{SUITE_VERSION} = $version;
+    setSuiteVersion($pipelineSuiteDir, $version, $pipelineSuite);
 }
 
 # parse and set the version for each newly encountered external suite that is invoked in pipeline.yml
