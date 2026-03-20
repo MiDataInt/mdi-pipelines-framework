@@ -349,8 +349,9 @@ sub executeTask {
             imageFile => $ENV{SINGULARITY_IMAGE},
             container => $ENV{SINGULARITY_IMAGE_SOURCE}
         };
-        $$uris{imageFile} or $uris = getContainerUris($ENV{CONTAINER_MAJOR_MINOR}, $ENV{CONTAINER_LEVEL} eq 'suite');
-        -e $$uris{imageFile} or pullPipelineContainer($uris, $singularity);
+        my $isSuite = $ENV{CONTAINER_LEVEL} eq 'suite';
+        $$uris{imageFile} or $uris = getContainerUris($ENV{CONTAINER_MAJOR_MINOR}, $isSuite);
+        -e $$uris{imageFile} or pullPipelineContainer($uris, $singularity, $isSuite);
         $execCommand .= "$singularity run $ENV{CONTAINER_BIND_MOUNTS} $$uris{imageFile} pipeline";
     } else {
         -d $condaDir or throwError(

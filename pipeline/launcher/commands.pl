@@ -212,9 +212,10 @@ sub runShell {
     my $shellCommand;
     my $commandArgs = join(" ", @args); # remaining arguments passed as a command to shell
     if($ENV{IS_CONTAINER}){             # or open an interactive shell if no command
-        my $uris = getContainerUris($ENV{CONTAINER_MAJOR_MINOR}, $ENV{CONTAINER_LEVEL} eq 'suite');
+        my $isSuite = $ENV{CONTAINER_LEVEL} eq 'suite';
+        my $uris = getContainerUris($ENV{CONTAINER_MAJOR_MINOR}, $isSuite);
         my $singularity = "$ENV{SINGULARITY_LOAD_COMMAND}; singularity";
-        pullPipelineContainer($uris, $singularity);
+        pullPipelineContainer($uris, $singularity, $isSuite);
         $commandArgs =~ m/\S/ or $commandArgs = "bash";
         my $script = "source \${CONDA_PROFILE_SCRIPT}; conda activate \${ENVIRONMENTS_DIR}/$$conda{name}; exec $commandArgs";
         $shellCommand = "$singularity exec $$uris{imageFile} bash -c '$script'"; # implicitly binds $PWD
@@ -533,7 +534,7 @@ sub runValuesYaml { # takes no arguments
 sub checkContainer {
     # command has no options: mdi pipeline checkContainer <data.yml>
     # is silent unless needs to prompt for download
-    pullPipelineContainer();
+    pullPipelineContainer(undef, undef, $args[1] eq "suite");
     releaseMdiGitLock(0);
 }
 

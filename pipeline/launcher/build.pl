@@ -227,15 +227,15 @@ sub buildAndPushContainer {
 # pull a previously built pipeline container during job execution in mdi-centric mode
 #------------------------------------------------------------------------------
 sub pullPipelineContainer {
-    my ($uris, $singularity) = @_;
+    my ($uris, $singularity, $isSuite) = @_;
 
     # do nothing if image was previously downloaded
-    $uris or $uris = getContainerUris();
+    $uris or $uris = getContainerUris(undef, $isSuite);
     -f $$uris{imageFile} and return;
 
     # get permission  
     getPermission(
-        "\n$pipelineName wishes to download its Singularity container image:\n".
+        "\n'$pipelineSuite $pipelineName' wishes to download its Singularity container image:\n".
         "    $$uris{imageFile}\n".
         "from:\n".
         "    $$uris{container}"
@@ -299,6 +299,14 @@ sub getContainerUris { # pipelineSupportsContainers(), i.e.,  $$config{container
     my ($majorMinorVersion, $isSuite) = @_;
     $majorMinorVersion or $majorMinorVersion = getPipelineMajorMinorVersion();
     my $cfg = $$config{container};
+    if (!$cfg){
+        if($isSuite){
+            my $config = loadYamlFile("$pipelineSuiteDir/_config.yml");
+            $cfg = $$config{container};
+        } else {
+            throwError("unexpected call to getContainerUris\n");
+        }
+    }
     my $registry = $$cfg{registry} ? $$cfg{registry}[0] : 'ghcr.io'; # default to MDI standard of GitHub Container Registry
     my $owner = $$cfg{owner} ? $$cfg{owner}[0] : '';
     my $configFileName = $isSuite ? "_config.yml" : "pipeline.yml";
@@ -340,7 +348,7 @@ sub getSingularityLoadCommand {
     my $ymlFile = "$mdiDir/config/singularity.yml";
     if(-e $ymlFile){
         my $yml = loadYamlFile($ymlFile);
-        if($$yml{'load-command'}){
+        if($$yml{'load-command'} and $$yml{'load-command'}[0]){
             my $command = "$$yml{'load-command'}[0] $silently";
             checkForSingularity($command) and return $command; 
         }
