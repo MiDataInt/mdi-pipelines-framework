@@ -35,7 +35,7 @@ sub buildSingularity {
         "pipeline $pipelineName does not support containers\n".
         "add/edit section 'container:' in pipeline.yml to enable container support"
     );
-    getPermission(
+    $ENV{FORCE_CONTAINER_BUILD} or getPermission(
         "\n'build' will create and post a Singularity container image for pipeline:\n".
         "    $pipelineSuite/$pipelineName:$suiteVersion"
     ) or releaseMdiGitLock(1); 
@@ -112,7 +112,7 @@ sub buildSuiteContainer {
         "nothing to build\n".
         "container:stages:pipelines and container:stages:apps are both false"
     );    
-    getPermission(
+    $ENV{FORCE_CONTAINER_BUILD} or getPermission(
         "\n'build' will create and post a Singularity container image for suite:\n".
         "    $suite:$suiteVersion"
     ) or exit;
