@@ -71,6 +71,7 @@
 
     # creata conda environments of the software required by the pipeline
     export IS_CONTAINER_BUILD=TRUE
+    export CONDA_PLUGINS_AUTO_ACCEPT_TOS=true
     ${STATIC_MDI_DIR}/mdi ${PIPELINE_NAME} conda --create --force --no-mamba --version ${SUITE_VERSION} 
     NEEDED_ENVIRONMENTS=`${STATIC_MDI_DIR}/mdi ${PIPELINE_NAME} conda --list | grep -P "^${STATIC_MDI_DIR}" | sort | uniq`
 
