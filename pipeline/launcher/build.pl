@@ -209,6 +209,7 @@ sub buildAndPushContainer {
     # push container image to registry
     # do this regardless of whether we just built it or it already existed
     $sandbox and return();
+    $ENV{IS_GITHUB_ACTION} and return();
     print "\npushing Singularity container image:\n    $$uris{imageFile}\nto:\n    $$uris{container}\n\n";
     my $isLoggedIn = qx/$singularity remote list | grep '^$$uris{registry}'/; # singularity remote status does not work unless add is used
     chomp $isLoggedIn;
