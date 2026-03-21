@@ -118,6 +118,7 @@
 
         # creata conda environments for all __SUITE_NAME__:__SUITE_VERSION__ pipelines (but not it's suite dependencies)
         export IS_CONTAINER_BUILD=TRUE    
+        export CONDA_PLUGINS_AUTO_ACCEPT_TOS=true
         PIPELINES=`ls -1 pipelines | grep -v -P "^_"`
         NEEDED_ENVIRONMENTS=""
         for PIPELINE in $PIPELINES; do 
