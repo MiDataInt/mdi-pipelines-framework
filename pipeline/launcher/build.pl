@@ -340,7 +340,9 @@ sub getContainerUris { # pipelineSupportsContainers(), i.e.,  $$config{container
 sub getSingularityLoadCommand {
     my ($failIfMissing) = @_;
 
-    # first, see if it is already present and ready
+    # first, see if singularity or apptainer command is already present and ready
+    # NB: apptainer installations provide alias `singularity` to `apptainer`
+    #     but commands report logs info as `apptainer`
     my $command = "echo $silently";
     checkForSingularity($command) and return $command; 
     
@@ -354,6 +356,10 @@ sub getSingularityLoadCommand {
         }
     }
 
+    # if not, attempt to use "module load singularity" as the default singularity load command
+    $command = "module load singularity";
+    checkForSingularity($command) and return $command; 
+
     # singularity failed, throw and error
     $failIfMissing and throwError(
         "could not find a way to load singularity from PATH or config/singularity.yml"
@@ -364,7 +370,7 @@ sub checkForSingularity { # return TRUE if a proper singularity exists in system
     my ($command) = @_;
     system("$command; singularity --version $silently") and return; # command did not exist, system threw an error
     my $version = qx|$command; singularity --version|;
-    $version =~ m/^singularity.+version.+/; # may fail if not a true singularity target (e.g., on greatlakes)
+    $version =~ m/^(singularity|apptainer).+version.+/; # may fail if not a true singularity target (e.g., on greatlakes)
 }
 
 1;
