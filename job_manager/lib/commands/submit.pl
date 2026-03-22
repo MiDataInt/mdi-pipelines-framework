@@ -137,20 +137,26 @@ sub checkSingularityContainer {
     my $runtime = $$cfg{resources}{runtime}[0];
     $runtime eq "auto" or $runtime eq "container" or $runtime eq "singularity" or return; # user enforcing direct execution, regardless of container support
     my $level = $$cfg{singularity}{level}[0]; # suite or pipeline
-    my $uri = $$cfg{singularity}{image}[0]; # oras://ghcr.io/owner/suite/pipeline:v0.0
-    $uri =~ m|.+/(.+)/(.+):(v\d+\.\d+)$|; # uri may have been modified to lowercase relative to suite and pipeline names
-    my ($lcSuite, $lcPipeline, $version) = ($1, $2, $3);
-    my $imageFile = "$rootDir/containers/$lcSuite/$lcPipeline/$lcPipeline-$version.sif";
+    my $uri   = $$cfg{singularity}{image}[0]; # oras://ghcr.io/owner/suite/pipeline:v0.0, always with lowercase suite and pipeline names
+    my ($imageFile, $version) = ("", "");
+    if($level eq "suite"){
+        $uri =~ m|.+/(.+):(v\d+\.\d+)$|; 
+        my ($lcSuite, $uriVersion) = ($1, $2);
+        ($imageFile, $version) = ("$rootDir/containers/$lcSuite/$lcSuite-$uriVersion.sif", $uriVersion);
+    } else { # pipeline-level container
+        $uri =~ m|.+/(.+)/(.+):(v\d+\.\d+)$|; 
+        my ($lcSuite, $lcPipeline, $uriVersion) = ($1, $2, $3);
+        ($imageFile, $version) = ("$rootDir/containers/$lcSuite/$lcPipeline/$lcPipeline-$uriVersion.sif", $uriVersion);
+    }
     -f $imageFile and return;
     my $developerFlag = $ENV{DEVELOPER_MODE} ? "-d" : "";
-    my $pullCommand = "$rootDir/$jobManagerName $developerFlag $pipelineName checkContainer $dataYmlFile $level";
+    my $pullCommand = "$rootDir/$jobManagerName $developerFlag $pipelineName checkContainer $dataYmlFile $level $version";
     if(system($pullCommand)){
         print 
             "\nYou must pull the container or set '--runtime' to 'direct' or 'conda'\n".
             "to use the '$pipelineName' pipeline.\n\n";
         exit 1;
     }
-    print "\n";
 }
 # construct the complete script that is submitted for execution, with all helpers
 sub assembleTargetScript {

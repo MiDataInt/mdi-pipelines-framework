@@ -534,7 +534,7 @@ sub runValuesYaml { # takes no arguments
 sub checkContainer {
     # command has no options: mdi pipeline checkContainer <data.yml>
     # is silent unless needs to prompt for download
-    pullPipelineContainer(undef, undef, $args[1] eq "suite");
+    pullPipelineContainer(undef, undef, $args[1] eq "suite", $args[2]);
     releaseMdiGitLock(0);
 }
 

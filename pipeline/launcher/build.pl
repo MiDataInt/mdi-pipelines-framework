@@ -228,10 +228,10 @@ sub buildAndPushContainer {
 # pull a previously built pipeline container during job execution in mdi-centric mode
 #------------------------------------------------------------------------------
 sub pullPipelineContainer {
-    my ($uris, $singularity, $isSuite) = @_;
+    my ($uris, $singularity, $isSuite, $majorMinorVersion) = @_;
 
     # do nothing if image was previously downloaded
-    $uris or $uris = getContainerUris(undef, $isSuite);
+    $uris or $uris = getContainerUris($majorMinorVersion, $isSuite);
     -f $$uris{imageFile} and return;
 
     # get permission  
@@ -253,7 +253,7 @@ sub pullPipelineContainer {
 
     # pull the image
     print "pulling required container image...\n"; 
-    system("$singularity pull $$uris{imageFile} $$uris{container}") and throwError(
+    system("$singularity pull --disable-cache $$uris{imageFile} $$uris{container}") and throwError(
         "container pull failed"
     );
 }
