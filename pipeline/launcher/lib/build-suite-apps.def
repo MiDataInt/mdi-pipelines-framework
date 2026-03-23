@@ -73,8 +73,10 @@ Stage: build
     export SKIP_MDI_APPS_INSTALL=""
     ${STATIC_MDI} install --install-packages --n-cpu ${N_CPU}
 
-    # clean up downloaded R packages to reduce image size
+    # clean up downloaded apt and R packages to reduce image size
     rm -f /tmp/Rtmp*/downloaded_packages/*.tar.gz
+    apt-get clean
+    rm -rf /var/lib/apt/lists/*
 
 # path overrides include all ways that running pipelines use files from mdi-pipelines-framework
 # https://sylabs.io/guides/latest/user-guide/environment_and_metadata.html#environment-and-metadata

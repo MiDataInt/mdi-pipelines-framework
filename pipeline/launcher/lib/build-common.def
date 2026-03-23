@@ -81,8 +81,12 @@
     export CONDA_PLUGINS_AUTO_ACCEPT_TOS=true
     ${STATIC_MDI} ${PIPELINE_NAME} conda --create --force --no-mamba --version ${SUITE_VERSION} 
 
-    # clean up conda pkgs directory of cached tarballs (conda clean won't work here)
-    rm -f ${MINICONDA_DIR}/pkgs/*.tar.bz2
+    # clean up apt and conda packages to reduce image size
+    rm -f ${SRV_DIR}/miniconda.sh
+    conda clean --all -y
+    rm -rf ${MINICONDA_DIR}/pkgs/*
+    apt-get clean
+    rm -rf /var/lib/apt/lists/*
 
 # path overrides include all ways that running pipelines use files from mdi-pipelines-framework
 # https://sylabs.io/guides/latest/user-guide/environment_and_metadata.html#environment-and-metadata
