@@ -287,6 +287,7 @@ sub getSuiteContainerStage {
     my $default = 0; 
     my $x = $$config{container} or return $default;
     $x = $$x{stages} or return $default;
+    $x = $$x{$stage} or return $default;
     $$x[0];
 } 
 
