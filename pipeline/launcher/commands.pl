@@ -213,9 +213,9 @@ sub runShell {
     my $commandArgs = join(" ", @args); # remaining arguments passed as a command to shell
     if($ENV{IS_CONTAINER}){             # or open an interactive shell if no command
         my $isSuite = $ENV{CONTAINER_LEVEL} eq 'suite';
-        my $uris = getContainerUris($ENV{CONTAINER_MAJOR_MINOR}, $isSuite);
+        my $uris = getContainerUris($ENV{CONTAINER_MAJOR_MINOR}, $isSuite, "pipelines");
         my $singularity = "$ENV{SINGULARITY_LOAD_COMMAND}; singularity";
-        pullPipelineContainer($uris, $singularity, $isSuite);
+        pullPipelineContainer($uris, $singularity, $isSuite, "pipelines");
         $commandArgs =~ m/\S/ or $commandArgs = "bash";
         my $script = "source \${CONDA_PROFILE_SCRIPT}; conda activate \${ENVIRONMENTS_DIR}/$$conda{name}; exec $commandArgs";
         $shellCommand = "$singularity exec $$uris{imageFile} bash -c '$script'"; # implicitly binds $PWD
@@ -534,7 +534,7 @@ sub runValuesYaml { # takes no arguments
 sub checkContainer {
     # command has no options: mdi pipeline checkContainer <data.yml>
     # is silent unless needs to prompt for download
-    pullPipelineContainer(undef, undef, $args[1] eq "suite", $args[2]);
+    pullPipelineContainer(undef, undef, $args[1] eq "suite", "pipelines", $args[2]);
     releaseMdiGitLock(0);
 }
 
@@ -543,12 +543,13 @@ sub checkContainer {
 #------------------------------------------------------------------------------
 sub buildSuite {  
     my ($suite) = @_;
-    my $usage = "usage: mdi buildSuite <GIT_USER/SUITE_NAME> [--version v0.0.0] [--sandbox]";
+    my $usage = "usage: mdi buildSuite <GIT_USER/SUITE_NAME> <CONTAINER_TYPE> [--version v0.0.0] [--sandbox]";
     my %options;
-    my $sandbox = "sandbox"; # @args from jobManager is always (--version xxxx [--sandbox])
-    $args[2] and ($args[2] eq '-s' or $args[2] eq "--$sandbox") and $options{$sandbox} = 1;   
+    my $sandbox = "sandbox"; # @args from jobManager is always (pipelines|apps --version xxxx [--sandbox])
+    $args[3] and ($args[3] eq '-s' or $args[3] eq "--$sandbox") and $options{$sandbox} = 1;
+    my $containerType = $args[0] or die "\nmissing container type\n$usage\n\n";
     $suite or die "\nmissing suite\n$usage\n\n";
-    buildSuiteContainer($suite, $options{$sandbox} ? "--sandbox" : "");
+    buildSuiteContainer($suite, $containerType, $options{$sandbox} ? "--sandbox" : "");
     exit;
 }
 

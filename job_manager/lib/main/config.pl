@@ -81,8 +81,9 @@ our %optionInfo = (# [shortOption, valueString, optionGroup, groupOrder, optionH
     'alias'=>              ["a", "<str>", "alias",   0, "the name of the alias, i.e., the command you will type [mdi]"],
     'profile'=>            ["l", "<str>", "alias",   1, "full path to the bash profile file where the alias will be written [~/.bashrc]"],
     'get'=>                ["g", undef,   "alias",   2, "only show the alias command; --profile is ignored and nothing is written"],
-    'version'=>            ["V", "<str>", "build",   0, "the version of the suite to act on, e.g. v0.0.0 [latest]"],
-    'sandbox'=>            ["S", undef,   "build",   1, "pass option '--sandbox' to singularity build"],
+    'container-type'=>     ["y", "<str>", "build",   0, "the type of container to build (pipelines or apps) [pipelines]"],
+    'version'=>            ["V", "<str>", "build",   1, "the version of the suite to act on, e.g. v0.0.0 [latest]"],
+    'sandbox'=>            ["S", undef,   "build",   2, "pass option '--sandbox' to singularity build"],
     'server-command'=>     ["c", "<str>", "server",  0, "command to launch the web server (run, develop, remote, node) [run]"],
     'data-dir'=>           ["D", "<str>", "server",  1, "path to the desired data directory [MDI_DIR/data]"],
     'host-dir'=>           ["H", "<str>", "server",  2, "path to a shared/public MDI installation with code and resources [MDI_DIR]"],
@@ -124,7 +125,7 @@ our %commandOptions =  ( # 0=allowed, 1=required
     list       =>  {},
     clean      =>  {},
     unlock     =>  {},
-    build      =>  {'suite'=>1, 'version'=>0, 'sandbox' => 0},
+    build      =>  {'suite'=>1, 'container-type'=>0, 'version'=>0, 'sandbox' => 0},
     server     =>  {'server-command'=>0,'data-dir'=>0,'host-dir'=>0,'runtime'=>0,'container-version'=>0,'port'=>0}, 
 ); 
 #------------------------------------------------------------------------

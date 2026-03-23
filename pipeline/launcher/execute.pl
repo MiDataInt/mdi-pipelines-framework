@@ -77,7 +77,7 @@ sub setContainerEnvVars {
     my $optionValues = $$assembled{taskOptions}[0]; # all tasks use the same runtime
     setRuntimeEnvVars($$optionValues{runtime});
     if($ENV{IS_CONTAINER}){ # append container metadata to the task report, if applicable
-        my $uris = getContainerUris($ENV{CONTAINER_MAJOR_MINOR}, $ENV{CONTAINER_LEVEL} eq 'suite');  
+        my $uris = getContainerUris($ENV{CONTAINER_MAJOR_MINOR}, $ENV{CONTAINER_LEVEL} eq 'suite', 'pipelines');  
         $ENV{SINGULARITY_IMAGE} = $$uris{imageFile};
         $ENV{SINGULARITY_IMAGE_SOURCE} = $$uris{container};
         my $indent = "    ";
@@ -86,7 +86,7 @@ sub setContainerEnvVars {
         $$assembled{report} .= "$indent$indent"."level: $ENV{CONTAINER_LEVEL}\n";
 
         # set the collection of additional bind-mount directories based on all options
-        my %bindMounts;
+        my %bindMounts = ("--bind $ENV{MDI_DIR}:/srv/active/mdi" => 1);
         foreach my $optionName(keys %longOptions){
             my $option = $longOptions{$optionName};
             my $dir = $$option{directory} or next;
@@ -96,7 +96,7 @@ sub setContainerEnvVars {
             my $key = "--bind $$optionValues{$optionName}";
             $bindMounts{$key}++; # avoid duplicate bind paths  
         }
-        $ENV{CONTAINER_BIND_MOUNTS} = join(" ", keys %bindMounts);        
+        $ENV{CONTAINER_BIND_MOUNTS} = join(" ", keys %bindMounts);
     }
     $$assembled{report} .= "...\n"; # finish the job report by closing it's yaml block
 }
@@ -350,8 +350,8 @@ sub executeTask {
             container => $ENV{SINGULARITY_IMAGE_SOURCE}
         };
         my $isSuite = $ENV{CONTAINER_LEVEL} eq 'suite';
-        $$uris{imageFile} or $uris = getContainerUris($ENV{CONTAINER_MAJOR_MINOR}, $isSuite);
-        -e $$uris{imageFile} or pullPipelineContainer($uris, $singularity, $isSuite);
+        $$uris{imageFile} or $uris = getContainerUris($ENV{CONTAINER_MAJOR_MINOR}, $isSuite, "pipelines");
+        -e $$uris{imageFile} or pullPipelineContainer($uris, $singularity, $isSuite, "pipelines");
         $execCommand .= "$singularity run $ENV{CONTAINER_BIND_MOUNTS} $$uris{imageFile} pipeline";
     } else {
         -d $condaDir or throwError(

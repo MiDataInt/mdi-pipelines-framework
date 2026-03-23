@@ -13,8 +13,6 @@ use vars qw(%options);
 my ($serverCmd, $singularityLoad, @containerSearchDirs);
 my $silently = "> /dev/null 2>&1";
 my $mdiCommand = 'server';
-my $baseName = "mdi-singularity-base"; # disabled, see below
-my $baseNameGlob = "$baseName/$baseName";
 my %serverCmds = map { $_ => 1 } qw(run develop remote node);
 my $serverCmds = join(", ", keys %serverCmds);
 #========================================================================
@@ -38,7 +36,6 @@ sub mdiServer {
     $singularityLoad = getSingularityLoadCommand();    
 
     # determine if and how the MDI installation supports Singularity
-    #   NOTE 2022-04-05: disabled support for mdi-singularity-base due to stddef.h compile issues
     @containerSearchDirs = (
         $ENV{MDI_DIR}, 
         ($options{'host-dir'} and $options{'host-dir'} ne "NULL") ? $options{'host-dir'} : ()
@@ -56,7 +53,6 @@ sub mdiServer {
     # dispatch the launch request to the proper handler
     !$singularityLoad and return launchServerDirect(); # runtime=auto, singularity not available
     $$containerTypes{suite} and return launchServerSuiteContainer();
-    $$containerTypes{base}  and return launchServerBaseContainer($$containerTypes{base});
     launchServerDirect(); # runtime=auto, singularity exists, but no means of container support
 }
 #========================================================================
@@ -89,15 +85,6 @@ sub launchServerSuiteContainer {
     launchServerContainer('suite', $imageFile);
 } 
 
-# launch via Singularity with extended mdi-singularity-base container
-#   NOTE 2022-04-05: disabled support for mdi-singularity-base due to stddef.h compile issues
-sub launchServerBaseContainer {
-    throwError("ERROR: support for mdi-singularity-base is disabled", $mdiCommand);
-    # my ($baseImageFiles) = @_;
-    # my $imageFile = getTargetAppsImageFile($baseNameGlob, $baseImageFiles);
-    # launchServerContainer('base', $imageFile);
-} 
-
 # common container run action
 sub launchServerContainer {
     my ($imageType, $imageFile) = @_;
@@ -113,30 +100,42 @@ sub launchServerContainer {
     my $singularityCommand = $ENV{SINGULARITY_COMMAND} || "run"; # for debugging, typically set to "shell"
     exec "$singularityLoad; singularity $singularityCommand $bind $imageFile apps $imageType $serverCmd $dataDir $port";
 }
-
 #========================================================================
 
 #========================================================================
 # discover Singularity on the system, if available
 #------------------------------------------------------------------------
 sub getSingularityLoadCommand {
-    my $command = "echo $silently"; # first, see if it is already present and ready
+
+    # first, see if singularity or apptainer command is already present and ready
+    # NB: apptainer installations provide alias `singularity` to `apptainer`
+    #     but commands report logs info as `apptainer`
+    my $command = "echo $silently";
     checkForSingularity($command) and return $command; 
+    
+    # if not, attempt to use load-command from singularity.yml
     my $mdiDir = ($options{'host-dir'} and $options{'host-dir'} ne "NULL") ? $options{'host-dir'} : $ENV{MDI_DIR};
-    my $ymlFile = "$mdiDir/config/singularity.yml"; # if not, attempt load-command from singularity.yml
-    -e $ymlFile or return;
-    my $yamls = loadYamlFromString( slurpFile($ymlFile) );
-    $command = $$yamls{parsed}[0]{'load-command'};
-    $command or return;
-    $command = "$$command[0] $silently";
+    my $ymlFile = "$mdiDir/config/singularity.yml";
+    if(-e $ymlFile){
+        my $yamls = loadYamlFromString( slurpFile($ymlFile) );
+        $command = $$yamls{parsed}[0]{'load-command'};
+        $command or return;
+        $command = "$$command[0] $silently";
+        checkForSingularity($command) and return $command;
+    }
+
+    # if not, attempt to use "module load singularity" as the default singularity load command
+    $command = "module load singularity";
     checkForSingularity($command) and return $command;
+
+    # no success
     undef;
 }
 sub checkForSingularity { # return TRUE if a proper singularity exists in system PATH after executing $command
     my ($command) = @_;
     system("$command; singularity --version $silently") and return; # command did not exist, system threw an error
     my $version = qx|$command; singularity --version|;
-    $version =~ m/^singularity.+version.+/; # may fail if not a true singularity target (e.g., on greatlakes)
+    $version =~ m/^(singularity|apptainer).+version.+/; # may fail if not a true singularity target (e.g., on greatlakes)
 }
 #========================================================================
 
@@ -144,13 +143,9 @@ sub checkForSingularity { # return TRUE if a proper singularity exists in system
 # discover modes for apps server container support, if any
 # containers must have been previously installed
 #------------------------------------------------------------------------
-#   NOTE 2022-04-05: disabled support for mdi-singularity base due to stddef.h compile issues
-#------------------------------------------------------------------------
 sub getAppsContainerSupport {
     my %types;
     suiteSupportsAppContainer() and $types{suite}++;
-    # my @containers = getAvailableAppsContainers($baseNameGlob);
-    # @containers and $types{base} = \@containers;
     \%types;
 }
 sub suiteSupportsAppContainer {
@@ -167,7 +162,7 @@ sub getAvailableAppsContainers {
     my ($glob) = @_;
     my @files;
     foreach my $dir(@containerSearchDirs){
-        push @files, glob("$dir/containers/$glob-*.sif"); # mdi-singularity-base-v4.1.sif
+        push @files, glob("$dir/containers/$glob-apps-*.sif");
     }
     @files;
 }
@@ -185,7 +180,7 @@ sub getTargetAppsImageFile {
     # if specific version requested, use it or fail trying   
     if(my $version = $options{'container-version'}){
         $version =~ m/^v/ or $version = "v$version"; # help user who type "0.0" instead of "v0.0"
-        my $relPath = "containers/$glob-$version.sif";
+        my $relPath = "containers/$glob-apps-$version.sif";
         foreach my $imageFile(@$imageFiles){ # use the first encountered file, we don't care where it is located
             $imageFile =~ m/$relPath$/ and return $imageFile;
         }

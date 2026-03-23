@@ -18,9 +18,10 @@ use vars qw($rootDir $jobManagerName %options);
 sub mdiBuild { 
     # pass this call to launcher, it already has support for building and versioning
     my $developerFlag = $ENV{DEVELOPER_MODE} ? "-d" : "";
+    $options{'container-type'} or $options{'container-type'} = "pipelines";
     $options{'version'} or $options{'version'} = "latest";
     $options{'sandbox'} = $options{'sandbox'} ? "--sandbox" : "";
-    exec "$rootDir/$jobManagerName $developerFlag buildSuite $options{'suite'} --version $options{'version'} $options{'sandbox'}";
+    exec "$rootDir/$jobManagerName $developerFlag buildSuite $options{'suite'} $options{'container-type'} --version $options{'version'} $options{'sandbox'}";
 }
 #========================================================================
 

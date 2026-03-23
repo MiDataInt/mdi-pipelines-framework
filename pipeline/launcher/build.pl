@@ -16,7 +16,7 @@ my $silently = "> /dev/null 2>&1";
 # top level subs for building containers
 #------------------------------------------------------------------------------
 
-# build a pipeline-level container
+# build a pipeline-level container, obligatorily Stage 1
 sub buildSingularity {
     my ($sandbox, $force) = @_;
     my $suiteVersion = $workingSuiteVersions{$pipelineSuiteDir};
@@ -46,19 +46,22 @@ sub buildSingularity {
     my $pipelineVersion = getPipelineMajorMinorVersion();
 
     # assemble the complete container definition
-    my $containerDef = assembleContainerDef($pipelineDir, "build-common", {
+    my $containerLevel = "pipeline";
+    my $containerType = "pipelines";
+    my $containerDef = assembleContainerDef($pipelineDir, $containerLevel, $containerType, {
+        # TODO: NEEDS GIT_USER!
         SUITE_VERSION    => $suiteVersion,
         PIPELINE_NAME    => $pipelineName,
         PIPELINE_VERSION => $pipelineVersion
     });
 
     # build and push    
-    buildAndPushContainer($containerDef, $pipelineVersion, $sandbox, $force)
+    buildAndPushContainer($containerType, $containerDef, $pipelineVersion, $sandbox, $force)
 }
 
-# build a suite-level container
+# build a suite-level container, for either pipelines or apps, but not both
 sub buildSuiteContainer {
-    my ($suite, $sandbox) = @_;
+    my ($suite, $containerType, $sandbox) = @_;
     my ($gitUser, $repoName) = split('/', $suite);
     $repoName or throwError(
         "bad value for option '--suite', expected 'GIT_USER/SUITE_NAME'"
@@ -97,41 +100,39 @@ sub buildSuiteContainer {
     $status =~ m/(v\d+\.\d+\.\d+)/ and $suiteVersion = $1;
     $suiteVersion =~ m/(v\d+\.\d+)\.\d+/ and $suiteMajorMinorVersion = $1;
 
-    # parse the suite config and check whether it supports containers
+    # parse the suite config and check whether it supports containers of the requested type
     $config = loadYamlFile("$pipelineSuiteDir/_config.yml");
-    suiteSupportsContainers($config) or throwError(
+    (suiteSupportsContainers($config) and getSuiteContainerStage($containerType, $config)) or throwError(
         "nothing to build\n".
-        "suite '$suite' does not support containers\n".
+        "suite '$suite' does not support $containerType containers\n".
         "add/edit section 'container:' in _config.yml to enable container support"
     );
 
-    # determine the code stages to installs within the container
-    my $addStage1 = getSuiteContainerStage('pipelines', $config);
-    my $addStage2 = getSuiteContainerStage('apps',      $config);
-    $addStage1 or $addStage2 or throwError(
-        "nothing to build\n".
-        "container:stages:pipelines and container:stages:apps are both false"
-    );    
+    # get permission to create and post the Singularity image
     $ENV{FORCE_CONTAINER_BUILD} or getPermission(
-        "\n'build' will create and post a Singularity container image for suite:\n".
+        "\n'build' will create and post a Singularity $containerType container image for suite:\n".
         "    $suite:$suiteVersion"
     ) or exit;
 
     # assemble the complete container definition
-    my $containerDef = assembleContainerDef($pipelineSuiteDir, "build-suite-common", {
+    my $containerLevel = "suite";
+    my $addStage1 = $containerType eq "pipelines" ? 1 : 0;
+    my $addStage2 = $containerType eq "apps"      ? 1 : 0;
+    my $containerDef = assembleContainerDef($pipelineSuiteDir, $containerLevel, $containerType, {
         GIT_USER                 => $gitUser,
         SUITE_VERSION            => $suiteVersion,
         SUITE_CONTAINER_VERSION  => $suiteMajorMinorVersion,
+        CONTAINER_TYPE           => $containerType,
         MDI_FORCE_GIT            => "true", # flags for suite-centric install.sh
         MDI_INSTALL_PIPELINES    => $addStage1 ? "true" : "",
         MDI_FORCE_APPS           => $addStage2 ? "true" : "",
-        MDI_SKIP_APPS            => $addStage2 ? "" : "true",    
+        MDI_SKIP_APPS            => $addStage2 ? ""     : "true",
         HAS_PIPELINES            => $addStage1 ? "true" : "false",
         HAS_APPS                 => $addStage2 ? "true" : "false"
     });
 
     # build and push  
-    buildAndPushContainer($containerDef, $suiteMajorMinorVersion, $sandbox, "", 1)
+    buildAndPushContainer($containerType, $containerDef, $suiteMajorMinorVersion, $sandbox, "", 1)
 }
 
 #------------------------------------------------------------------------------
@@ -140,24 +141,26 @@ sub buildSuiteContainer {
 
 # assemble a complete singularity definition file
 sub assembleContainerDef {
-    my ($rootDir, $commonDef, $replace) = @_;
+    my ($rootDir, $containerLevel, $containerType, $replace) = @_;
 
     # concatenate the complete Singularity container definition file
-    my $def = ContainerDef("$rootDir/singularity.def");
-    $def =~ m/\nFrom:\s+(\S+):\S+/ or $def =~ m/\nFrom:\s+(\S+)/ or throwError(
-        "missing or malformed 'From:' declaration in singularity.def\n".
-        "expected: From: base[:version]"
-    );
-    my $containerBase = $1;
-    my $containerBaseVersion = $def =~ m/\nFrom:\s+\S+:(.+)/ ? $1 : "unspecified";
-    $def = $def.ContainerDef("$launcherDir/lib/$commonDef.def");
+    my $def = "";
+    if($containerLevel eq 'suite'){
+        if($containerType eq 'pipelines'){
+            $def = ContainerDef("$rootDir/singularity.def").
+                   ContainerDef("$launcherDir/lib/build-suite-common.def");
+        } else { # apps containers don't need a suite-specific def file
+            $def = ContainerDef("$launcherDir/lib/build-suite-apps.def");
+        }
+    } else { # pipeline level
+        $def = ContainerDef("$rootDir/singularity.def").
+               ContainerDef("$launcherDir/lib/build-common.def");
+    }
 
     # replace placeholders with pipeline-specific values (Singularity does not offer def file variables)
     my %vars = (
-        SUITE_NAME     => $pipelineSuite,
-        CONTAINER_BASE => $containerBase,
-        CONTAINER_BASE_VERSION => $containerBaseVersion,
-        INSTALLER => $$config{container}{installer} ? $$config{container}{installer}[0] : 'apt-get',
+        SUITE_NAME => $pipelineSuite,
+        INSTALLER  => $$config{container}{installer} ? $$config{container}{installer}[0] : 'apt-get',
         N_CPU => qx/nproc --all/
     );
     foreach my $varName(keys %vars){
@@ -173,10 +176,10 @@ sub assembleContainerDef {
 
 # build and push a pipeline-level or suite-level container
 sub buildAndPushContainer {
-    my ($containerDef, $majorMinorVersion, $sandbox, $force, $isSuite) = @_;
+    my ($containerType, $containerDef, $majorMinorVersion, $sandbox, $force, $isSuite) = @_;
 
     # set the output file and registry paths
-    my $uris = getContainerUris($majorMinorVersion, $isSuite);
+    my $uris = getContainerUris($majorMinorVersion, $isSuite, $containerType);
 
     # learn how to use Singularity on the system
     my $singularityLoad = getSingularityLoadCommand(1);
@@ -194,7 +197,7 @@ sub buildAndPushContainer {
         $force and $force = "--force";
     }
     if(! -e $$uris{imageFile} or $force){
-        print "\nbuilding Singularity container image:\n    $$uris{imageFile}\nfrom:\n    $$uris{defFile}\n\n";          
+        print "\nbuilding Singularity container image:\n    $$uris{imageFile}\nfrom:\n    $$uris{defFile}\n\n";
         make_path($$uris{imageDir});
         open my $outH, ">", $$uris{defFile} or throwError($!);
         print $outH $containerDef;
@@ -228,10 +231,10 @@ sub buildAndPushContainer {
 # pull a previously built pipeline container during job execution in mdi-centric mode
 #------------------------------------------------------------------------------
 sub pullPipelineContainer {
-    my ($uris, $singularity, $isSuite, $majorMinorVersion) = @_;
+    my ($uris, $singularity, $isSuite, $containerType, $majorMinorVersion) = @_;
 
     # do nothing if image was previously downloaded
-    $uris or $uris = getContainerUris($majorMinorVersion, $isSuite);
+    $uris or $uris = getContainerUris($majorMinorVersion, $isSuite, $containerType);
     -f $$uris{imageFile} and return;
 
     # get permission  
@@ -281,10 +284,9 @@ sub pipelineSupportsContainers {
 sub getSuiteContainerStage {
     my ($stage, $config) = @_;
     $config or $config = loadYamlFile("$pipelineSuiteDir/_config.yml");
-    my $default = $stage eq 'pipelines' ? 1 : 0; # default to pipelines-only suite containers
+    my $default = 0; 
     my $x = $$config{container} or return $default;
     $x = $$x{stages} or return $default;
-    $x = $$x{$stage} or return $default;
     $$x[0];
 } 
 
@@ -297,7 +299,7 @@ sub ContainerDef {
 
 # construct the URI to push/pull a pipeline container to/from a registry server
 sub getContainerUris { # pipelineSupportsContainers(), i.e.,  $$config{container}{supported}, must already have been checked
-    my ($majorMinorVersion, $isSuite) = @_;
+    my ($majorMinorVersion, $isSuite, $containerType) = @_;
     $majorMinorVersion or $majorMinorVersion = getPipelineMajorMinorVersion();
     my $cfg = $$config{container};
     if (!$cfg){
@@ -319,8 +321,8 @@ sub getContainerUris { # pipelineSupportsContainers(), i.e.,  $$config{container
     my $lcPipelineSuite = lc($pipelineSuite); # container names must be lower case for registry
     if($isSuite){
         $imageDir = "$ENV{MDI_DIR}/containers/$lcPipelineSuite";
-        $fileName = $lcPipelineSuite;
-        $packageName = $lcPipelineSuite;
+        $fileName    = $containerType eq 'apps' ? "$lcPipelineSuite-apps" : $lcPipelineSuite;
+        $packageName = $fileName;
     } else {
         my $lcPipelineName  = lc($pipelineName);
         $imageDir = "$ENV{MDI_DIR}/containers/$lcPipelineSuite/$lcPipelineName";

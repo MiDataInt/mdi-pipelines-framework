@@ -1,52 +1,35 @@
 #------------------------------------------------------------------------------
-# These sections are appended to all assembled pipeline-level singularity.def files,
+# This container definition is appended to pipeline-level singularity.def files,
 # after replacing __VAR_NAME__ with ${VAR_NAME}.
 #------------------------------------------------------------------------------
 # https://sylabs.io/guides/latest/user-guide/definition_files.html
 #------------------------------------------------------------------------------
-# STATIC_MDI_DIR=/srv/static/mdi is an mdi-centric, read-only MDI installation that is 
-# copied into the image and updated at build time, used by running pipelines.
-# It is where the pipelines framework and environments are drawn from. 
-# The framework is thus static at a version known to support the suite/pipeline version.
+# STATIC_MDI_DIR=/srv/static/mdi is an mdi-centric, read-only MDI installation
+# of SUITE_NAME created at build time. It is where the pipelines framework and 
+# conda environments are drawn from. The framework is thus fixed at a version 
+# known to support the suite/pipeline version.
+#------------------------------------------------------------------------------
+# ACTIVE_MDI_DIR=/srv/active/mdi is the user's calling MDI installation that is
+# bind-mounted at run time, which is modifiable to add data and resource files, etc.
+# It provides the MDI code for running apps, supported by STATIC_MDI_DIR.
 #------------------------------------------------------------------------------
 # TASK_DIR is a user-defined, active, read-write folder bind-mounted at run time. 
-# In addition to being where pipelines deposit data files, TASK_DIR has a fixed, 
-# static copy of the tool suite code required to execute a pipeline.
+# In addition to being where pipelines deposit output files, TASK_DIR has the fixed, 
+# static copy of the tool suite code used to execute a pipeline.
 #------------------------------------------------------------------------------
-
-# copy the pipelines-relevant mdi installation into the container and reset for use
-%setup
-    SRV_DIR=/srv
-    STATIC_DIR=${SINGULARITY_ROOTFS}${SRV_DIR}/static
-    STATIC_MDI_DIR=${STATIC_DIR}/mdi
-    mkdir -p ${STATIC_MDI_DIR}/environments
-    mkdir -p ${STATIC_MDI_DIR}/resources
-    rm -rf ${STATIC_MDI_DIR}/config
-    rm -rf ${STATIC_MDI_DIR}/frameworks
-    rm -rf ${STATIC_MDI_DIR}/suites
-    rm -f  ${STATIC_MDI_DIR}/mdi
-    cp -r ./config      ${STATIC_MDI_DIR}/config
-    cp -r ./frameworks  ${STATIC_MDI_DIR}/frameworks
-    cp -r ./suites      ${STATIC_MDI_DIR}/suites
-    cp    ./mdi         ${STATIC_MDI_DIR}/mdi
-    rm -f ${STATIC_MDI_DIR}/suites/*.lock
 
 # install the software required by pipeline actions as conda environments
 %post
 
-    # path variables set by us
-    export SRV_DIR=/srv
-    export MINICONDA_DIR=${SRV_DIR}/miniconda  
-    export PATH=${MINICONDA_DIR}/bin:${PATH}  
-    export STATIC_DIR=${SRV_DIR}/static 
-    export STATIC_MDI_DIR=${STATIC_DIR}/mdi 
-
     # variables set by mdi build
-    SUITE_VERSION=__SUITE_VERSION__
-    PIPELINE_NAME=__PIPELINE_NAME__
-    INSTALLER=__INSTALLER__
+    export GIT_USER=__GIT_USER__
+    export SUITE_NAME=__SUITE_NAME__
+    export SUITE_VERSION=__SUITE_VERSION__
+    export PIPELINE_NAME=__PIPELINE_NAME__
+    export INSTALLER=__INSTALLER__
+    export N_CPU=__N_CPU__
 
-    # install common system utilities used by the MDI, many pipelines, or developers
+    # install common system utilities used by the MDI and many pipelines
     if [ "$INSTALLER" = "apt-get" ] || \
        [ "$INSTALLER" = "yum" ]; then
         $INSTALLER update && $INSTALLER install -y \
@@ -61,8 +44,32 @@
         echo "unknown installer: $INSTALLER"
         exit 1
     fi
+
+    # path variables set by us
+    export SRV_DIR=/srv
+    export STATIC_DIR=${SRV_DIR}/static 
+    export STATIC_MDI_DIR=${STATIC_DIR}/mdi 
+    export STATIC_MDI=${STATIC_MDI_DIR}/mdi
+
+    # execute an MDI-centric installation of the MDI itself
+    mkdir -p ${STATIC_DIR}
+    cd ${STATIC_DIR}
+    git clone https://github.com/MiDataInt/mdi.git
+    cd mdi
+    ./install.sh 1
+
+    # add the parent tool suite of this pipeline and its dependencies
+    ${STATIC_MDI} add --suite ${GIT_USER}/${SUITE_NAME}
+    cd ${STATIC_MDI_DIR}/suites/definitive/${SUITE_NAME}
+    git -c advice.detachedHead=false checkout ${SUITE_VERSION}
+    # TODO: checkout declared versions of any suite dependencies?
+    cd ${SRV_DIR}
+
+    # install conda itself
+    export MINICONDA_DIR=${SRV_DIR}/miniconda
     wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh -O ${SRV_DIR}/miniconda.sh
-    bash ${SRV_DIR}/miniconda.sh -b -p ${MINICONDA_DIR} 
+    bash ${SRV_DIR}/miniconda.sh -b -p ${MINICONDA_DIR}
+    export PATH=${MINICONDA_DIR}/bin:${PATH}
 
     # set conda channel_priority to strict
     # https://docs.conda.io/projects/conda/en/latest/user-guide/tasks/manage-channels.html#strict-channel-priority
@@ -72,13 +79,7 @@
     # creata conda environments of the software required by the pipeline
     export IS_CONTAINER_BUILD=TRUE
     export CONDA_PLUGINS_AUTO_ACCEPT_TOS=true
-    ${STATIC_MDI_DIR}/mdi ${PIPELINE_NAME} conda --create --force --no-mamba --version ${SUITE_VERSION} 
-    NEEDED_ENVIRONMENTS=`${STATIC_MDI_DIR}/mdi ${PIPELINE_NAME} conda --list | grep -P "^${STATIC_MDI_DIR}" | sort | uniq`
-
-    # remove any unused environments carried over from any prior base installation
-    ls -1d ${STATIC_MDI_DIR}/environments/* 2>/dev/null | 
-    perl -e '%x = map {$_."\n" => 1} split(/\s+/, "'"$NEEDED_ENVIRONMENTS"'"); while (my $env = <>){$x{$env} or print $env}' |
-    xargs -I ENV rm -fr ENV
+    ${STATIC_MDI} ${PIPELINE_NAME} conda --create --force --no-mamba --version ${SUITE_VERSION} 
 
     # clean up conda pkgs directory of cached tarballs (conda clean won't work here)
     rm -f ${MINICONDA_DIR}/pkgs/*.tar.bz2
@@ -87,29 +88,29 @@
 # https://sylabs.io/guides/latest/user-guide/environment_and_metadata.html#environment-and-metadata
 %environment 
     export LC_ALL=C
-
-    # conda path specifications
+    # export MDI_IS_CONTAINER=TRUE
     export SRV_DIR=/srv
-    export MINICONDA_DIR=${SRV_DIR}/miniconda  
-    export PATH=${MINICONDA_DIR}/bin:${PATH}     
-    export CONDA_LOAD_COMMAND=""
-    export CONDA_PROFILE_SCRIPT=${MINICONDA_DIR}/etc/profile.d/conda.sh
 
     # static, read only, code path specifications; environments, pipelines framework
     export STATIC_DIR=${SRV_DIR}/static 
     export STATIC_MDI_DIR=${STATIC_DIR}/mdi 
-    export MDI_DIR=${STATIC_MDI_DIR}
-    export ENVIRONMENTS_DIR=${STATIC_MDI_DIR}/environments
-    # export RESOURCES_DIR=${STATIC_MDI_DIR}/resources    
     export FRAMEWORK_DIR=${STATIC_MDI_DIR}/frameworks/definitive/mdi-pipelines-framework
     export JOB_MANAGER_DIR=${FRAMEWORK_DIR}/job_manager
     export LAUNCHER_DIR=${FRAMEWORK_DIR}/pipeline/launcher
     export WORKFLOW_DIR=${FRAMEWORK_DIR}/pipeline/workflow
     export WORKFLOW_SH=${WORKFLOW_DIR}/workflow.sh
-    export SLURP=${FRAMEWORK_DIR}/shell/slurp   
+    export SLURP=${FRAMEWORK_DIR}/shell/slurp
 
-    # no additional read-write code folder needed
-    # a static copy of versioned suite code is placed in bind-mounted TASK_DIR
+    # active, bind-mounted, read-write MDI directory
+    export ACTIVE_MDI_DIR=${SRV_DIR}/active/mdi
+    export MDI_DIR=${ACTIVE_MDI_DIR}
+
+    # conda path specifications
+    export MINICONDA_DIR=${SRV_DIR}/miniconda
+    export PATH=${MINICONDA_DIR}/bin:${PATH}
+    export CONDA_LOAD_COMMAND=""
+    export CONDA_PROFILE_SCRIPT=${MINICONDA_DIR}/etc/profile.d/conda.sh
+    export ENVIRONMENTS_DIR=${STATIC_MDI_DIR}/environments
 
 # scriplet called by execute.pl to launch the pipeline; it takes no arguments
 %runscript
@@ -122,13 +123,10 @@
     SuiteVersion __SUITE_VERSION__
     PipelineName __PIPELINE_NAME__
     PipelineVersion __PIPELINE_VERSION__
-    ContainerBase __CONTAINER_BASE__
-    ContainerBaseVersion __CONTAINER_BASE_VERSION__
-    org.opencontainers.image.description Michigan Data Interface, __SUITE_NAME__:__SUITE_VERSION__, __PIPELINE_NAME__:__PIPELINE_VERSION__, __CONTAINER_BASE__:__CONTAINER_BASE_VERSION__
+    org.opencontainers.image.description Michigan Data Interface, __SUITE_NAME__:__SUITE_VERSION__, __PIPELINE_NAME__:__PIPELINE_VERSION__
 
 # help text displayed by 'singularity run-help __PIPELINE_NAME__-__PIPELINE_VERSION__.sif'
 %help
     Source:    Michigan Data Interface
     Suite:     __SUITE_NAME__:__SUITE_VERSION__
     Pipeline:  __PIPELINE_NAME__:__PIPELINE_VERSION__
-    Base:      __CONTAINER_BASE__:__CONTAINER_BASE_VERSION__
