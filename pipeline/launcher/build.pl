@@ -123,6 +123,7 @@ sub buildSuiteContainer {
         SUITE_VERSION            => $suiteVersion,
         SUITE_CONTAINER_VERSION  => $suiteMajorMinorVersion,
         CONTAINER_TYPE           => $containerType,
+        R_VERSION                => $ENV{R_VERSION} ? $ENV{R_VERSION} : "latest",
         MDI_FORCE_GIT            => "true", # flags for suite-centric install.sh
         MDI_INSTALL_PIPELINES    => $addStage1 ? "true" : "",
         MDI_FORCE_APPS           => $addStage2 ? "true" : "",

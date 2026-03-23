@@ -62,7 +62,6 @@
     cd ${STATIC_SUITE_DIR}/mdi/suites/definitive/${SUITE_NAME}
     git -c advice.detachedHead=false checkout ${SUITE_VERSION}
     # TODO: checkout declared versions of any suite dependencies?
-    cd ${SRV_DIR}
 
     # install conda itself
     export MINICONDA_DIR=${SRV_DIR}/miniconda
