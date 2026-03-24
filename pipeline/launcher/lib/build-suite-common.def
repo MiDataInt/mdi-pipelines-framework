@@ -63,44 +63,38 @@
     cd ${STATIC_MDI_DIR}/suites/definitive/${SUITE_NAME}
     git -c advice.detachedHead=false checkout ${SUITE_VERSION}
     # TODO: checkout declared versions of any suite dependencies?
+    cd ${SRV_DIR}
 
-    # install conda itself
-    export MINICONDA_DIR=${SRV_DIR}/miniconda
-    wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh -O ${SRV_DIR}/miniconda.sh
-    bash ${SRV_DIR}/miniconda.sh -b -p ${MINICONDA_DIR}
-    export PATH=${MINICONDA_DIR}/bin:${PATH}
+    # install micromamba to use instead of conda for environment creation, to reduce image size and speed builds
+    export BIN_DIR=${SRV_DIR}/bin
+    mkdir -p ${BIN_DIR}
+    wget -qO- https://micro.mamba.pm/api/micromamba/linux-64/latest | tar -xj -C ${BIN_DIR} --strip-components=1 bin/micromamba
+    export MAMBA_EXE=${BIN_DIR}/micromamba
+    ln -s ${MAMBA_EXE} ${BIN_DIR}/conda
+    export PATH="${BIN_DIR}:${PATH}"
+
+    # create the required conda-like profile script and initialize it for the build session
+    export CONDA_LOAD_COMMAND=""
+    export CONDA_PROFILE_SCRIPT=${BIN_DIR}/conda.sh
+    ${MAMBA_EXE} shell hook --shell bash --root-prefix ${BIN_DIR} > ${CONDA_PROFILE_SCRIPT}
 
     # set conda channel_priority to strict
-    # https://docs.conda.io/projects/conda/en/latest/user-guide/tasks/manage-channels.html#strict-channel-priority
-    # https://github.com/conda/conda/issues/8197
-    conda config --set channel_priority strict
+    ${MAMBA_EXE} config set channel_priority strict
 
-    # creata conda environments for all __SUITE_NAME__:__SUITE_VERSION__ pipelines (but not it's suite dependencies)
-    export IS_CONTAINER_BUILD=TRUE    
+    # create conda environments for all __SUITE_NAME__:__SUITE_VERSION__ pipelines (but not it's suite dependencies)
+    export IS_CONTAINER_BUILD=TRUE
     export CONDA_PLUGINS_AUTO_ACCEPT_TOS=true
-    PIPELINES=`ls -1 pipelines | grep -v -P "^_"`
+    PIPELINES=$(ls -1 pipelines | grep -v -P "^_")
     for PIPELINE in $PIPELINES; do 
-        if [ ! -f $PIPELINE ]; then
+        if [ ! -f "$PIPELINE" ]; then
             ${STATIC_MDI} ${PIPELINE} conda --create --force --no-mamba --version ${SUITE_VERSION}
         fi
     done
 
     # clean up apt and conda packages to reduce image size
-    rm -f ${SRV_DIR}/miniconda.sh
-    conda clean --all -y
-    rm -rf ${MINICONDA_DIR}/pkgs/*
+    ${MAMBA_EXE} clean --all -y
     apt-get clean
     rm -rf /var/lib/apt/lists/*
-
-    # if container has a single environment, preactivate it and remove conda entirely for image size
-    export ENVIRONMENTS_DIR=${STATIC_MDI_DIR}/environments
-    export N_ENVIRONMENTS=`ls -1 ${ENVIRONMENTS_DIR} | wc -l`
-    if [ "$N_ENVIRONMENTS" = "1" ]; then
-        source ${MINICONDA_DIR}/etc/profile.d/conda.sh
-        CONDA_NAME=`ls -1 ${ENVIRONMENTS_DIR}`
-        conda activate ${ENVIRONMENTS_DIR}/${CONDA_NAME}
-        rm -rf ${MINICONDA_DIR}/*
-    fi
 
 # path overrides include all ways that running pipelines use files from mdi-pipelines-framework
 # https://sylabs.io/guides/latest/user-guide/environment_and_metadata.html#environment-and-metadata
@@ -127,12 +121,11 @@
     export MDI_DIR=${ACTIVE_MDI_DIR}
 
     # conda path specifications
-    export MINICONDA_DIR=${SRV_DIR}/miniconda
-    export PATH=${MINICONDA_DIR}/bin:${PATH}
+    export BIN_DIR=${SRV_DIR}/bin
+    export PATH=${BIN_DIR}:${PATH}
     export CONDA_LOAD_COMMAND=""
-    export CONDA_PROFILE_SCRIPT=${MINICONDA_DIR}/etc/profile.d/conda.sh
+    export CONDA_PROFILE_SCRIPT=${BIN_DIR}/conda.sh
     export ENVIRONMENTS_DIR=${STATIC_MDI_DIR}/environments
-    export N_ENVIRONMENTS=`ls -1 ${ENVIRONMENTS_DIR} | wc -l`
 
 # scriplet called by install.pl/sh, execute.pl, and server.pl to use the container
 %runscript
