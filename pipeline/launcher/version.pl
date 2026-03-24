@@ -76,7 +76,8 @@ sub convertSuiteVersion {
 # use git+perl to determine the most recent semantic version of a pipeline suite on branch main
 # method is robust to vagaries of tagging, git versions, etc.
 sub getSuiteLatestVersion {
-    my ($suiteDir) = @_; 
+    my ($suiteDir, $useDefinitive) = @_; 
+    $useDefinitive and $suiteDir =~ s/developer-forks/definitive/; # only definitive repos have semantic version tags, developer-forks inherits from there when requested
     my $tags = qx\cd $suiteDir; git checkout main $silently; git tag -l v*\; # tags that might be semantic version tags on main branch
     chomp $tags;
     $tags or return $main; # tags is empty string if suite has no semantic version tags -> use tip of main

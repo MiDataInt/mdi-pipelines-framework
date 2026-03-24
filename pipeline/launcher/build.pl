@@ -238,28 +238,29 @@ sub pullPipelineContainer {
     $uris or $uris = getContainerUris($majorMinorVersion, $isSuite, $containerType);
     -f $$uris{imageFile} and return;
 
-    # get permission  
-    getPermission(
-        "\n'$pipelineSuite $pipelineName' wishes to download its Singularity container image:\n".
-        "    $$uris{imageFile}\n".
-        "from:\n".
-        "    $$uris{container}"
-    ) or releaseMdiGitLock(1);  
+    # # get permission  
+    # getPermission(
+    #     "\n'$pipelineSuite $pipelineName' wishes to download its Singularity container image:\n".
+    #     "    $$uris{imageFile}\n".
+    #     "from:\n".
+    #     "    $$uris{container}"
+    # ) or releaseMdiGitLock(1);  
 
     # learn how to use singularity
     if(!$singularity){
         my $singularityLoad = getSingularityLoadCommand(1);
-        $singularity = "$singularityLoad; singularity";        
+        $singularity = "$singularityLoad; singularity";
     }      
 
     # create the target directory
     make_path(dirname($$uris{imageFile}));
 
     # pull the image
-    print "pulling required container image...\n"; 
+    print "\npulling required container image...\n"; 
     system("$singularity pull --disable-cache $$uris{imageFile} $$uris{container}") and throwError(
         "container pull failed"
     );
+    print "\n";
 }
 
 #------------------------------------------------------------------------------

@@ -1,6 +1,8 @@
 #!/usr/bin/perl
 use strict;
 use warnings;
+use File::Path qw(make_path);
+use File::Basename;
 
 #========================================================================
 # 'server.pl' launches the web server to use interactive Stage 2 apps
@@ -10,7 +12,7 @@ use warnings;
 # define variables
 #------------------------------------------------------------------------
 use vars qw(%options);
-my ($serverCmd, $singularityLoad, @containerSearchDirs);
+my ($serverCmd, $singularityLoad);
 my $silently = "> /dev/null 2>&1";
 my $mdiCommand = 'server';
 my %serverCmds = map { $_ => 1 } qw(run develop remote node);
@@ -33,26 +35,25 @@ sub mdiServer {
     ($runtime eq 'direct' or $runtime eq 'conda') and return launchServerDirect();
 
     # determine whether system supports Singularity
-    $singularityLoad = getSingularityLoadCommand();    
+    $singularityLoad = getSingularityLoadCommand();
 
     # determine if and how the MDI installation supports Singularity
-    @containerSearchDirs = (
-        $ENV{MDI_DIR}, 
-        ($options{'host-dir'} and $options{'host-dir'} ne "NULL") ? $options{'host-dir'} : ()
-    );    
-    my $containerTypes = getAppsContainerSupport();
+    my $ymlFile = "$ENV{SUITE_DIR}/_config.yml";
+    my $yamls = loadYamlFromString( slurpFile($ymlFile) );
+    my $containerConfig = $$yamls{parsed}[0]{container};
+    my $suiteSupportsContainers = suiteSupportsAppContainer($containerConfig);
 
     # validate a request for running server via Singularity, without possibility for system fallback
     if($runtime eq 'container' or $runtime eq 'singularity'){
         $singularityLoad or 
-            throwError("--runtime '$runtime' requires Singularity on system or via config/singularity.yml >> load-command", $mdiCommand);            
-        keys %$containerTypes or 
-            throwError("--runtime '$runtime' requires container support from the tool suite or MDI installation", $mdiCommand);
+            throwError("--runtime '$runtime' requires Singularity on system or via config/singularity.yml >> load-command", $mdiCommand);
+        $suiteSupportsContainers or 
+            throwError("--runtime '$runtime' requires container support from the tool suite", $mdiCommand);
     } 
 
     # dispatch the launch request to the proper handler
     !$singularityLoad and return launchServerDirect(); # runtime=auto, singularity not available
-    $$containerTypes{suite} and return launchServerSuiteContainer();
+    $suiteSupportsContainers and return launchServerSuiteContainer($containerConfig);
     launchServerDirect(); # runtime=auto, singularity exists, but no means of container support
 }
 #========================================================================
@@ -81,15 +82,15 @@ sub launchServerDirect {
 
 # launch via Singularity with suite-level container
 sub launchServerSuiteContainer {
-    my $imageFile = getTargetAppsImageFile("$ENV{SUITE_NAME}/$ENV{SUITE_NAME}");
+    my ($containerConfig) = @_;
+    my $imageFile = getTargetAppsImageFile($containerConfig);
     launchServerContainer('suite', $imageFile);
 } 
 
 # common container run action
 sub launchServerContainer {
     my ($imageType, $imageFile) = @_;
-    -f $imageFile or 
-        throwError("image file not found, please (re)install the apps server:\n    $imageFile", 'server');
+    -f $imageFile or throwError("image file not found, please (re)install the apps server:\n    $imageFile", 'server');
     my $srvMdiDir  = "/srv/active/mdi";
     my $srvDataDir = "/srv/active/data";
     my $dataDir = $options{'data-dir'} ? $srvDataDir : "NULL";
@@ -141,30 +142,15 @@ sub checkForSingularity { # return TRUE if a proper singularity exists in system
 
 #========================================================================
 # discover modes for apps server container support, if any
-# containers must have been previously installed
 #------------------------------------------------------------------------
-sub getAppsContainerSupport {
-    my %types;
-    suiteSupportsAppContainer() and $types{suite}++;
-    \%types;
-}
 sub suiteSupportsAppContainer {
+    my ($containerConfig) = @_;
     $ENV{SUITE_MODE} and $ENV{SUITE_MODE} eq "suite-centric" or return;
-    my $ymlFile = "$ENV{SUITE_DIR}/_config.yml";
-    my $yamls = loadYamlFromString( slurpFile($ymlFile) );
-    my $container = $$yamls{parsed}[0]{container} or return;
-    my $supported = $$container{supported} or return;
-    my $stages = $$container{stages} or return;
-    my $hasApps = $$stages{apps} or return;
+    $containerConfig or return; # no container config at all, so no support
+    my $supported = $$containerConfig{supported} or return;
+    my $stages    = $$containerConfig{stages} or return;
+    my $hasApps   = $$stages{apps} or return;
     $$supported[0] and $$hasApps[0];
-}
-sub getAvailableAppsContainers {
-    my ($glob) = @_;
-    my @files;
-    foreach my $dir(@containerSearchDirs){
-        push @files, glob("$dir/containers/$glob-apps-*.sif");
-    }
-    @files;
 }
 #========================================================================
 
@@ -172,40 +158,51 @@ sub getAvailableAppsContainers {
 # get the requested/latest container version available _without_ pulling (install does that)
 #------------------------------------------------------------------------
 sub getTargetAppsImageFile {
-    my ($glob, $imageFiles) = @_;
-    $imageFiles or $imageFiles = [getAvailableAppsContainers($glob)]; 
-    @$imageFiles or 
-        throwError("no available container image files match pattern:\n    containers/$glob-*.sif", $mdiCommand);
-
-    # if specific version requested, use it or fail trying   
-    if(my $version = $options{'container-version'}){
-        $version =~ m/^v/ or $version = "v$version"; # help user who type "0.0" instead of "v0.0"
-        my $relPath = "containers/$glob-apps-$version.sif";
-        foreach my $imageFile(@$imageFiles){ # use the first encountered file, we don't care where it is located
-            $imageFile =~ m/$relPath$/ and return $imageFile;
-        }
-        throwError("could not find container file:\n    $relPath", $mdiCommand);
+    my ($containerConfig) = @_;
+    my $glob = "$ENV{MDI_DIR}/containers/".lc("$ENV{SUITE_NAME}/$ENV{SUITE_NAME}-apps"); # container names always lower case
+    my $majorMinorVersion = $options{'container-version'} || getSuiteLatestVersion();
+    $majorMinorVersion =~ m/^v/ or $majorMinorVersion = "v$majorMinorVersion"; # help user who type "0.0" instead of "v0.0"
+    my $imageFile = "$glob-$majorMinorVersion.sif";
+    ! -f $imageFile and pullSuiteContainer($containerConfig, $imageFile, $majorMinorVersion);
+    return $imageFile;
+}
+sub getSuiteLatestVersion {
+    my $suiteDir = "$ENV{MDI_DIR}/suites/definitive/$ENV{SUITE_NAME}"; # only definitive repos have semantic version tags
+    my $tags = qx\cd $suiteDir; git checkout main $silently; git tag -l v*\; # tags that might be semantic version tags on main branch
+    chomp $tags;
+    my $error = "suite $ENV{SUITE_NAME} does not have any semantic version tags to use to recover container images\n";
+    $tags or throwError($error, 'server');
+    my @versions;
+    foreach my $tag(split("\n", $tags)){
+        $tag =~ m/v(\d+)\.(\d+)\.\d+/ or next; # ignore non-semvar tags; note that developer must use v0.0.0 (not 0.0.0)
+        $versions[$1][$2]++;
     }
-
-    # otherwise, default to latest available
-    # don't check for latest again, let the install process do that
-    my ($maxMajor, %maxMinor, %files);
-    foreach my $imageFile(@$imageFiles){
-        $imageFile =~ m/-v(\d+)\.(\d+)\.sif$/ or next;
-        my ($major, $minor) = ($1, $2);
-        (defined $maxMajor and $maxMajor >= $major) or $maxMajor = $major;
-        (defined $maxMinor{$major} and $maxMinor{$major} >= $minor) or $maxMinor{$major} = $minor;
-        $files{"$major.$minor"} = $imageFile; # again, just keep one, we don't care where it is
-    }
-    $files{"$maxMajor.$maxMinor{$maxMajor}"};
-}#========================================================================
+    @versions or throwError($error, 'server');
+    my $major = $#versions;
+    my $minor = $#{$versions[$major]};
+    "v$major.$minor";
+}
+sub pullSuiteContainer {
+    my ($containerConfig, $imageFile, $majorMinorVersion) = @_;
+    my $registry  = $$containerConfig{registry}[0];
+    my $owner     = $$containerConfig{owner}[0];
+    my $packageName = lc "$ENV{SUITE_NAME}-apps"; # container names always lower case
+    my $uri = "oras://$registry/$owner/$packageName:$majorMinorVersion";
+    make_path(dirname($imageFile));
+    print STDERR "pulling required container image...\n"; 
+    system("$singularityLoad; singularity pull --disable-cache $imageFile $uri") and throwError(
+        "container pull failed",
+        'server'
+    );
+}
+#========================================================================
 
 #========================================================================
 # add a list of user-specified bind mounts to an apps-server container
 #------------------------------------------------------------------------
 sub addStage2BindMounts {
     my ($bind) = @_;
-    my $ymlFile = "$ENV{MDI_DIR}/config/stage2-apps.yml";
+    my $ymlFile = "$ENV{MDI_DIR}/config/stage2-apps.yml"; # TODO: add host-dir to this?
     -f $ymlFile or return;
     my $yamls = loadYamlFromString( slurpFile($ymlFile) );
     my $paths = $$yamls{parsed}[0]{paths} or return;
