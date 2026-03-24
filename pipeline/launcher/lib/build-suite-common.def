@@ -50,7 +50,8 @@
     export SRV_DIR=/srv
     export STATIC_DIR=${SRV_DIR}/static 
     export STATIC_SUITE_DIR=${STATIC_DIR}/${SUITE_NAME}
-    export STATIC_MDI=${STATIC_SUITE_DIR}/mdi/mdi
+    export STATIC_MDI_DIR=${STATIC_SUITE_DIR}/mdi
+    export STATIC_MDI=${STATIC_MDI_DIR}/mdi
 
     # execute a suite-centric installation of __SUITE_NAME__:__SUITE_VERSION__
     mkdir -p ${STATIC_DIR}
@@ -59,7 +60,7 @@
     cd ${SUITE_NAME}
     export SKIP_MDI_APPS_INSTALL=true
     ./install.sh --yes
-    cd ${STATIC_SUITE_DIR}/mdi/suites/definitive/${SUITE_NAME}
+    cd ${STATIC_MDI_DIR}/suites/definitive/${SUITE_NAME}
     git -c advice.detachedHead=false checkout ${SUITE_VERSION}
     # TODO: checkout declared versions of any suite dependencies?
 
