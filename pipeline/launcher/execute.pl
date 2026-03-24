@@ -142,7 +142,12 @@ sub setRuntimeEnvVars {
     $ENV{IS_CONTAINER} = ($ENV{RUNTIME} eq 'container');
     if($ENV{IS_CONTAINER}){ # set the required container version tag
         if($ENV{CONTAINER_LEVEL} eq 'suite'){
-            $workingSuiteVersions{$pipelineSuiteDir} =~ m/(v\d+\.\d+)\.\d+/ and $ENV{CONTAINER_MAJOR_MINOR} = $1;
+            if ($workingSuiteVersions{$pipelineSuiteDir} =~ m/(v\d+\.\d+)\.\d+/){
+                $ENV{CONTAINER_MAJOR_MINOR} = $1;
+            } else { # e.g., if working on main or another branch in developer mode
+                my $version = getSuiteLatestVersion($pipelineSuiteDir, "useDefinitive");
+                $version =~ m/(v\d+\.\d+)\.\d+/ and $ENV{CONTAINER_MAJOR_MINOR} = $1;
+            }
         } else {
             $ENV{CONTAINER_MAJOR_MINOR} = getPipelineMajorMinorVersion();
         }
@@ -254,7 +259,7 @@ sub manageTaskEnvironment { # set all task environment variables (listed in tool
             setEnvVariable($optionLong, ${$$cmd{'env-vars'}}{$optionLong}[0]) # this allows a pipeline to call the same module more than once with different environments
         } 
     }
-    my $pipelineScript = "$pipelineDir/pipeline.pl"; # then call pipeline.pl, which can perform extended processing
+    my $pipelineScript = "$pipelineDir/pipeline.pl"; # then call pipeline.pl, which can perform additional processing
     -f $pipelineScript and require $pipelineScript;  # thus can use other variables to construct new, pipeline-specific ones
 }
 sub copyTaskCodeSuites { # create a permanent, fixed working copy of all tool suite code required by this task

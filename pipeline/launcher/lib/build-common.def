@@ -88,11 +88,21 @@
     apt-get clean
     rm -rf /var/lib/apt/lists/*
 
+    # if container has a single environment, preactivate it and remove conda entirely for image size
+    export ENVIRONMENTS_DIR=${STATIC_MDI_DIR}/environments
+    export N_ENVIRONMENTS=`ls -1 ${ENVIRONMENTS_DIR} | wc -l`
+    if [ "$N_ENVIRONMENTS" = "1" ]; then
+        source ${MINICONDA_DIR}/etc/profile.d/conda.sh
+        CONDA_NAME=`ls -1 ${ENVIRONMENTS_DIR}`
+        conda activate ${ENVIRONMENTS_DIR}/${CONDA_NAME}
+        rm -rf ${MINICONDA_DIR}/*
+    fi
+
 # path overrides include all ways that running pipelines use files from mdi-pipelines-framework
 # https://sylabs.io/guides/latest/user-guide/environment_and_metadata.html#environment-and-metadata
 %environment 
     export LC_ALL=C
-    # export MDI_IS_CONTAINER=TRUE
+    export MDI_IS_CONTAINER=TRUE
     export SRV_DIR=/srv
 
     # static, read only, code path specifications; environments, pipelines framework
@@ -115,6 +125,7 @@
     export CONDA_LOAD_COMMAND=""
     export CONDA_PROFILE_SCRIPT=${MINICONDA_DIR}/etc/profile.d/conda.sh
     export ENVIRONMENTS_DIR=${STATIC_MDI_DIR}/environments
+    export N_ENVIRONMENTS=`ls -1 ${ENVIRONMENTS_DIR} | wc -l`
 
 # scriplet called by execute.pl to launch the pipeline; it takes no arguments
 %runscript

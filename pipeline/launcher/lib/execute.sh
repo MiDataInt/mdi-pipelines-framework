@@ -2,11 +2,13 @@
 
 # this script is called to execute a pipeline
 
-# acivate the conda environment
-${CONDA_LOAD_COMMAND}
-source ${CONDA_PROFILE_SCRIPT}
-conda deactivate
-conda activate ${ENVIRONMENTS_DIR}/${CONDA_NAME}
+# acivate the conda environment, unless working in container with a single pre-activated environment
+if [[ "$MDI_IS_CONTAINER" != "TRUE" || "$N_ENVIRONMENTS" != "1" ]]; then
+    ${CONDA_LOAD_COMMAND}
+    source ${CONDA_PROFILE_SCRIPT}
+    conda deactivate
+    conda activate ${ENVIRONMENTS_DIR}/${CONDA_NAME}
+fi
 
 # load singularity in the running job if instructed by the pipeline via env-vars
 # i.e., if the pipeline actions require running a singularity container

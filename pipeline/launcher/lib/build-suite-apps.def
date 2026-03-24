@@ -14,7 +14,7 @@
 # It provides the MDI code for running apps, supported by STATIC_SUITE_DIR.
 #------------------------------------------------------------------------------
 
-# initialize the container base, starting from Shiny + tidyverse
+# initialize from Shiny + tidyverse
 Bootstrap: docker
 From: rocker/shiny-verse:__R_VERSION__
 Stage: build
@@ -74,7 +74,7 @@ Stage: build
     ${STATIC_MDI} install --install-packages --n-cpu ${N_CPU}
 
     # clean up downloaded apt and R packages to reduce image size
-    rm -f /tmp/Rtmp*/downloaded_packages/*.tar.gz
+    rm -f /tmp/Rtmp*/downloaded_packages/*
     apt-get clean
     rm -rf /var/lib/apt/lists/*
 
