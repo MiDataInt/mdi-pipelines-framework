@@ -65,7 +65,6 @@
     cd ${STATIC_MDI_DIR}/suites/definitive/${SUITE_NAME}
     git -c advice.detachedHead=false checkout ${SUITE_VERSION}
     # TODO: checkout declared versions of any suite dependencies?
-    cd ${SRV_DIR}
 
     # install micromamba to use instead of conda for environment creation, to reduce image size and speed builds
     export BIN_DIR=${SRV_DIR}/bin
