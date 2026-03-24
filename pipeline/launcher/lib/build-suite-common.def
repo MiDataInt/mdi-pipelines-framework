@@ -37,10 +37,12 @@
             git \
             wget \
             zip \
+            bzip2 \
             time \
             nano \
             tree \
-            curl
+            curl \
+            ca-certificates
     else 
         echo "unknown installer: $INSTALLER"
         exit 1
