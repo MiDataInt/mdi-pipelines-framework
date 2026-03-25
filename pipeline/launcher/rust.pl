@@ -65,8 +65,8 @@ sub execRustEnvironment {
     my $script = join("\n",
         "rm -f $scriptFile", # the script file deletes itself
         $$cnd{shell_hook},
-        "$$cnd{micromamba} deactivate", 
-        "$$cnd{micromamba} activate $$cnd{dir}"
+        "micromamba deactivate", 
+        "micromamba activate $$cnd{dir}"
     )."\n";
     $script .= "exec ".join(" ", @args)."\n";
     $script =~ s/\r//g;
@@ -127,8 +127,8 @@ sub compileRustExecutables {
         );
         $script = join("\n",
             $$cnd{shell_hook},
-            "$$cnd{micromamba} deactivate", 
-            "$$cnd{micromamba} activate $$cnd{dir}"
+            "micromamba deactivate", 
+            "micromamba activate $$cnd{dir}"
         )."\n";
     }
     $script .= join("\n",
@@ -156,7 +156,7 @@ sub compileRustExecutables {
         my $targetName = basename($cratePath);
         my $binaryPath = "$suiteBinDir/$binaryVersion/$targetName";
         my $script = $script;
-        $script .= "cd $pipelineSuiteDir/$cratePath\n"; # crate paths are relative to pipeline suite directory
+        $script .= "\ncd $pipelineSuiteDir/$cratePath\n"; # crate paths are relative to pipeline suite directory
         $script .= "cargo build --release --bin $targetName\n";
         $script .= "mkdir -p $suiteBinDir/$binaryVersion\n";
         $script .= "cp -f target/release/$targetName $binaryPath\n";

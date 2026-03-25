@@ -62,6 +62,7 @@
     cd ${SUITE_NAME}
     export SKIP_MDI_APPS_INSTALL=true
     ./install.sh --yes
+    chmod ugo+x ${STATIC_MDI}
     cd ${STATIC_MDI_DIR}/suites/definitive/${SUITE_NAME}
     git -c advice.detachedHead=false checkout ${SUITE_VERSION}
     # TODO: checkout declared versions of any suite dependencies?

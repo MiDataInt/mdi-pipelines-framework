@@ -57,6 +57,7 @@
     git clone https://github.com/MiDataInt/mdi.git
     cd mdi
     ./install.sh 1
+    chmod ugo+x ${STATIC_MDI}
 
     # add the parent tool suite of this pipeline and its dependencies
     ${STATIC_MDI} add --suite ${GIT_USER}/${SUITE_NAME}

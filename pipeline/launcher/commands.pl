@@ -366,13 +366,14 @@ sub runRust {
         }
         $rustVersion and last;
     }
-    $rustVersion or $options{$help} = 1;
+    $rustVersion or $rustVersion= "XXXXX";
     my $isError = !($options{$help} or $rustVersion =~ m/\d+\.\d+/);
 
     # if requested, show custom action help
     my $pname = $$config{pipeline}{name}[0];
     my $suiteName = basename($pipelineSuiteDir);
     if($options{$help} or $isError){
+        my $error = $isError ? "\ninvalid or missing Rust version, expected \\d+\.\\d+, e.g., 19.2\n" : "";
         my $usage;
         my $desc = getTemplateValue($$config{actions}{rust}{description});
         $usage .= "\n$pname rust: $desc\n";
@@ -384,7 +385,7 @@ sub runRust {
         $usage .=  "\n    -e/--$exec      execute a command in a Rust development environment";
         $usage .=  "\n    -p/--$compile   compile Rust crates listed in $suiteName/rust.txt";
         $usage  .= "\n    -d/--$vscode    generate rust-analyzer startup script for VSCode integration";
-        $isError and throwError($usage);
+        $isError and throwError("$error$usage");
         print "$usage\n\n";
         releaseMdiGitLock(0);
     }
