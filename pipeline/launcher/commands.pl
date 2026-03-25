@@ -214,9 +214,11 @@ sub runShell {
         my $singularity = "$ENV{SINGULARITY_LOAD_COMMAND}; singularity";
         pullPipelineContainer($uris, $singularity, $isSuite, "pipelines");
         $commandArgs =~ m/\S/ or $commandArgs = "bash";
-        my $script = "$$cnd{shell_hook}; ".
-                     "$$cnd{micromamba} activate \${ENVIRONMENTS_DIR}/$$cnd{name}; ".
-                     "exec $commandArgs";
+        my $script = join("; ",
+            "eval \"\$(\${MICROMAMBA} shell hook --shell bash)\"",
+            "micromamba activate \${ENVIRONMENTS_DIR}/$$cnd{name}", # the micromamba function in the hook, not the binary
+            "exec $commandArgs"
+        ).";";
         $shellCommand = "$singularity exec $$uris{imageFile} bash -c '$script'"; # implicitly binds $PWD
     } else {
         -d $$cnd{dir} or throwError(
@@ -227,13 +229,13 @@ sub runShell {
         my $script = join("\n",
             "rm -f $scriptFile", # the script file deletes itself
             $$cnd{shell_hook},
-            "$$cnd{micromamba} deactivate" 
+            "micromamba deactivate"
         )."\n";
         if($commandArgs =~ m/\S/){ # run a single command
             $script .= "$$cnd{micromamba} run --prefix $$cnd{dir} $commandArgs\n";
             $shellCommand = "bash $scriptFile";
         } else { # open an interactive shell in the activated environment
-            $script .= "$$cnd{micromamba} activate $$cnd{dir}\n";
+            $script .= "micromamba activate $$cnd{dir}\n";
             $shellCommand = "bash --rcfile $scriptFile"; # --rcfile configures environment before passing interactive shell to user
         }
 	    open my $outH, ">", $scriptFile or throwError("could not write to $scriptFile: $!");
