@@ -192,6 +192,7 @@ sub manageTaskEnvironment { # set all task environment variables (listed in tool
 
     # set up environment activation
     $ENV{MICROMAMBA} = $$cnd{micromamba};
+    $ENV{CONDA_NAME} = $$cnd{name};
 
     # parse and create derivative paths and prefixes for this task
     $ENV{TASK_DIR}          = "$ENV{OUTPUT_DIR}/$ENV{DATA_NAME}"; # guaranteed unique per task by validateOptionArrays
