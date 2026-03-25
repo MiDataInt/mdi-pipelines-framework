@@ -6,8 +6,8 @@
 #------------------------------------------------------------------------------
 # STATIC_SUITE_DIR=/srv/static/SUITE_NAME is a suite-centric, read-only installation   
 # of SUITE_NAME created at build time. It is where the pipelines framework and 
-# conda environments are drawn from. The framework is thus fixed at a version 
-# known to support the suite version.
+# environments are drawn from. The framework is thus fixed at a version known 
+# to support the suite version.
 #------------------------------------------------------------------------------
 # ACTIVE_MDI_DIR=/srv/active/mdi is the user's calling MDI installation that is
 # bind-mounted at run time, which is modifiable to add data and resource files, etc.
@@ -18,7 +18,7 @@
 # static copy of the tool suite code used to execute a pipeline.
 #------------------------------------------------------------------------------
 
-# install the software required by pipeline actions as conda environments
+# install the software required by pipeline actions as runtime environments
 %post
 
     # variables set by mdi build
@@ -66,34 +66,27 @@
     git -c advice.detachedHead=false checkout ${SUITE_VERSION}
     # TODO: checkout declared versions of any suite dependencies?
 
-    # install micromamba to use instead of conda for environment creation, to reduce image size and speed builds
-    export BIN_DIR=${SRV_DIR}/bin
-    mkdir -p ${BIN_DIR}
-    wget -qO- https://micro.mamba.pm/api/micromamba/linux-64/latest | tar -xj -C ${BIN_DIR} --strip-components=1 bin/micromamba
-    export MAMBA_EXE=${BIN_DIR}/micromamba
-    ln -s ${MAMBA_EXE} ${BIN_DIR}/conda
-    export PATH="${BIN_DIR}:${PATH}"
+    # install micromamba to use for environment creation to reduce image size and speed builds
+    export MMB_DIR=${STATIC_MDI_DIR}/bin/micromamba
+    mkdir -p ${MMB_DIR}
+    wget -qO- https://micro.mamba.pm/api/micromamba/linux-64/latest | tar -xj -C ${MMB_DIR} --strip-components=1 bin/micromamba
+    export MICROMAMBA=${MMB_DIR}/micromamba
 
-    # create the required conda-like profile script and initialize it for the build session
-    export CONDA_LOAD_COMMAND=""
-    export CONDA_PROFILE_SCRIPT=${BIN_DIR}/conda.sh
-    ${MAMBA_EXE} shell hook --shell bash --root-prefix ${BIN_DIR} > ${CONDA_PROFILE_SCRIPT}
+    # set channel_priority to strict
+    ${MICROMAMBA} config set channel_priority strict
 
-    # set conda channel_priority to strict
-    ${MAMBA_EXE} config set channel_priority strict
-
-    # create conda environments for all __SUITE_NAME__:__SUITE_VERSION__ pipelines (but not it's suite dependencies)
+    # create environments for all __SUITE_NAME__:__SUITE_VERSION__ pipelines (but not it's suite dependencies)
     export IS_CONTAINER_BUILD=TRUE
     export CONDA_PLUGINS_AUTO_ACCEPT_TOS=true
     PIPELINES=$(ls -1 pipelines | grep -v -P "^_")
     for PIPELINE in $PIPELINES; do 
         if [ ! -f "$PIPELINE" ]; then
-            ${STATIC_MDI} ${PIPELINE} conda --create --force --no-mamba --version ${SUITE_VERSION}
+            ${STATIC_MDI} ${PIPELINE} conda --create --force --version ${SUITE_VERSION}
         fi
     done
 
-    # clean up apt and conda packages to reduce image size
-    ${MAMBA_EXE} clean --all -y
+    # clean up packages to reduce image size
+    ${MICROMAMBA} clean --all -y
     apt-get clean
     rm -rf /var/lib/apt/lists/*
 
@@ -121,16 +114,13 @@
     export ACTIVE_MDI_DIR=${SRV_DIR}/active/mdi
     export MDI_DIR=${ACTIVE_MDI_DIR}
 
-    # conda path specifications
-    export BIN_DIR=${SRV_DIR}/bin
-    export PATH=${BIN_DIR}:${PATH}
-    export CONDA_LOAD_COMMAND=""
-    export CONDA_PROFILE_SCRIPT=${BIN_DIR}/conda.sh
+    # environment path specifications
     export ENVIRONMENTS_DIR=${STATIC_MDI_DIR}/environments
+    export MICROMAMBA=${STATIC_MDI_DIR}/bin/micromamba/micromamba
 
 # scriplet called by install.pl/sh, execute.pl, and server.pl to use the container
 %runscript
-    bash ${LAUNCHER_DIR}/lib/run-suite.sh $@
+    bash ${LAUNCHER_DIR}/lib/run-container.sh "$@"
 
 # labels for the container image, displayed as 'singularity inspect __SUITE_NAME__-__SUITE_CONTAINER_VERSION__.sif'
 %labels

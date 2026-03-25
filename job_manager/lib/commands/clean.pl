@@ -4,10 +4,8 @@ use warnings;
 use File::Basename;
 use File::Path qw(rmtree);
 
-# TODO: extend clean action to singularity containers
-
 #========================================================================
-# 'clean.pl' identifies and offers to delete all unused conda environments
+# 'clean.pl' identifies and offers to delete all unused environments
 #========================================================================
 
 #========================================================================
@@ -32,7 +30,6 @@ sub mdiClean {
     my %environments;
     foreach my $environment(@environments){
         my $name = basename($environment);
-        $name eq "mamba" and next;
         my $yml = "$ENV{MDI_DIR}/environments/$name/$name.yml";
         if($$claims{$yml}){
             $environments{claimed}{$environment} = $$claims{$yml};
@@ -53,15 +50,18 @@ sub mdiClean {
         }
 
         # get permission and execute environment deletion
-        if(getPermission("Permanently delete the listed conda environments (deletion will take a long time)?")){
+        if(getPermission("Permanently delete the listed environments (deletion can take a long time)?")){
+            my $micromamba = "$ENV{MDI_DIR}/bin/micromamba/micromamba";
             foreach my $environment(keys %{$environments{unclaimed}}){
-                rmtree $environment;
+                system("$micromamba remove -p $environment --all --yes");
+                # rmtree $environment;
             }
+            system("$micromamba clean --yes");
         }
 
     # abort with nothing to do
     } else {
-        print "\nThere are no unclaimed environments; nothing to clean.\n\n;"
+        print "\nThere are no unclaimed environments; nothing to clean.\n\n;";
     }
     exit;
 }

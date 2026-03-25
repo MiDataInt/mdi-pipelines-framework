@@ -67,7 +67,7 @@ sub runTemplate {
 }
 
 #------------------------------------------------------------------------------
-# create or list the conda environment(s) required by the pipeline
+# create or list the runtime environment(s) required by a pipeline
 #------------------------------------------------------------------------------
 sub runConda {
     
@@ -83,13 +83,11 @@ sub runConda {
     my $list    = "list";
     my $create  = "create";
     my $force   = "force";
-    my $noMamba = "no-mamba";
     foreach my $arg(@args){
-        ($arg eq '-h' or $arg eq "--$help")    and $options{$help}    = 1;        
-        ($arg eq '-l' or $arg eq "--$list")    and $options{$list}    = 1;        
+        ($arg eq '-h' or $arg eq "--$help")    and $options{$help}    = 1;
+        ($arg eq '-l' or $arg eq "--$list")    and $options{$list}    = 1;
         ($arg eq '-c' or $arg eq "--$create")  and $options{$create}  = 1;
         ($arg eq '-f' or $arg eq "--$force")   and $options{$force}   = 1;
-        ($arg eq '-M' or $arg eq "--$noMamba") and $options{$noMamba} = 1;
     }
     (!$options{$list} and !$options{$create}) and $options{$help}  = 1;     
     my $error = ($options{$list} and $options{$create}) ?
@@ -104,17 +102,16 @@ sub runConda {
         $usage .=  "\nusage: mdi $pname conda [options]\n";
         $usage .=  "\n    -v/--$version   the suite version to query, as a git release tag or branch [latest]";
         $usage .=  "\n    -l/--$list      show the yml config file for each pipeline action";
-        $usage .=  "\n    -c/--$create    if needed, create/update the required conda environments";
-        $usage .=  "\n    -f/--$force     do not prompt for permission to create/update environments"; 
-        $usage .=  "\n    -M/--$noMamba  do not use Mamba, only use Conda to create environments";   
+        $usage .=  "\n    -c/--$create    if needed, create/update the required environments";
+        $usage .=  "\n    -f/--$force     do not prompt for permission to create/update environments";    
         $error and throwError($error.$usage);
         print "$usage\n\n";
         releaseMdiGitLock(0);
     }
     
-    # list or create conda environments in action order
+    # list or create runtime environments in action order
     @args = @newArgs;
-    showCreateCondaEnvironments($options{$create}, $options{$force}, $options{$noMamba});
+    showCreateEnvironments($options{$create}, $options{$force});
     releaseMdiGitLock(0);
 }
 
@@ -156,15 +153,15 @@ sub runBuild {
 }
 
 #------------------------------------------------------------------------------
-# open a command shell, or run a command, in a pipeline's runtime environment, either via conda or Singularity
+# open a command shell, or run a command, in a pipeline's runtime environment
 #------------------------------------------------------------------------------
 sub runShell {
 
     # command has limited options, collect --help first
     my $help    = "help";
-    my $action  = "action";    
+    my $action  = "action";
     my $runtime = "runtime";
-    my %options;   
+    my %options;
     $args[0] or $args[0] = ""; 
     ($args[0] eq '-h' or $args[0] eq "--$help") and $options{$help} = 1;
 
@@ -176,7 +173,7 @@ sub runShell {
         $usage .= "\n$pname shell: $desc\n";
         $usage .=  "\nusage: mdi $pname shell [options]\n";  
         $usage .=  "\n    -h/--help     show this help"; 
-        $usage .=  "\n    -a/--action   the pipeline action whose conda environment will be activated in the shell [do]";           
+        $usage .=  "\n    -a/--action   the pipeline action whose environment will be activated in the shell [do]";
         $usage .=  "\n    -m/--runtime  execution environment: one of direct, container, or auto (container if supported) [auto]";
         print "$usage\n\n";
         releaseMdiGitLock(0);
@@ -206,7 +203,7 @@ sub runShell {
     !$cmd and showActionsHelp("unknown action for pipeline $pipelineName: $action", 1);        
     my $configYml = assembleCompositeConfig($cmd, $action);
     parseAllDependencies($action);
-    my $conda = getCondaPaths($configYml, $action);
+    my $cnd = getEnvironmentPaths($configYml, $action);
 
     # set the shell command based on runtime mode
     my $shellCommand;
@@ -217,29 +214,31 @@ sub runShell {
         my $singularity = "$ENV{SINGULARITY_LOAD_COMMAND}; singularity";
         pullPipelineContainer($uris, $singularity, $isSuite, "pipelines");
         $commandArgs =~ m/\S/ or $commandArgs = "bash";
-        my $script = "source \${CONDA_PROFILE_SCRIPT}; conda activate \${ENVIRONMENTS_DIR}/$$conda{name}; exec $commandArgs";
+        my $script = "$$cnd{shell_hook}; ".
+                     "$$cnd{micromamba} activate \${ENVIRONMENTS_DIR}/$$cnd{name}; ".
+                     "exec $commandArgs";
         $shellCommand = "$singularity exec $$uris{imageFile} bash -c '$script'"; # implicitly binds $PWD
     } else {
-        -d $$conda{dir} or throwError(
-            "missing conda environment for action '$action'\n".
-            "please run 'mdi $pipelineName conda --create' before opening a direct shell"
+        -d $$cnd{dir} or throwError(
+            "missing environment for action '$action'\n".
+            "create it using 'mdi $pipelineName conda --create' before opening a direct shell"
         );  
         my $scriptFile = glob("~/.mdi.shellFile");
         my $script = join("\n",
             "rm -f $scriptFile", # the script file deletes itself
-            $$conda{loadCommand},
-            "source $$conda{profileScript}"
+            $$cnd{shell_hook},
+            "$$cnd{micromamba} deactivate" 
         )."\n";
-        if($commandArgs =~ m/\S/){ # run a single command using "conda run"
-            $script .= "conda deactivate\nconda run --prefix $$conda{dir} $commandArgs\n";
+        if($commandArgs =~ m/\S/){ # run a single command
+            $script .= "$$cnd{micromamba} run --prefix $$cnd{dir} $commandArgs\n";
             $shellCommand = "bash $scriptFile";
-        } else { # open an interactive shell in the activated conda environment
-            $script .= "conda deactivate\nconda activate $$conda{dir}\n";
+        } else { # open an interactive shell in the activated environment
+            $script .= "$$cnd{micromamba} activate $$cnd{dir}\n";
             $shellCommand = "bash --rcfile $scriptFile"; # --rcfile configures environment before passing interactive shell to user
         }
 	    open my $outH, ">", $scriptFile or throwError("could not write to $scriptFile: $!");
 	    print $outH $script; 
-	    close $outH;      
+	    close $outH;
     }
 
     # launch the shell, either interactively or to run one command
@@ -378,7 +377,7 @@ sub runRust {
         $usage .=  "\nusage: mdi $pname rust [options] <rust_version>\n";
         $usage .=  "\n    -v/--$version   the suite version to query, as a git release tag or branch [latest]";
         $usage .=  "\n    -g/--$gcc       load a GCC environment for Rust C compilation; must come before --compile or --vscode";
-        $usage .=  "\n    -n/--$noConda   do not use conda to compile Rust code; must come before --compile";
+        $usage .=  "\n    -n/--$noConda   do not use a conda environment to compile Rust code; must come before --compile";
         $usage .=  "\n    -c/--$create    create a versioned Rust development environment";
         $usage .=  "\n    -e/--$exec      execute a command in a Rust development environment";
         $usage .=  "\n    -p/--$compile   compile Rust crates listed in $suiteName/rust.txt";

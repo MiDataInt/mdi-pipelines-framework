@@ -132,7 +132,7 @@ sub extractPipelineJobConfigYml {
 # expand options get the set of option values for each required task
 #------------------------------------------------------------------------------
 sub reportAssembledConfig {
-    my ($action, $condaPaths, $showMissingConda) = @_;
+    my ($action, $cnd, $showMissingConda) = @_;
     my $cmd = getCmdHash($action);
     my $indent = "    ";
     
@@ -162,8 +162,8 @@ sub reportAssembledConfig {
     
     # print the conda environment channels and dependencies
     $report .= $indent."conda:\n";
-    my $condaPathSuffix = $showMissingConda ? (-d $$condaPaths{dir} ? "" : "*** NOT PRESENT LOCALLY ***") : "";
-    $report .= "$indent$indent"."prefix: $$condaPaths{dir} $condaPathSuffix\n";
+    my $suffix = $showMissingConda ? (-d $$cnd{dir} ? "" : "*** NOT PRESENT LOCALLY ***") : "";
+    $report .= "$indent$indent"."prefix: $$cnd{dir} $suffix\n";
     foreach my $key(qw(channels dependencies)){
         ($conda{$key} and ref($conda{$key}) eq 'ARRAY' and @{$conda{$key}}) or next;
         $report .= "$indent$indent$key:\n";

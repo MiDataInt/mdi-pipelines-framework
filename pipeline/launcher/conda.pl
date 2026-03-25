@@ -1,11 +1,11 @@
 use strict;
 use warnings;
 use Digest::MD5 qw(md5 md5_hex md5_base64);
-use File::Path qw(remove_tree);
+use File::Path qw(remove_tree make_path);
 use File::Copy;
 
-# subs for loading available conda dependency families
-# for speed and efficiency, use mamba to create conda environments
+# subs for loading available environment families
+# for speed and efficiency, use micromamba to create conda environments
 
 use vars qw(@args $environmentsDir $config %conda %optionArrays);
 
@@ -15,19 +15,19 @@ use vars qw(@args $environmentsDir $config %conda %optionArrays);
 sub parseAllDependencies {
     my ($subjectAction) = @_;
     
-    # determine if action has dependencies
+    # determine if action has program dependencies
     %conda = (channels => [], dependencies => []);
     my $cmd = getCmdHash($subjectAction) or return;
     $$cmd{condaFamilies} or return;
     $$cmd{condaFamilies}[0] or return;
     
-    # collect the conda family dependencies, in precedence order
+    # collect the environment family dependencies, in precedence order
     my %found;
     foreach my $family(@{$$cmd{condaFamilies}}){
-        $found{$family} = loadSharedConda($family);
+        $found{$family} = loadSharedEnvironments($family);
     }
     foreach my $family(@{$$cmd{condaFamilies}}){ # thus, pipeline.yml overrides shared environment files, since reversed below        
-        $found{$family} = loadPipelineConda($family) || $found{$family};
+        $found{$family} = loadPipelineEnvironments($family) || $found{$family};
     }
     foreach my $family(@{$$cmd{condaFamilies}}){
         $found{$family} or throwError("pipeline configuration error\ncould not find conda family:\n    $family");
@@ -40,66 +40,67 @@ sub parseAllDependencies {
         foreach my $value(reverse(@{$conda{$key}})){ # thus, pipeline.yml overrides a shared environment file
             my ($item, $version) = split('=', $value, 2);
             $seen{$item} and next;
-            $seen{$item}++;            
+            $seen{$item}++;
             unshift @out, $value;  
         }
         @{$conda{$key}} = @out;
     }
 }
-sub loadSharedConda { # first load environment configs from shared files
+sub loadSharedEnvironments { # first load environment configs from shared files
     my ($family) = @_;
     my $file = getSharedFile($environmentsDir, "$family.yml", 'environment'); # either shared or external
     ($file and -e $file) or return;
-    addCondaFamily(loadYamlFile($file));
+    addEnvironmentFamily(loadYamlFile($file));
 }
-sub loadPipelineConda { # then load environment configs from pipeline config (overrides shared)
+sub loadPipelineEnvironments { # then load environment configs from pipeline config (overrides shared)
     my ($family) = @_;
     $$config{condaFamilies} or return;
     $family =~ m|//(.+)| and $family = $1;
-    addCondaFamily($$config{condaFamilies}{$family});
+    addEnvironmentFamily($$config{condaFamilies}{$family});
 }
-sub addCondaFamily {
+sub addEnvironmentFamily {
     my ($yml) = @_;
     $yml or return;
     my (@deps, $inPipSection);
     foreach my $dep(@{$$yml{dependencies}}){ # support installation from pip
         $dep eq "pip:" and $inPipSection = 1 and next; # pip section must come last in any given dependencies list
-        push @deps, $inPipSection ? "pip:$dep" : $dep; # pip: prefix to record depenency, reparsed by getCondaEnvironmentYml
+        push @deps, $inPipSection ? "pip:$dep" : $dep; # pip: prefix to record depenency, reparsed by getEnvironmentYml
     }
     $$yml{channels}     and push @{$conda{channels}},     @{$$yml{channels}};
     $$yml{dependencies} and push @{$conda{dependencies}}, @deps;  
     return 1;
 }
+
 #------------------------------------------------------------------------------
 # get the path to an environment directory, based on either:
-#    - an environment name forced by config key 'action:<action>:environment', or
+#    - an environment name forced by config key 'action:<action>:environment'
 #    - an identifying hash for a standardized, sharable environment (not pipeline specific)
+#    - a name provided by the caller
 #------------------------------------------------------------------------------
-sub getCondaPaths {
-    my ($configYml, $subjectAction) = @_;
+sub getEnvironmentPaths {
+    my ($configYml, $subjectAction, $envName, $envType) = @_;
     
     # check the path where environments are installed
     my $baseDir = "$ENV{MDI_DIR}/environments";
-    -d $baseDir or throwError("conda directory does not exist:\n    $baseDir");
+    -d $baseDir or throwError("environments directory does not exist:\n    $baseDir");
     
-    # establish the proper name for the environment
-    my $cmd = getCmdHash($subjectAction);
-    my ($envName, $envType) = ($$cmd{environment});
-    if($envName and ref($envName) eq 'ARRAY'){
-        # a name forced by pipeline.yml, especially useful during pipeline developement
-        $envName = $$envName[0];
-        $envType = "named";
-        $envName eq "mamba" and throwError(
-            "bad environment name\n'mamba' is reserved for the MDI mamba installation"
-        );
-    } else {
-        # assemble an MD5 hash for a standardized, sharable environment
-        my @conda;
-        push @conda, ('channels:', @{$conda{channels}}); # channel order is important, do not reorder
-        push @conda, ('dependencies:', sort @{$conda{dependencies}});
-        my $digest = md5_hex(join(" ", @conda));
-        $envName = substr($digest, 0, 10); # shorten it for a bit nicer display
-        $envType = "sharable";
+    # establish the proper name for the environment if not provided by caller
+    if(!$envType){
+        my $cmd = getCmdHash($subjectAction);
+        ($envName, $envType) = ($$cmd{environment});
+        if($envName and ref($envName) eq 'ARRAY'){
+            # a name forced by pipeline.yml, especially useful during pipeline developement
+            $envName = $$envName[0];
+            $envType = "named";
+        } else {
+            # assemble an MD5 hash for a standardized, sharable environment
+            my @digest;
+            push @digest, ('channels:', @{$conda{channels}}); # channel order is important, do not reorder
+            push @digest, ('dependencies:', sort @{$conda{dependencies}});
+            my $digest = md5_hex(join(" ", @digest));
+            $envName = substr($digest, 0, 10); # shorten it for a bit nicer display
+            $envType = "sharable";
+        }
     }
 
     # set environment paths
@@ -107,73 +108,38 @@ sub getCondaPaths {
     my $initFile = "$baseDir/$envName.yml"; # used to create the environment
     my $showFile = "$envDir/$envName.yml";  # permanent store to show what was created
     
-    # locate the script that must be sourced to allow 'conda activate' to be called from scripts
-    # see: https://github.com/conda/conda/issues/7980
-    my $loadCommand = applyVariablesToYamlValue($$configYml{conda}{'load-command'}[0], \%ENV);
-    my $profileScript = applyVariablesToYamlValue($$configYml{conda}{'profile-script'}[0], \%ENV);
-    if(!$profileScript or $profileScript eq 'null'){
-        my $loadCommand = $loadCommand ? $loadCommand : "echo";
-        my $condaBasePath = qx|$loadCommand 1>/dev/null 2>/dev/null; conda info --base|;
-        chomp $condaBasePath;
-        $profileScript = "$condaBasePath/etc/profile.d/conda.sh";
-    }
-    
-    # determine if the server requires us to load conda (if not, it must be always available)
-    if(!$loadCommand or $loadCommand eq 'null'){
-        $loadCommand = "# using system conda";
-    }
-    
-    # return our conda details
+    # set micromamba paths
+    my $binDir = "$ENV{MDI_DIR}/bin";
+    my $mmbDir = "$binDir/micromamba";
+    my $micromamba = "$mmbDir/micromamba";
+
+    # if missing, install micromamba as a drop-in replacement for conda
+    ! -d $mmbDir and make_path($mmbDir);
+    ! -f $micromamba and system( # TODO: add support for mac-os?
+        "wget -qO- https://micro.mamba.pm/api/micromamba/linux-64/latest | ".
+        "tar -xj -C $mmbDir --strip-components=1 bin/micromamba"
+    ) and throwError("micromamba download failed");
+
+    # return all paths and commands needed to manage environments
     {
-        baseDir       => $baseDir,
-        dir           => $envDir,
-        initFile      => $initFile,
-        showFile      => $showFile,
-        name          => $envName,
-        type          => $envType,
-        profileScript => $profileScript,
-        loadCommand   => $loadCommand
+        baseDir     => $baseDir,
+        dir         => $envDir,
+        initFile    => $initFile,
+        showFile    => $showFile,
+        name        => $envName,
+        type        => $envType,
+        mmbDir      => $mmbDir,
+        micromamba  => $micromamba,
+        shell_hook  => "eval \"\$($micromamba shell hook --shell bash)\""
     }
 }
 
 #------------------------------------------------------------------------------
-# if missing, install mamba (which is then used as a drop-in replacement for conda)
-# https://github.com/mamba-org/mamba
-#------------------------------------------------------------------------------
-# 'checkForMamba' creates a conda environment containing only mamba (only run once per server)
-#     conda create --prefix $MDI_DIR/environments/mamba --channel conda-forge --yes mamba
-# 'createCondaEnvironment' then uses mamba to create conda environments for pipelines
-#     conda activate $MDI_DIR/environments/mamba
-#     mamba create --prefix $MDI_DIR/environments/xxxx --file xxxx
-#     conda deactivate
-# finally, conda (not mamba) is used to activate the environment for a pipeline job
-#     conda activate $MDI_DIR/xxxx
-#------------------------------------------------------------------------------
-sub checkForMamba { 
-    my ($cnd) = @_;
-    my $mambaDir = "$ENV{MDI_DIR}/environments/mamba";
-    -e $mambaDir and return $mambaDir;
-    my $bash =
-"bash -c '
-$$cnd{loadCommand}
-source $$cnd{profileScript}
-conda create --prefix $mambaDir --channel conda-forge --yes mamba
-'";
-    print "installing mamba\n";
-    print "\n$bash\n";
-    if(system($bash)){
-        remove_tree $mambaDir;
-        throwError("mamba installation failed");
-    }
-    $mambaDir;
-}
-
-#------------------------------------------------------------------------------
-# if missing, create conda environment(s)
+# if missing, create environment(s)
 # if present but named and out-of-date, update 
 #------------------------------------------------------------------------------
-sub showCreateCondaEnvironments {
-    my ($create, $force, $noMamba) = @_;
+sub showCreateEnvironments {
+    my ($create, $force) = @_;
     my $cmds = $$config{actions}; 
     my @orderedActions = sort { $$cmds{$a}{order}[0] <=> $$cmds{$b}{order}[0] } keys %$cmds;
     my @argsBuffer = @args;
@@ -184,12 +150,12 @@ sub showCreateCondaEnvironments {
         my $configYml = assembleCompositeConfig($cmd, $subjectAction);
         setOptionsFromConfigComposite($configYml, $subjectAction);
         parseAllDependencies($subjectAction);
-        my $cnd = getCondaPaths($configYml, $subjectAction);
+        my $cnd = getEnvironmentPaths($configYml, $subjectAction);
         print "---------------------------------\n";
-        print "conda environment for: $$config{pipeline}{name}[0] $subjectAction\n";
+        print "environment for: $$config{pipeline}{name}[0] $subjectAction\n";
         print "$$cnd{dir}\n";
         if ($create) {
-            createCondaEnvironment($cnd, 1, $force, $noMamba);            
+            createEnvironment($cnd, 1, $force);
         } else {
             if($$cnd{type} eq 'named'){ # name forced by developer
                 my $env = checkNamedEnvironment($cnd);
@@ -211,7 +177,7 @@ sub showCreateCondaEnvironments {
             } else { # automated name suitable for generalized environment sharing
                 if (-e $$cnd{showFile}) {
                     print "$$cnd{showFile}\n";
-                    print slurpFile($$cnd{showFile});               
+                    print slurpFile($$cnd{showFile});
                 } else {
                     print "not created yet\n";
                 }              
@@ -221,11 +187,11 @@ sub showCreateCondaEnvironments {
         @args = @argsBuffer; # ensure that assembleCompositeConfig runs properly each time
     }
 }
-sub createCondaEnvironment { # handles both create and update actions
-    my ($cnd, $showExists, $force, $noMamba) = @_;
+sub createEnvironment { # handles both create and update actions
+    my ($cnd, $showExists, $force) = @_;
 
     # determine how to handle this call based on environment type
-    my ($condaAction, $outYml);
+    my ($envAction, $outYml);
     if($$cnd{type} eq 'named'){ # name forced by developer
         my $env = checkNamedEnvironment($cnd);
         if($$env{exists}){
@@ -233,82 +199,54 @@ sub createCondaEnvironment { # handles both create and update actions
                 $showExists and print "environment exists and is up to date\n";
                 return;  
             }
-            $condaAction = 'update --prune';
+            $envAction = 'update --prune';
         } else {
-            $condaAction = 'create';         
+            $envAction = 'create';
         }
-        $outYml = $$env{expected};        
+        $outYml = $$env{expected};
     } else { # automated name suitable for generalized environment sharing
         if(-d $$cnd{dir}){
             $showExists and print "environment already exists\n";
-            return; # hashed name demands that the environment has all depedencies             
+            return; # hashed name demands that the environment has all depedencies
         }
-        $condaAction = 'create';
+        $envAction = 'create';
     }
 
     # get permission to create/update the environment   
-    my $isCreate = $condaAction eq 'create';
+    my $isCreate = $envAction eq 'create';
     my $msg = $isCreate ? 
-        "Missing conda environment, it will be created." : 
-        "Conda environment exists, it will be updated.";
-    getPermission($msg, $force) or 
-        throwError("Cannot proceed without the proper conda environment.");
+        "Missing environment, it will be created." : 
+        "Environment exists, it will be updated.";
+    getPermission($msg, $force) or throwError("Cannot proceed without the proper conda environment.");
 
     # write the required environment.yml file; moved into environment directory on successful create/update
-    $outYml or $outYml = getCondaEnvironmentYml();
+    $outYml or $outYml = getEnvironmentYml();
     open my $outH, ">", $$cnd{initFile} or throwError("could not open:\n    $$cnd{initFile}\n$!");
     print $outH $outYml;
     close $outH;
 
-    # Singularity container build always uses conda, not mamba
-    my $bash;
-    my $condaCommand = "env $condaAction --prefix $$cnd{dir} --file $$cnd{initFile}";
-    if($ENV{IS_CONTAINER_BUILD}){
-        $bash = 
-"bash -c 'conda $condaCommand'";
-
-    # allow use of conda-only, i.e., bypass mamba, on systems where mamba is problematic
-    } elsif($noMamba){
-        $bash = 
-"bash -c '
-$$cnd{loadCommand}
-source $$cnd{profileScript}
-conda $condaCommand
+    # execute the environment action
+    my $bash = "bash -c '
+$$cnd{shell_hook}
+$$cnd{micromamba} env $envAction --prefix $$cnd{dir} --file $$cnd{initFile} --yes
 '";
-    
-    # default is to use Mamba to speed subsequent environment creation
-    } else {
-        # make sure mamba is available, install on first use
-        my $mambaDir = checkForMamba($cnd);
-        
-        # create the environment
-        $bash =
-"bash -c '
-$$cnd{loadCommand}
-source $$cnd{profileScript}
-conda deactivate
-conda activate $mambaDir
-mamba $condaCommand --yes
-conda deactivate
-'";
-    }
-
-    # execute the conda/mamba environment creation script
     print "executing command sequence: $bash\n";
     if(system($bash)){
         $isCreate and remove_tree $$cnd{dir};
         unlink $$cnd{initFile}; 
-        throwError("conda create/update failed");
+        throwError("environment create/update failed");
     }
+
+    # move the environment.yml file into the environment directory 
     move($$cnd{initFile}, $$cnd{showFile});
 }
 
 #------------------------------------------------------------------------------
-# determine if a named conda environment matches the current pipeline specifications
+# determine if a named environment matches the current pipeline specifications
 #------------------------------------------------------------------------------
 sub checkNamedEnvironment {
     my ($cnd) = @_;
-    my $expected = getCondaEnvironmentYml();
+    my $expected = getEnvironmentYml();
     -d $$cnd{dir} or return { 
         exists   => 0,
         expected => $expected
@@ -316,12 +254,12 @@ sub checkNamedEnvironment {
     my $current = slurpFile( $$cnd{showFile} );
     {
         exists      => 1,
-        expected    => $expected, 
-        current     => $current,               
+        expected    => $expected,
+        current     => $current,
         is_current  => $current eq $expected
     }
 }
-sub getCondaEnvironmentYml {
+sub getEnvironmentYml {
     my $indent = "    ";
     my $yml = "---\n"; # do NOT put name or prefix in file (should work, but doesn't)
     foreach my $key(qw(channels dependencies)){
@@ -347,7 +285,6 @@ sub getCondaEnvironmentYml {
             }
         }  
     }
-    # $yml .= "\n";
     $yml
 }
 

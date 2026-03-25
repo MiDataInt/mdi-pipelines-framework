@@ -99,7 +99,7 @@ sub launchServerContainer {
     addStage2BindMounts(\$bind); # add user bind paths from config/stage2-apps.yml
     my $port = $options{'port'} || 3838;
     my $singularityCommand = $ENV{SINGULARITY_COMMAND} || "run"; # for debugging, typically set to "shell"
-    exec "$singularityLoad; singularity $singularityCommand $bind $imageFile apps $imageType $serverCmd $dataDir $port";
+    exec "$singularityLoad; singularity $singularityCommand $bind $imageFile run_apps $imageType $serverCmd $dataDir $port";
 }
 #========================================================================
 
@@ -155,13 +155,19 @@ sub suiteSupportsAppContainer {
 #========================================================================
 
 #========================================================================
-# get the requested/latest container version available _without_ pulling (install does that)
+# get the requested/latest container version available
 #------------------------------------------------------------------------
 sub getTargetAppsImageFile {
     my ($containerConfig) = @_;
-    my $glob = "$ENV{MDI_DIR}/containers/".lc("$ENV{SUITE_NAME}/$ENV{SUITE_NAME}-apps"); # container names always lower case
     my $majorMinorVersion = $options{'container-version'} || getSuiteLatestVersion();
     $majorMinorVersion =~ m/^v/ or $majorMinorVersion = "v$majorMinorVersion"; # help user who type "0.0" instead of "v0.0"
+    my $imageGlob = lc("$ENV{SUITE_NAME}/$ENV{SUITE_NAME}-apps"); # container names always lower case
+    if($options{'host-dir'}){
+        my $glob = "$options{'host-dir'}/containers/$imageGlob";
+        my $imageFile = "$glob-$majorMinorVersion.sif";
+        -f $imageFile and return $imageFile;
+    }
+    my $glob = "$ENV{MDI_DIR}/containers/$imageGlob";
     my $imageFile = "$glob-$majorMinorVersion.sif";
     ! -f $imageFile and pullSuiteContainer($containerConfig, $imageFile, $majorMinorVersion);
     return $imageFile;
@@ -202,20 +208,23 @@ sub pullSuiteContainer {
 #------------------------------------------------------------------------
 sub addStage2BindMounts {
     my ($bind) = @_;
-    my $ymlFile = "$ENV{MDI_DIR}/config/stage2-apps.yml"; # TODO: add host-dir to this?
-    -f $ymlFile or return;
-    my $yamls = loadYamlFromString( slurpFile($ymlFile) );
-    my $paths = $$yamls{parsed}[0]{paths} or return;
-    ref($paths) eq 'HASH' or return;
     my %bound = ($ENV{MDI_DIR} => 1);
     $options{'data-dir'} and $bound{$options{'data-dir'}}++;
-    foreach my $name(keys %$paths){
-        ref($$paths{$name}) eq 'ARRAY' or next;
-        my $dir = $$paths{$name}[0] or next;
-        -d $dir or next;
-        $bound{$dir} and next; # prevent duplicate binds
-        $$bind .= " --bind $dir";
-        $bound{$dir}++;
+    my $userConfig = "$ENV{MDI_DIR}/config/stage2-apps.yml"; 
+    my $hostConfig = $options{'host-dir'} ? "$options{'host-dir'}/config/stage2-apps.yml" : "__NA__";
+    foreach my $ymlFile ($userConfig, $hostConfig){
+        -f $ymlFile or next;
+        my $yamls = loadYamlFromString( slurpFile($ymlFile) );
+        my $paths = $$yamls{parsed}[0]{paths} or next;
+        ref($paths) eq 'HASH' or next;
+        foreach my $name(keys %$paths){
+            ref($$paths{$name}) eq 'ARRAY' or next;
+            my $dir = $$paths{$name}[0] or next;
+            -d $dir or next;
+            $bound{$dir} and next; # prevent duplicate binds
+            $$bind .= " --bind $dir";
+            $bound{$dir}++;
+        }
     }
 }
 #========================================================================
