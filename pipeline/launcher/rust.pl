@@ -14,7 +14,7 @@ use vars qw($launcherDir $environmentsDir $config %optionArrays %workingSuiteVer
 #------------------------------------------------------------------------------
 sub createRustEnvironment {
     my ($rustVersion) = @_;
-    my $cnd = getRustCondaPaths($rustVersion);
+    my $cnd = getRustEnvironmentPaths($rustVersion);
 
     # check for the existence of the environment; create it if missing
     if ( -f $$cnd{showFile} ) {
@@ -27,26 +27,18 @@ sub createRustEnvironment {
         print $outH "channels:\n";
         print $outH "  - conda-forge\n";
         print $outH "dependencies:\n";
-        print $outH "  - rust=$rustVersion\n"; # rustc and cargo    
+        print $outH "  - rust=$rustVersion\n"; # rustc and cargo
         print $outH "  - rust-src=$rustVersion\n";
-        # print $outH "  - compilers\n";
-        # print $outH "  - pkg-config\n";
-        # print $outH "  - gcc_linux-64\n";
-        # print $outH "  - gxx_linux-64\n";
         close $outH;
-        my $condaCommand = "env create --prefix $$cnd{dir} --file $$cnd{initFile}";
-        my $bash = 
-"bash -c '
-$$cnd{loadCommand}
-source $$cnd{profileScript}
-conda deactivate
-conda $condaCommand
+        my $bash = "bash -c '
+$$cnd{shell_hook}
+$$cnd{micromamba} env create --prefix $$cnd{dir} --file $$cnd{initFile} --yes
 '";
         print "executing command sequence: $bash\n";
         if(system($bash)){
             remove_tree $$cnd{dir};
             unlink $$cnd{initFile}; 
-            throwError("rust load failed to create the conda environment\n");
+            throwError("failed to create the rust build environment\n");
         }
         move($$cnd{initFile}, $$cnd{showFile});
     }
@@ -58,22 +50,23 @@ conda $condaCommand
 #------------------------------------------------------------------------------
 sub execRustEnvironment {
     my ($rustVersion, @args) = @_;
-    my $cnd = getRustCondaPaths($rustVersion);
+    my $cnd = getRustEnvironmentPaths($rustVersion);
 
     # check for the existence of the environment
-    if (! -f $$cnd{showFile} ) {
-        throwError("Rust environment does not exist at $$cnd{dir}\n".
-                   "Please create it first with:\n    mdi $pipelineName rust --create $rustVersion\n");
-    }
+    -f $$cnd{showFile} or throwError(
+        "Rust build environment does not exist at:\n".
+        "    $$cnd{dir}\n".
+        "Please create it with:\n".
+        "    mdi $pipelineName rust --create $rustVersion\n"
+    );
 
     # load the environment
     my $scriptFile = glob("~/.mdi.shellFile");
     my $script = join("\n",
         "rm -f $scriptFile", # the script file deletes itself
-        $$cnd{loadCommand},
-        "source $$cnd{profileScript}",
-        "conda deactivate", 
-        "conda activate $$cnd{dir}"
+        $$cnd{shell_hook},
+        "$$cnd{micromamba} deactivate", 
+        "$$cnd{micromamba} activate $$cnd{dir}"
     )."\n";
     $script .= "exec ".join(" ", @args)."\n";
     $script =~ s/\r//g;
@@ -90,7 +83,7 @@ sub execRustEnvironment {
 #------------------------------------------------------------------------------
 sub generateRustAnalyzerScript {
     my ($rustVersion, $gccLoadCommand) = @_;
-    my $cnd = getRustCondaPaths($rustVersion);
+    my $cnd = getRustEnvironmentPaths($rustVersion);
 
     # initalize the bash script
     my $scriptFile = "$ENV{HOME}/rust-setup.sh";
@@ -125,16 +118,17 @@ sub compileRustExecutables {
     # initalize the bash script
     my $script;
     if (!$noConda){
-        my $cnd = getRustCondaPaths($rustVersion);
-        if ( ! -f $$cnd{showFile} ) {
-            throwError("Rust environment does not exist at $$cnd{dir}\n".
-                    "Please create it first with:\n    mdi $pipelineName rust --create $rustVersion\n");
-        }
+        my $cnd = getRustEnvironmentPaths($rustVersion);
+        -f $$cnd{showFile} or throwError(
+            "Rust build environment does not exist at:\n".
+            "    $$cnd{dir}\n".
+            "Please create it with:\n".
+            "    mdi $pipelineName rust --create $rustVersion\n"
+        );
         $script = join("\n",
-            $$cnd{loadCommand},
-            "source $$cnd{profileScript}",
-            "conda deactivate", 
-            "conda activate $$cnd{dir}",
+            $$cnd{shell_hook},
+            "$$cnd{micromamba} deactivate", 
+            "$$cnd{micromamba} activate $$cnd{dir}"
         )."\n";
     }
     $script .= join("\n",
@@ -163,7 +157,6 @@ sub compileRustExecutables {
         my $binaryPath = "$suiteBinDir/$binaryVersion/$targetName";
         my $script = $script;
         $script .= "cd $pipelineSuiteDir/$cratePath\n"; # crate paths are relative to pipeline suite directory
-        # $script .= "rustc --print target-cpus\n";
         $script .= "cargo build --release --bin $targetName\n";
         $script .= "mkdir -p $suiteBinDir/$binaryVersion\n";
         $script .= "cp -f target/release/$targetName $binaryPath\n";
@@ -178,55 +171,12 @@ sub compileRustExecutables {
 }
 
 #------------------------------------------------------------------------------
-# shared rust support, analogous to conda::getCondaPaths
+# shared rust support
 #------------------------------------------------------------------------------
-sub getRustCondaPaths {
+sub getRustEnvironmentPaths {
     my ($rustVersion) = @_;
-    
-    # check the path where environments are installed
-    my $mdiDir = $ENV{MDI_DIR};
-    my $baseDir = "$mdiDir/environments";
-    -d $baseDir or throwError("conda directory does not exist:\n    $baseDir");
-    
-    # establish the proper name for the environment
     my ($envName, $envType) = ("rust-$rustVersion", "named");
-
-    # set environment paths
-    my $envDir   = "$baseDir/$envName";
-    my $initFile = "$baseDir/$envName.yml"; # used to create the environment
-    my $showFile = "$envDir/$envName.yml";  # permanent store to show what was created
-    
-    # locate the script that must be sourced to allow 'conda activate' to be called from scripts
-    # see: https://github.com/conda/conda/issues/7980
-    my $configYmlFile = "$mdiDir/config/stage1-pipelines.yml";
-    my $configYml = loadOptionsConfigFile($configYmlFile, 1);
-    $configYml = mergeYAML($configYml);
-    $$configYml{variables} = mergeYamlVariables($configYmlFile);
-    my $loadCommand = applyVariablesToYamlValue($$configYml{conda}{'load-command'}[0], \%ENV);
-    my $profileScript = applyVariablesToYamlValue($$configYml{conda}{'profile-script'}[0], \%ENV);
-    if(!$profileScript or $profileScript eq 'null'){
-        my $loadCommand = $loadCommand ? $loadCommand : "echo";
-        my $condaBasePath = qx|$loadCommand 1>/dev/null 2>/dev/null; conda info --base|;
-        chomp $condaBasePath;
-        $profileScript = "$condaBasePath/etc/profile.d/conda.sh";
-    }
-    
-    # determine if the server requires us to load conda (if not, it must be always available)
-    if(!$loadCommand or $loadCommand eq 'null'){
-        $loadCommand = "# using system conda";
-    }
-    
-    # return our conda details
-    {
-        baseDir       => $baseDir,
-        dir           => $envDir,
-        initFile      => $initFile,
-        showFile      => $showFile,
-        name          => $envName,
-        type          => $envType,
-        profileScript => $profileScript,
-        loadCommand   => $loadCommand,
-    }
+    getEnvironmentPaths(undef, undef, $envName, $envType);
 }
 
 1;

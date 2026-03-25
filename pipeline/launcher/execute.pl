@@ -23,10 +23,10 @@ sub executeAction {
     # process the options for the action and request
     my $configYml = parseAllOptions($action);
     parseAllDependencies($action);
-    my $conda = getCondaPaths($configYml, $action);
+    my $cnd = getEnvironmentPaths($configYml, $action);
 
     # collect options and dependency feeback, for log files and streams
-    my $assembled = reportAssembledConfig($action, $conda, 1);
+    my $assembled = reportAssembledConfig($action, $cnd, 1);
     
     # get the list of task id(s) we are being asked to run (or check)
     my $requestedTaskId = $$assembled{taskOptions}[0]{'task-id'};
@@ -59,10 +59,10 @@ sub executeAction {
     foreach my $i(@workingTaskIs){   
         $showProgress and print STDERR "*";
         my ($taskId, $taskReport) = processActionTask($assembled, $i, $requestedTaskId, @workingTaskIds);
-        manageTaskEnvironment($action, $cmd, $assembled, $taskReport, $conda);
+        manageTaskEnvironment($action, $cmd, $assembled, $taskReport, $cnd);
         $firstTaskCodeSuiteDir = copyTaskCodeSuites($isDryRun, $firstTaskCodeSuiteDir);
-        saveJobTaskEnvironment($isDryRun, $$conda{dir});
-        $isDryRun or executeTask($action, $isSingleTask, $taskId, $$conda{dir});
+        saveJobTaskEnvironment($isDryRun, $$cnd{dir});
+        $isDryRun or executeTask($action, $isSingleTask, $taskId, $$cnd{dir});
     } 
 }
 sub getCmdHash {                # the name of this function, 'cmd', and the varnames it populates
@@ -186,15 +186,12 @@ sub processActionTask {
     ($taskId, \$taskReport);
 }
 sub manageTaskEnvironment { # set all task environment variables (listed in tool suite pipeline README.md)
-    my ($action, $cmd, $assembled, $taskReport, $conda) = @_;
+    my ($action, $cmd, $assembled, $taskReport, $cnd) = @_;
 
-    # note: some environment variables are overridden for containers in build-common.def
+    # note: some environment variables are overridden for containers in build[-suite]-common.def
 
-    # set up conda activate
-    $ENV{CONDA_LOAD_COMMAND}   = $$conda{loadCommand};
-    $ENV{CONDA_PROFILE_SCRIPT} = $$conda{profileScript};  
-    $ENV{ENVIRONMENTS_DIR}     = $$conda{baseDir};      
-    $ENV{CONDA_NAME}           = $$conda{name};
+    # set up environment activation
+    $ENV{MICROMAMBA} = $$cnd{micromamba};
 
     # parse and create derivative paths and prefixes for this task
     $ENV{TASK_DIR}          = "$ENV{OUTPUT_DIR}/$ENV{DATA_NAME}"; # guaranteed unique per task by validateOptionArrays
@@ -345,7 +342,7 @@ sub executeJobTask { # called by jobManager submit target script when job is sch
 sub executeTask { 
     my ($action, $isSingleTask, $taskId, $condaDir) = @_;
 
-    # validate the container or conda environment based on runtime mode
+    # validate the container or environment based on runtime mode
     -d $ENV{TASK_DIR} or die "does not exist: $ENV{TASK_DIR}\n";
     my $execCommand = "cd $ENV{TASK_DIR}; "; # implicitly bind-mounts TASK_DIR
     if($ENV{IS_CONTAINER}){
@@ -357,10 +354,10 @@ sub executeTask {
         my $isSuite = $ENV{CONTAINER_LEVEL} eq 'suite';
         $$uris{imageFile} or $uris = getContainerUris($ENV{CONTAINER_MAJOR_MINOR}, $isSuite, "pipelines");
         -e $$uris{imageFile} or pullPipelineContainer($uris, $singularity, $isSuite, "pipelines");
-        $execCommand .= "$singularity run $ENV{CONTAINER_BIND_MOUNTS} $$uris{imageFile} pipeline";
+        $execCommand .= "$singularity run $ENV{CONTAINER_BIND_MOUNTS} $$uris{imageFile} run_pipeline";
     } else {
         -d $condaDir or throwError(
-            "missing conda environment for action '$action'\n".
+            "missing environment for action '$action'\n".
             "please run 'mdi $ENV{PIPELINE_NAME} conda --create' before launching the pipeline"
         );  
         my $executeScript = "$launcherDir/lib/execute.sh";

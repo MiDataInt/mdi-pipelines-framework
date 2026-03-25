@@ -1,12 +1,11 @@
 #!/bin/bash
 
-# this script is called to execute a pipeline
+# this script is called to execute a pipeline action
 
-# acivate the conda environment
-${CONDA_LOAD_COMMAND}
-source ${CONDA_PROFILE_SCRIPT}
-conda deactivate
-conda activate ${ENVIRONMENTS_DIR}/${CONDA_NAME}
+# activate the runtime environment
+eval "$(${MICROMAMBA} shell hook --shell=bash)"
+${MICROMAMBA} deactivate
+${MICROMAMBA} activate ${ENVIRONMENTS_DIR}/${CONDA_NAME}
 
 # load singularity in the running job if instructed by the pipeline via env-vars
 # i.e., if the pipeline actions require running a singularity container

@@ -68,7 +68,7 @@ Stage: build
     # TODO: checkout declared versions of any suite dependencies?
 
     # continue to install the framework and suite app R packages
-    # unlike pipeline condas, app packages are installed for any suite dependencies also
+    # unlike pipeline containers, app packages are installed for any suite dependencies also
     export MDI_FORCE_SYSTEM_INSTALL=true
     export SKIP_MDI_APPS_INSTALL=""
     ${STATIC_MDI} install --install-packages --n-cpu ${N_CPU}
@@ -105,7 +105,7 @@ Stage: build
 
 # scriplet called by install.pl/sh, execute.pl, and server.pl to use the container
 %runscript
-    bash ${LAUNCHER_DIR}/lib/run-suite.sh $@
+    bash ${LAUNCHER_DIR}/lib/run-container.sh "$@"
 
 # labels for the container image, displayed as 'singularity inspect __SUITE_NAME__-__SUITE_CONTAINER_VERSION__.sif'
 %labels
