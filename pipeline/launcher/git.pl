@@ -16,6 +16,7 @@ sub getSuiteGitLockFile {
 }
 
 sub setMdiGitLock { 
+    $ENV{MDI_IS_CONTAINER} and return; # not applicable, single-user read-only file system
     my $mdiLockFile = getMdiLockFile();      # placed by MDI
     my $gitLockFile = getSuiteGitLockFile(); # placed by git
     my $cumLockWaitUSec = 0;
@@ -49,6 +50,10 @@ sub releaseMdiGitLock { # always called at the end of every launcher run
     my ($exitStatus) = @_; # omit exit status if, and only if, followed by call to exec
     $ENV{IS_DELAYED_EXECUTION} and return; # not applicable
     $pipelineSuite or exit $exitStatus;
+    if($ENV{MDI_IS_CONTAINER}){ # not applicable, single-user read-only file system
+        defined $exitStatus and exit $exitStatus;
+        return;
+    }
     my $lockFile = getMdiLockFile();
     -e $lockFile and unlink $lockFile;
     defined $exitStatus and exit $exitStatus; # don't use die to avoid compile error from require of launcher
