@@ -3,9 +3,9 @@
 # this script is called to execute a pipeline action
 
 # activate the runtime environment
-eval "$(${MICROMAMBA} shell hook --shell=bash)"
-${MICROMAMBA} deactivate
-${MICROMAMBA} activate ${ENVIRONMENTS_DIR}/${CONDA_NAME}
+eval "$(${MICROMAMBA} shell hook --shell bash)"
+micromamba deactivate # the micromamba function in the hook, not the binary
+micromamba activate ${ENVIRONMENTS_DIR}/${CONDA_NAME}
 
 # load singularity in the running job if instructed by the pipeline via env-vars
 # i.e., if the pipeline actions require running a singularity container
