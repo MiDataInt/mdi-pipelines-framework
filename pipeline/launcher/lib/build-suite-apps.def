@@ -97,11 +97,11 @@ Stage: build
 
     # active, bind-mounted, read-write MDI directory
     export ACTIVE_MDI_DIR=${SRV_DIR}/active/mdi
-    export MDI_DIR=${ACTIVE_MDI_DIR}
+    export MDI_DIR=${STATIC_MDI_DIR}
 
     # R path specifications
     export MDI_SYSTEM_R_LIBRARY=/usr/local/lib/R/site-library
-    export STATIC_R_LIBRARY=`ls -ld ${STATIC_MDI_DIR}/library/* | grep "^d" | awk '{print $NF}'`
+    export STATIC_R_LIBRARY_SHORT=`ls -ld ${STATIC_MDI_DIR}/library/* | grep "^d" | awk '{print $NF}' | grep -v _BC`
 
 # scriplet called by install.pl/sh, execute.pl, and server.pl to use the container
 %runscript

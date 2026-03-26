@@ -19,16 +19,21 @@ our %workingSuiteVersions;  # the working version of all suites that have alread
 # examine user options and set the primary pipeline suite version accordingly
 sub setPipelineSuiteVersion { 
     my ($version) = @_;
-    $version or $version = getRequestedSuiteVersion();
-    $version = convertSuiteVersion($pipelineSuiteDir, $version);
+    if($ENV{MDI_IS_CONTAINER}){ # cannot change a read-only container version
+        $version = getSuiteCurrentHead($pipelineSuiteDir);
+    } else {
+        $version or $version = getRequestedSuiteVersion();
+        $version = convertSuiteVersion($pipelineSuiteDir, $version);
+        setSuiteVersion($pipelineSuiteDir, $version, $pipelineSuite);
+    }
     $ENV{SUITE_VERSION} = $version;
-    setSuiteVersion($pipelineSuiteDir, $version, $pipelineSuite);
 }
 
 # parse and set the version for each newly encountered external suite that is invoked in pipeline.yml
 sub setExternalSuiteVersion {
     my ($suiteDir, $suite) = @_;
     $workingSuiteVersions{$suiteDir} and return; # this suite was already handled on prior encounter
+    $ENV{MDI_IS_CONTAINER} and return; # cannot change a read-only container version
     my $version;
     if(!$pipelineSuiteVersions or !$$pipelineSuiteVersions{$suite}){
         $version = $latest; # apply the default directive when pipeline does not enforce external suite version
@@ -41,7 +46,9 @@ sub setExternalSuiteVersion {
 
 # examine user options for the requested pipeline suite version
 sub getRequestedSuiteVersion {
-    $ENV{DEVELOPER_MODE} and return getSuiteCurrentHead($pipelineSuiteDir); # developer mode leaves repos as we find them
+    if($ENV{DEVELOPER_MODE} or $ENV{MDI_IS_CONTAINER}){
+        return getSuiteCurrentHead($pipelineSuiteDir); # developer mode and containers leave repos as we find them
+    }
     my $version = getCommandLineVersionRequest();      # command line options take precedence
     $version or $version = getJobFileVersionRequest(); # otherwise, search data.yml for a version setting
     $version; # otherwise, will default to latest
@@ -73,12 +80,12 @@ sub convertSuiteVersion {
     $version; 
 }
 
-# use git+perl to determine the most recent semantic version of a pipeline suite on branch main
+# use git+perl to determine the most recent semantic version of a pipeline suite
 # method is robust to vagaries of tagging, git versions, etc.
 sub getSuiteLatestVersion {
     my ($suiteDir, $useDefinitive) = @_; 
     $useDefinitive and $suiteDir =~ s/developer-forks/definitive/; # only definitive repos have semantic version tags, developer-forks inherits from there when requested
-    my $tags = qx\cd $suiteDir; git checkout main $silently; git tag -l v*\; # tags that might be semantic version tags on main branch
+    my $tags = qx\cd $suiteDir; git tag -l v*\; # tags that might be semantic version tags on main branch
     chomp $tags;
     $tags or return $main; # tags is empty string if suite has no semantic version tags -> use tip of main
     my @versions;
@@ -100,6 +107,7 @@ sub getSuiteCurrentHead {
 }
 
 # use git to check out the proper version of a pipelines suite
+# will throw an error in a read-only Stage 1 container, but should never be called there
 sub setSuiteVersion {
     my ($suiteDir, $version, $suite) = @_; # version might be a branch name or any valid tag
     my $gitCommand = "cd $suiteDir; git checkout $version"; # normally, we don't need to report git comments to user

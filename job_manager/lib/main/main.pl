@@ -9,11 +9,16 @@ use Cwd(qw(abs_path));
 use vars qw($jobManagerDir $jobManagerName %commands @options 
             %pipelineLevelCommands $parsedYamls);
 our ($command, @args) = @ARGV;
-our ($dataYmlFile, $pipelineOptions, $pipelineName);
+our ($isContainer, $dataYmlFile, $pipelineOptions, $pipelineName);
+our %mdiContainerCommands = map { $_ => 1 } qw(
+    inspect
+    list
+);
 #------------------------------------------------------------------------
 map { $_ !~ m/main.pl$/ and require $_ } glob("$jobManagerDir/lib/main/*.pl");
 #------------------------------------------------------------------------
 sub jobManagerMain {
+    $isContainer = $ENV{MDI_IS_CONTAINER} ? 1 : 0;
 
     # parse the various arguments provided on the job manager command line
     checkCommand();
