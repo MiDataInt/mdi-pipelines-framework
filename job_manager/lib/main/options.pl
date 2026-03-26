@@ -3,7 +3,8 @@ use warnings;
 
 # working variables
 use vars qw($jobManagerName $command %commands @args
-            %optionInfo %longOptions %commandOptions);
+            %optionInfo %longOptions %commandOptions
+            $isContainer %mdiContainerCommands);
 our (@options, %options);
 
 #========================================================================
@@ -17,6 +18,7 @@ sub checkCommand { # check for help request or validity of requested command
     $command or reportUsage($descriptionString);    
     ($command eq '-h' or $command eq '--help') and reportUsage("$descriptionString", "all");
     # NB: direct calls to <pipeline> are handled by the upstream shell script
+    $isContainer and !$mdiContainerCommands{$command} and throwError("command '$command' cannot be executed from a pipeline container", "all");
     $commands{$command} or throwError("'$command' is not a valid command or pipeline name", "all");
 }
 #-----------------------------------------------------------------------

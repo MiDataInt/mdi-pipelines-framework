@@ -14,6 +14,13 @@ $SIG{INT} = sub {
     exit 1;
 };
 
+# container status
+our $isContainer = $ENV{MDI_IS_CONTAINER} ? 1 : 0;
+our %pipelineContainerCommands = map { $_ => 1 } qw(
+    template
+    shell
+); 
+
 # various framework paths
 our %Forks = (definitive => "definitive", developer => "developer-forks");
 our $mdiDir = $ENV{MDI_DIR}; # the installation from which the pipeline was launched

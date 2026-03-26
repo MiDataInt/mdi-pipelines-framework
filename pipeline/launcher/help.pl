@@ -4,7 +4,7 @@ use warnings;
 # functions that provide executable help feedback on the command line
 
 # working variables
-use vars qw($config %optionValues $helpAction $helpCmd);
+use vars qw($config %optionValues $helpAction $helpCmd $isContainer %pipelineContainerCommands);
 my $jmName = $ENV{JOB_MANAGER_NAME} ? $ENV{JOB_MANAGER_NAME} : 'mdi';
 my $actionTabLength = 15;
 my $optionTabLength = 20;
@@ -46,7 +46,9 @@ sub showActionsHelp {
         my $actionLength = length($name);
         my $spaces = (" ") x ($actionTabLength - $actionLength);
         my $desc = getTemplateValue($$action{description});
-        print  "$leftPad"."$name$spaces$desc\n";
+        if(!$isContainer or $level == 0 or $pipelineContainerCommands{$name}){
+            print  "$leftPad"."$name$spaces$desc\n";
+        }
     }
     print  "\n"; 
     $error and print $errorSeparator."\n$error\n".$errorSeparator."\n\n";   

@@ -22,17 +22,14 @@ elif [ "$CONTAINER_ACTION" = "run_apps" ]; then
         exit 1
     fi 
 
-    # ensure that the MDI's R lib is used to load the mdi package
-    # otherwise it can get prepended by an outdated lib from system R_LIBS_USER
-    SET_LIB_PATHS=".libPaths('$MDI_SYSTEM_R_LIBRARY')"
+    # options as provided by mdi-pipelines-framework/job_manager/lib/commands/server.pl::launchServerContainer()
+    #     run_apps $serverCmd $dataDir $port
+    RUN_COMMAND=$2
+    DATA_DIR=$3
+    SHINY_PORT=$4
 
-    # launch the server
-    export MDI_CONTAINER_TYPE=$2
-    RUN_COMMAND=$3
-    DATA_DIR=$4
-    SHINY_PORT=$5
-    if [ "$SHINY_PORT" = "" ]; then SHINY_PORT=3838; fi
-    exec Rscript -e "$SET_LIB_PATHS; mdi::$RUN_COMMAND('$ACTIVE_MDI_DIR', dataDir = '$DATA_DIR', port = $SHINY_PORT)"
+    # launch the server, telling R where to find the mdi package
+    exec Rscript -e ".libPaths('$STATIC_R_LIBRARY_SHORT'); mdi::$RUN_COMMAND('$STATIC_MDI_DIR', dataDir = '$DATA_DIR', port = $SHINY_PORT)"
 
 # otherwise pass all arguments to the container's static MDI installation directly
 else

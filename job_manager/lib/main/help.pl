@@ -2,7 +2,7 @@ use strict;
 use warnings;
 
 # working variables
-use vars qw($jobManagerName %commands %commandOptions %optionInfo);
+use vars qw($jobManagerName %commands %commandOptions %optionInfo $isContainer %mdiContainerCommands);
 my $jmName = $ENV{JOB_MANAGER_NAME} ? $ENV{JOB_MANAGER_NAME} : $jobManagerName;
 my $commandTabLength = 12; 
 my $optionTabLength = 20;
@@ -88,15 +88,18 @@ sub reportOptionHelp {
 }
 sub reportCommandChunk {
     my ($header, @commands) = @_;
-    print $leftPad."$header:\n";
+    my $out = "";
     foreach my $command (@commands){
-        print $leftPad, $leftPad, getCommandLine($command);
+        (!$isContainer or $mdiContainerCommands{$command}) and 
+            $out .= $leftPad.$leftPad.getCommandLine($command);
     }
-    print "\n";
+    $out or return;
+    print $leftPad."$header:\n";
+    print "$out\n";
 }
 sub getCommandLine {
     my ($command) = @_;
-    return $command, " " x ($commandTabLength - length($command)), ${$commands{$command}}[1], "\n";
+    return $command.(" " x ($commandTabLength - length($command))).${$commands{$command}}[1]."\n";
 }
 #========================================================================
 

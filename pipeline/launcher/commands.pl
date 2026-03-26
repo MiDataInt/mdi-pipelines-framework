@@ -7,11 +7,15 @@ use File::Basename;
 
 # working variables
 use vars qw($pipeline $pipelineName $pipelineSuiteDir $launcherDir $mdiDir
-            @args $config %longOptions $workflowScript %workingSuiteVersions);
+            @args $config %longOptions $workflowScript %workingSuiteVersions
+            $isContainer %pipelineContainerCommands);
 
 # switch for acting on restricted commands
 sub doRestrictedCommand {
     my ($target) = @_;
+    if($isContainer and !$pipelineContainerCommands{$target}){
+        throwError("command '$target' cannot be executed from a pipeline container");
+    }
     my %restricted = (
 
         # commands advertised to users
