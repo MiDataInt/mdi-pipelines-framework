@@ -363,7 +363,7 @@ sub getSingularityLoadCommand {
     }
 
     # if not, attempt to use "module load singularity" as the default singularity load command
-    $command = "module load singularity";
+    $command = "module load singularity $silently";
     checkForSingularity($command) and return $command; 
 
     # singularity failed, throw and error

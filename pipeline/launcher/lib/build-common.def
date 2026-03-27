@@ -96,6 +96,8 @@
     export HAS_APPS=false
     export MDI_IS_CONTAINER=TRUE
     export SRV_DIR=/srv
+    export SUITE_NAME=__SUITE_NAME__
+    export SUITE_VERSION=__SUITE_VERSION__
 
     # static, read only, code path specifications; environments, pipelines framework
     export STATIC_DIR=${SRV_DIR}/static 

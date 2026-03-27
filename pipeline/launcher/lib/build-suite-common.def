@@ -103,6 +103,7 @@
     export MDI_IS_CONTAINER=TRUE
     export SRV_DIR=/srv
     export SUITE_NAME=__SUITE_NAME__
+    export SUITE_VERSION=__SUITE_VERSION__
 
     # static, read only, code path specifications; environments, library, pipelines framework
     export STATIC_SUITE_DIR=${SRV_DIR}/static/${SUITE_NAME}

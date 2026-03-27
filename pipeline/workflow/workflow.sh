@@ -191,10 +191,16 @@ function getVersionedBinary {
     local GITHUB_REPO=$1 # e.g., wilsontelab/hf3_tools
     local BINARY_NAME=$2
 
+    # get a usable SUITE_BIN_DIR if in a container
+    SUITE_BIN_DIR_WRK=${SUITE_BIN_DIR}
+    if [ "$MDI_IS_CONTAINER" = "TRUE" ]; then
+        SUITE_BIN_DIR_WRK=${TMP_DIR}/${SUITE_NAME}
+    fi
+
     # developer mode expects that the developer has compiled their working binary
     # or otherwise obtained it so they are in full control of the binary in use
     if [ "$DEVELOPER_MODE" != "" ]; then
-        local VERSION_DIR=${SUITE_BIN_DIR}/dev
+        local VERSION_DIR=${SUITE_BIN_DIR_WRK}/dev
         mkdir -p ${VERSION_DIR}
         export VERSIONED_BINARY_PATH=${VERSION_DIR}/${BINARY_NAME}
         if [ ! -f ${VERSIONED_BINARY_PATH} ]; then
@@ -207,10 +213,10 @@ function getVersionedBinary {
     # otherwise use the working suite version to download the binary from GitHub as needed
     else 
         local VERSION_TAG=${SUITE_VERSION}
-        if [[ "${VERSION_TAG}" = "latest" || "${VERSION_TAG}" = "main" ]]; then
+        if [[ "${VERSION_TAG}" = "latest" || "${VERSION_TAG}" = "main" || "${VERSION_TAG}" = "HEAD" ]]; then
             local VERSION_TAG=$(curl -s https://api.github.com/repos/${GITHUB_REPO}/releases/latest | jq -r .tag_name)
         fi
-        local VERSION_DIR=${SUITE_BIN_DIR}/${VERSION_TAG}
+        local VERSION_DIR=${SUITE_BIN_DIR_WRK}/${VERSION_TAG}
         mkdir -p ${VERSION_DIR}
         export VERSIONED_BINARY_PATH=${VERSION_DIR}/${BINARY_NAME}
         if [ ! -f ${VERSIONED_BINARY_PATH} ]; then
