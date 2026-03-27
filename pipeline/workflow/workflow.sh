@@ -191,9 +191,9 @@ function getVersionedBinary {
     local GITHUB_REPO=$1 # e.g., wilsontelab/hf3_tools
     local BINARY_NAME=$2
 
-    # get a usable SUITE_BIN_DIR if in a container
+    # get a usable SUITE_BIN_DIR, mainly if working in a container
     SUITE_BIN_DIR_WRK=${SUITE_BIN_DIR}
-    if [ "$MDI_IS_CONTAINER" = "TRUE" ]; then
+    if [[ ! -d ${SUITE_BIN_DIR_WRK} || ! -w ${SUITE_BIN_DIR_WRK} ]]; then
         SUITE_BIN_DIR_WRK=${TMP_DIR}/${SUITE_NAME}
     fi
 

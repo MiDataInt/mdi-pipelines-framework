@@ -20,7 +20,7 @@ our %workingSuiteVersions;  # the working version of all suites that have alread
 sub setPipelineSuiteVersion { 
     my ($version) = @_;
     if($ENV{MDI_IS_CONTAINER}){ # cannot change a read-only container version
-        $version = getSuiteCurrentHead($pipelineSuiteDir);
+        $version = $ENV{SUITE_VERSION};
     } else {
         $version or $version = getRequestedSuiteVersion();
         $version = convertSuiteVersion($pipelineSuiteDir, $version);
