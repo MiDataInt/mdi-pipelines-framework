@@ -134,6 +134,7 @@ sub launchServerContainer {
     addStage2BindMounts(\$bind, \@bound, \@toBind); # add user bind paths from config/stage2-apps.yml
     my $singularityCommand = $ENV{SINGULARITY_COMMAND} || "run"; # for debugging, typically set to "shell"
     my $port = $options{'port'} || 3838;
+    $ENV{CALLER_MDI_DIR} = $ENV{MDI_DIR}; # remember the MDI_DIR for display in apps that replaces /srv/active/mdi with the bound path
     exec "$singularityLoad; singularity $singularityCommand $bind $imageFile run_apps $serverCmd $dataDir $port";
 }
 #========================================================================
