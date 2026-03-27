@@ -27,28 +27,32 @@ Stage: build
     export SUITE_NAME=__SUITE_NAME__
     export SUITE_VERSION=__SUITE_VERSION__
     export SUITE_CONTAINER_VERSION=__SUITE_CONTAINER_VERSION__
-    export INSTALLER=__INSTALLER__
     export N_CPU=__N_CPU__
     export MDI_FORCE_GIT=__MDI_FORCE_GIT__
 
-    # install common system utilities used by the MDI and many pipelines
-    if [ "$INSTALLER" = "apt-get" ] || \
-       [ "$INSTALLER" = "yum" ]; then
-        $INSTALLER update && $INSTALLER install -y \
-            git \
-            libgit2-dev \
-            libssh2-1-dev \
-            libssl-dev \
-            wget \
-            zip \
-            time \
-            nano \
-            tree \
-            curl
-    else 
-        echo "unknown installer: $INSTALLER"
-        exit 1
-    fi
+    # install common system utilities used by the MDI and many apps
+    apt-get update && apt-get install -y \
+        time \
+        nano \
+        tree \
+        git \
+        libgit2-dev \
+        libssh2-1-dev \
+        libssl-dev \
+        wget \
+        curl \
+        libcurl4-openssl-dev \
+        zip \
+        zlib1g-dev \
+        libx11-dev \
+        libmagick++-dev \
+        libpng-dev \
+        libjpeg-dev \
+        libtiff-dev \
+        libmariadb-dev \
+        libxml2 \
+        libxml2-dev \
+        libglpk-dev
 
     # path variables set by us
     export SRV_DIR=/srv
