@@ -36,6 +36,9 @@ Stage: build
        [ "$INSTALLER" = "yum" ]; then
         $INSTALLER update && $INSTALLER install -y \
             git \
+            libgit2-dev \
+            libssh2-1-dev \
+            libssl-dev \
             wget \
             zip \
             time \
@@ -77,6 +80,9 @@ Stage: build
     rm -f /tmp/Rtmp*/downloaded_packages/*
     apt-get clean
     rm -rf /var/lib/apt/lists/*
+
+    # enable cross-user git operations in the container
+    git config --system --add safe.directory '*'
 
 # path overrides include all ways that running pipelines use files from mdi-pipelines-framework
 # https://sylabs.io/guides/latest/user-guide/environment_and_metadata.html#environment-and-metadata

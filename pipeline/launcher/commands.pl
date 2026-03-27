@@ -13,9 +13,6 @@ use vars qw($pipeline $pipelineName $pipelineSuiteDir $launcherDir $mdiDir
 # switch for acting on restricted commands
 sub doRestrictedCommand {
     my ($target) = @_;
-    if($isContainer and !$pipelineContainerCommands{$target}){
-        throwError("command '$target' cannot be executed from a pipeline container");
-    }
     my %restricted = (
 
         # commands advertised to users
@@ -34,7 +31,12 @@ sub doRestrictedCommand {
         checkContainer  => \&checkContainer,
         buildSuite      => \&buildSuite
     );
-    $restricted{$target} and &{$restricted{$target}}();
+    if($restricted{$target}){
+        if($isContainer and !$pipelineContainerCommands{$target}){
+            throwError("command '$target' cannot be executed from a pipeline container");
+        }
+        &{$restricted{$target}}();
+    }
 }
 
 #------------------------------------------------------------------------------
