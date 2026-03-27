@@ -108,7 +108,8 @@ sub launchServerDirect {
     $R_VERSION =~ m/version\s+(\d+\.\d+)/ and $R_VERSION =$1;
     my $LIB_PATH = "$ENV{MDI_DIR}/library/R-$R_VERSION"; # mdi-manager R package installed here
     my $port = $options{'port'} || 3838;
-    exec "Rscript -e '.libPaths(\"$LIB_PATH\"); mdi::$serverCmd(mdiDir = \"$ENV{MDI_DIR}\", port = $port $dataDir $hostDir)'";
+    my $load_libGit2 = getLibgit2LoadCommand();
+    exec "$load_libGit2; Rscript -e '.libPaths(\"$LIB_PATH\"); mdi::$serverCmd(mdiDir = \"$ENV{MDI_DIR}\", port = $port $dataDir $hostDir)'";
 }
 
 # launch via Singularity with suite-level container
@@ -134,6 +135,24 @@ sub launchServerContainer {
     my $singularityCommand = $ENV{SINGULARITY_COMMAND} || "run"; # for debugging, typically set to "shell"
     my $port = $options{'port'} || 3838;
     exec "$singularityLoad; singularity $singularityCommand $bind $imageFile run_apps $serverCmd $dataDir $port";
+}
+#========================================================================
+
+#========================================================================
+# determine how to load libgit2, if available (if not the installer used git2r v0.33)
+#------------------------------------------------------------------------
+sub getLibgit2LoadCommand {
+    my $command = "echo $silently";
+    checkForLibgit2($command) and return $command; 
+    $command = "module load libgit2 $silently";
+    checkForLibgit2($command) and return $command; 
+    $command = "module load git $silently";
+    checkForLibgit2($command) and return $command; 
+    "echo $silently" # libgit2 could not be loaded, expect fallback version 0.33 of git2r to have been installed
+}
+sub checkForLibgit2 {
+    my ($command) = @_;
+    !system("$command; pkg-config --exists --atleast-version 1.0 libgit2");
 }
 #========================================================================
 
