@@ -149,7 +149,7 @@ sub reportAssembledConfig {
         $report .= "suiteVersions:\n";
         foreach my $suiteDir(@externalSuiteDirs){
             my @parts = split("/", $suiteDir); 
-            my $version = $ENV{MDI_IS_CONTAINER} ? ":$ENV{SUITE_VERSION}" : "";
+            my $version = $ENV{MDI_IS_CONTAINER} ? "" : ":$workingSuiteVersions{$suiteDir}";
             $report .= $indent."$parts[$#parts]$version\n";
         }
     }

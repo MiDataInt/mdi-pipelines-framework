@@ -34,15 +34,17 @@
     if [ "$INSTALLER" = "apt-get" ] || \
        [ "$INSTALLER" = "yum" ]; then
         $INSTALLER update && $INSTALLER install -y \
-            git \
-            wget \
-            zip \
-            bzip2 \
             time \
             nano \
             tree \
+            git \
+            wget \
             curl \
-            ca-certificates
+            ca-certificates \
+            zip \
+            bzip2 \
+            jq
+
     else 
         echo "unknown installer: $INSTALLER"
         exit 1
