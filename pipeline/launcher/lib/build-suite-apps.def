@@ -30,7 +30,17 @@ Stage: build
     export N_CPU=__N_CPU__
     export MDI_FORCE_GIT=__MDI_FORCE_GIT__
 
+    # path variables set by us
+    export SRV_DIR=/srv
+    export STATIC_DIR=${SRV_DIR}/static 
+    export STATIC_SUITE_DIR=${STATIC_DIR}/${SUITE_NAME}
+    export STATIC_MDI=${STATIC_SUITE_DIR}/mdi/mdi
+
+    # path variables determined by parent container image
+    export MDI_SYSTEM_R_LIBRARY=/usr/local/lib/R/site-library
+
     # install common system utilities used by the MDI and many apps
+    echo "::group::Installing container system dependencies"
     apt-get update && apt-get install -y \
         time \
         nano \
@@ -53,37 +63,51 @@ Stage: build
         libxml2 \
         libxml2-dev \
         libglpk-dev
+    echo "::endgroup::"
 
-    # path variables set by us
-    export SRV_DIR=/srv
-    export STATIC_DIR=${SRV_DIR}/static 
-    export STATIC_SUITE_DIR=${STATIC_DIR}/${SUITE_NAME}
-    export STATIC_MDI=${STATIC_SUITE_DIR}/mdi/mdi
-
-    # path variables determined by parent container image
-    export MDI_SYSTEM_R_LIBRARY=/usr/local/lib/R/site-library
+    # handle permissions when containerizing private repos
+    if [ "$GITHUB_TOKEN" != "" ]; then
+        echo "::group::Setting git credentials for private repo"
+        git config --global http.https://github.com/.extraheader \
+            "AUTHORIZATION: basic $(echo -n x-access-token:${GITHUB_TOKEN} | base64)"
+        echo "::endgroup::"
+    fi
 
     # execute a suite-centric installation of __SUITE_NAME__:__SUITE_VERSION__
+    echo "::group::Installing the MDI from suite ${SUITE_NAME}"
     mkdir -p ${STATIC_DIR}
     cd ${STATIC_DIR}
     git clone https://github.com/${GIT_USER}/${SUITE_NAME}.git
     cd ${SUITE_NAME}
     export SKIP_MDI_APPS_INSTALL=true
     ./install.sh --yes
-    cd ${STATIC_SUITE_DIR}/mdi/suites/definitive/${SUITE_NAME}
-    git -c advice.detachedHead=false checkout ${SUITE_VERSION}
+    chmod ugo+x ${STATIC_MDI}
+    cd ${STATIC_MDI_DIR}/suites/definitive/${SUITE_NAME}
     # TODO: checkout declared versions of any suite dependencies?
+    echo "::endgroup::"
 
-    # continue to install the framework and suite app R packages
+    # install the framework and suite app R packages
     # unlike pipeline containers, app packages are installed for any suite dependencies also
+    echo "::group::Installing additional required R packages"
     export MDI_FORCE_SYSTEM_INSTALL=true
     export SKIP_MDI_APPS_INSTALL=""
     ${STATIC_MDI} install --install-packages --n-cpu ${N_CPU}
+    echo "::endgroup::"
+
+    # clean up private repo git credentials from the image
+    if [ "$GITHUB_TOKEN" != "" ]; then
+        echo "::group::Cleaning up git credentials from image"
+        git config --global --unset http.https://github.com/.extraheader
+        unset GITHUB_TOKEN
+        echo "::endgroup::"
+    fi
 
     # clean up downloaded apt and R packages to reduce image size
+    echo "::group::Cleaning up packages"
     rm -f /tmp/Rtmp*/downloaded_packages/*
     apt-get clean
     rm -rf /var/lib/apt/lists/*
+    echo "::endgroup::"
 
     # enable cross-user git operations in the container
     git config --system --add safe.directory '*'

@@ -29,7 +29,14 @@
     export INSTALLER=__INSTALLER__
     export N_CPU=__N_CPU__
 
+    # path variables set by us
+    export SRV_DIR=/srv
+    export STATIC_DIR=${SRV_DIR}/static 
+    export STATIC_MDI_DIR=${STATIC_DIR}/mdi 
+    export STATIC_MDI=${STATIC_MDI_DIR}/mdi
+
     # install common system utilities used by the MDI and many pipelines
+    echo "::group::Installing container system dependencies"
     if [ "$INSTALLER" = "apt-get" ] || \
        [ "$INSTALLER" = "yum" ]; then
         $INSTALLER update && $INSTALLER install -y \
@@ -47,46 +54,64 @@
         echo "unknown installer: $INSTALLER"
         exit 1
     fi
+    echo "::endgroup::"
 
-    # path variables set by us
-    export SRV_DIR=/srv
-    export STATIC_DIR=${SRV_DIR}/static 
-    export STATIC_MDI_DIR=${STATIC_DIR}/mdi 
-    export STATIC_MDI=${STATIC_MDI_DIR}/mdi
+    # handle permissions when containerizing private repos
+    if [ "$GITHUB_TOKEN" != "" ]; then
+        echo "::group::Setting git credentials for private repo"
+        git config --global http.https://github.com/.extraheader \
+            "AUTHORIZATION: basic $(echo -n x-access-token:${GITHUB_TOKEN} | base64)"
+        echo "::endgroup::"
+    fi
 
     # execute an MDI-centric installation of the MDI itself
+    echo "::group::Installing the MDI"
     mkdir -p ${STATIC_DIR}
     cd ${STATIC_DIR}
     git clone https://github.com/MiDataInt/mdi.git
     cd mdi
     ./install.sh 1
     chmod ugo+x ${STATIC_MDI}
+    echo "::endgroup::"
 
     # add the parent tool suite of this pipeline and its dependencies
+    echo "::group::Adding ${SUITE_NAME} suite"
     ${STATIC_MDI} add --suite ${GIT_USER}/${SUITE_NAME}
     cd ${STATIC_MDI_DIR}/suites/definitive/${SUITE_NAME}
-    git -c advice.detachedHead=false checkout ${SUITE_VERSION}
     # TODO: checkout declared versions of any suite dependencies?
     cd ${SRV_DIR}
+    echo "::endgroup::"
 
     # install micromamba to use for environment creation to reduce image size and speed builds
+    echo "::group::Installing micromamba"
     export MMB_DIR=${STATIC_MDI_DIR}/bin/micromamba
     mkdir -p ${MMB_DIR}
     wget -qO- https://micro.mamba.pm/api/micromamba/linux-64/latest | tar -xj -C ${MMB_DIR} --strip-components=1 bin/micromamba
     export MICROMAMBA=${MMB_DIR}/micromamba
-
-    # set channel_priority to strict
     ${MICROMAMBA} config set channel_priority strict
+    echo "::endgroup::"
 
-    # creata environments of the software required by the pipeline
+    # create environments of the software required by the pipeline
+    echo "::group::Creating required conda environment(s)"
     export IS_CONTAINER_BUILD=TRUE
     export CONDA_PLUGINS_AUTO_ACCEPT_TOS=true
     ${STATIC_MDI} ${PIPELINE_NAME} conda --create --force --version ${SUITE_VERSION} 
+    echo "::endgroup::"
+
+    # clean up private repo git credentials from the image
+    if [ "$GITHUB_TOKEN" != "" ]; then
+        echo "::group::Cleaning up git credentials from image"
+        git config --global --unset http.https://github.com/.extraheader
+        unset GITHUB_TOKEN
+        echo "::endgroup::"
+    fi
 
     # clean up packages to reduce image size
+    echo "::group::Cleaning up packages"
     ${MICROMAMBA} clean --all -y
     apt-get clean
     rm -rf /var/lib/apt/lists/*
+    echo "::endgroup::"
 
     # enable cross-user git operations in the container
     git config --system --add safe.directory '*'
