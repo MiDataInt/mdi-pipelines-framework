@@ -34,7 +34,8 @@ Stage: build
     export SRV_DIR=/srv
     export STATIC_DIR=${SRV_DIR}/static 
     export STATIC_SUITE_DIR=${STATIC_DIR}/${SUITE_NAME}
-    export STATIC_MDI=${STATIC_SUITE_DIR}/mdi/mdi
+    export STATIC_MDI_DIR=${STATIC_SUITE_DIR}/mdi
+    export STATIC_MDI=${STATIC_MDI_DIR}/mdi
 
     # path variables determined by parent container image
     export MDI_SYSTEM_R_LIBRARY=/usr/local/lib/R/site-library

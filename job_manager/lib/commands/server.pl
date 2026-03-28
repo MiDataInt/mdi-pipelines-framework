@@ -246,7 +246,7 @@ sub pullSuiteContainer {
     my $registry  = $$containerConfig{registry}[0];
     my $owner     = $$containerConfig{owner}[0];
     my $packageName = lc "$suiteName-apps"; # container names always lower case
-    my $uri = "oras://$registry/$owner/$packageName:$majorMinorVersion";
+    my $uri = lc("oras://$registry/$owner/$packageName:$majorMinorVersion");
     make_path(dirname($imageFile));
     print STDERR "pulling required container image...\n"; 
     system("$singularityLoad; singularity pull --disable-cache $imageFile $uri") and throwError(

@@ -335,7 +335,7 @@ sub getContainerUris { # pipelineSupportsContainers(), i.e.,  $$config{container
     {
         registry  => "oras://$registry",
         owner     => $owner,
-        container => "oras://$registry/$owner/$packageName:$majorMinorVersion",
+        container => lc("oras://$registry/$owner/$packageName:$majorMinorVersion"),
         imageDir  => $imageDir,
         defFile   => "$imageDir/$fileName-$majorMinorVersion.def",
         imageFile => "$imageDir/$fileName-$majorMinorVersion.sif"
