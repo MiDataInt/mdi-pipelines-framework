@@ -137,7 +137,7 @@ sub checkSingularityContainer {
     my $runtime = $$cfg{resources}{runtime}[0];
     $runtime eq "auto" or $runtime eq "container" or $runtime eq "singularity" or return; # user enforcing direct execution, regardless of container support
     my $level =    $$cfg{singularity}{level}[0]; # suite or pipeline
-    my $uri   = lc($$cfg{singularity}{image}[0]) # oras://ghcr.io/owner/suite/pipeline:v0.0, always with lowercase owner, suite and pipeline names
+    my $uri   = lc($$cfg{singularity}{image}[0]); # oras://ghcr.io/owner/suite/pipeline:v0.0, always with lowercase owner, suite and pipeline names
     my ($imageFile, $version) = ("", "");
     if($level eq "suite"){
         $uri =~ m|.+/(.+):(v\d+\.\d+)$|; 
