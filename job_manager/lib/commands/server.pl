@@ -126,7 +126,7 @@ sub launchServerDirect {
     $ENV{BIOCONDUCTOR_RELEASE} = $1;
     my $port = $options{'port'} || 3838;
     my $load_libGit2 = getLibgit2LoadCommand();
-    exec "$load_libGit2; Rscript -e '.libPaths(\"$R_LIBRARY\"); mdi::$serverCmd(mdiDir = \"$ENV{MDI_DIR}\", port = $port $dataDir $hostDir)'";
+    exec "$load_libGit2; $rLoadCommand; Rscript -e '.libPaths(\"$R_LIBRARY\"); mdi::$serverCmd(mdiDir = \"$ENV{MDI_DIR}\", port = $port $dataDir $hostDir)'";
 }
 
 # launch via Singularity with suite-level container
