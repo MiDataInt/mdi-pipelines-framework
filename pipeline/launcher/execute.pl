@@ -93,8 +93,10 @@ sub setContainerEnvVars {
             my $bind = 1; # always bind if option has directory tag that is anything except directory:bind-mount:false
             ref($dir) eq 'HASH' and defined $$dir{'bind-mount'} and $bind = $$dir{'bind-mount'}[0];
             $bind or next;
-            my $key = "--bind $$optionValues{$optionName}";
-            $bindMounts{$key}++; # avoid duplicate bind paths  
+            $dir = $$optionValues{$optionName} or next; # only bind if option value is defined and not empty
+            uc($dir) eq "NA"   and next;
+            uc($dir) eq "NULL" and next;
+            $bindMounts{"--bind $dir"}++; # avoid duplicate bind paths  
         }
         $ENV{CONTAINER_BIND_MOUNTS} = join(" ", keys %bindMounts);
     }
