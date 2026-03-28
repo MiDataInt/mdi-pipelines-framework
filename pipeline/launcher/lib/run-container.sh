@@ -29,7 +29,7 @@ elif [ "$CONTAINER_ACTION" = "run_apps" ]; then
     SHINY_PORT=$4
 
     # launch the server, telling R where to find the mdi package
-    exec Rscript -e ".libPaths('$STATIC_R_LIBRARY_SHORT'); mdi::$RUN_COMMAND('$STATIC_MDI_DIR', dataDir = '$DATA_DIR', port = $SHINY_PORT)"
+    exec Rscript -e ".libPaths('$STATIC_R_LIBRARY'); mdi::$RUN_COMMAND('$STATIC_MDI_DIR', dataDir = '$DATA_DIR', port = $SHINY_PORT)"
 
 # otherwise pass all arguments to the container's static MDI installation directly
 else

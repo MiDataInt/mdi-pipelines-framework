@@ -136,7 +136,10 @@ Stage: build
 
     # R path specifications
     export MDI_SYSTEM_R_LIBRARY=/usr/local/lib/R/site-library
-    export STATIC_R_LIBRARY_SHORT=`ls -ld ${STATIC_MDI_DIR}/library/* | grep "^d" | awk '{print $NF}' | grep -v _BC`
+    export STATIC_R_LIBRARY=`ls -ld ${STATIC_MDI_DIR}/library/* | grep "^d" | awk '{print $NF}' | grep -v _BC`
+    export STATIC_BC_LIBRARY=`ls -ld ${STATIC_MDI_DIR}/library/* | grep "^d" | awk '{print $NF}' | grep _BC`
+    export R_MAJOR_MINOR_VERSION=`echo ${STATIC_R_LIBRARY} | awk 'BEGIN{FS="-"}{print $NF}'`
+    export BIOCONDUCTOR_RELEASE=`echo ${STATIC_BC_LIBRARY} | awk 'BEGIN{FS="-"}{print $NF}'`
 
 # scriplet called by install.pl/sh, execute.pl, and server.pl to use the container
 %runscript

@@ -95,21 +95,38 @@ sub mdiServer {
 # launch directly via system R
 sub launchServerDirect {
     my $dataDir = $options{'data-dir'} ? ", dataDir = \"".$options{'data-dir'}."\"" : "";
-    my $hostDir = $options{'host-dir'} ? ", hostDir = \"".$options{'host-dir'}."\"" : "";  
-    my $R_COMMAND = qx/command -v Rscript/;
-    chomp $R_COMMAND;
-    $R_COMMAND or throwError(
-        "FATAL: R program targets not found\n". 
-        "please install or load R as required on your system\n".
-        "    e.g., module load R/0.0.0\n".
-        "and be sure you have installed the MDI apps interface on the remote server", 
+    my $hostDir = $options{'host-dir'} ? ", hostDir = \"".$options{'host-dir'}."\"" : "";
+    my $rLoadCommand = $ENV{R_LOAD_COMMAND} || "echo $silently";
+    my $R_SCRIPT = qx/$rLoadCommand; command -v Rscript/;
+    chomp $R_SCRIPT;
+    $R_SCRIPT or throwError(
+        "FATAL: R program target Rscript not found\n". 
+        "Please install or load R as required on your system or server,\n".
+        "    e.g., `module load R/0.0.0`.\n".
         'server');
-    my $R_VERSION = qx|Rscript --version|;
+    my $R_VERSION = qx|$rLoadCommand; Rscript --version|;
     $R_VERSION =~ m/version\s+(\d+\.\d+)/ and $R_VERSION =$1;
-    my $LIB_PATH = "$ENV{MDI_DIR}/library/R-$R_VERSION"; # mdi-manager R package installed here
+    my $libsPath = "$ENV{MDI_DIR}/library";
+    my $R_LIBRARY = "$libsPath/R-$R_VERSION"; # mdi-manager R package installed here
+    -d $R_LIBRARY or throwError(
+        "FATAL: R library directory for R version $R_VERSION not found:\n". 
+        "    $R_LIBRARY\n".
+        "Have you installed the MDI or tool suite for this R version?\n",
+        'server');
+    my $BC_LIBRARY = qx|ls -1d $libsPath/R-$R_VERSION\_BC-*|;
+    chomp $BC_LIBRARY;
+    $BC_LIBRARY or throwError(
+        "FATAL: Bioconductor library for R version $R_VERSION not found.\n". 
+        "Have you installed the MDI or tool suite for this R version?\n",
+        'server');
+    $BC_LIBRARY =~ m/_BC-(\d+.\d+)$/ or throwError(
+        "FATAL: Bioconductor library directory has invalid name format:\n". 
+        "    $BC_LIBRARY\n".
+        'server');
+    $ENV{BIOCONDUCTOR_RELEASE} = $1;
     my $port = $options{'port'} || 3838;
     my $load_libGit2 = getLibgit2LoadCommand();
-    exec "$load_libGit2; Rscript -e '.libPaths(\"$LIB_PATH\"); mdi::$serverCmd(mdiDir = \"$ENV{MDI_DIR}\", port = $port $dataDir $hostDir)'";
+    exec "$load_libGit2; Rscript -e '.libPaths(\"$R_LIBRARY\"); mdi::$serverCmd(mdiDir = \"$ENV{MDI_DIR}\", port = $port $dataDir $hostDir)'";
 }
 
 # launch via Singularity with suite-level container
