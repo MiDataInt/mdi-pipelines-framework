@@ -357,7 +357,8 @@ sub executeTask {
         my $isSuite = $ENV{CONTAINER_LEVEL} eq 'suite';
         $$uris{imageFile} or $uris = getContainerUris($ENV{CONTAINER_MAJOR_MINOR}, $isSuite, "pipelines");
         -e $$uris{imageFile} or pullPipelineContainer($uris, $singularity, $isSuite, "pipelines");
-        $execCommand .= "$singularity run $ENV{CONTAINER_BIND_MOUNTS} $$uris{imageFile} run_pipeline";
+        my $nvFlag = $ENV{N_GPU} ? "--nv" : "";
+        $execCommand .= "$singularity run $nvFlag $ENV{CONTAINER_BIND_MOUNTS} $$uris{imageFile} run_pipeline";
     } else {
         -d $condaDir or throwError(
             "missing environment for action '$action'\n".
