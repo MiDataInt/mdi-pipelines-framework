@@ -18,7 +18,8 @@ use vars qw(%options);
 sub mdiInstall { 
 
     # honor the request for installing developer forks of MDI repos
-    $ENV{INSTALL_MDI_FORKS} = $options{'forks'} ? "TRUE" : "";
+    $ENV{INSTALL_MDI_FORKS} = $options{'forks'}          ? "TRUE" : "";
+    $ENV{INSTALL_WITH_R}    = $options{'install-with-r'} ? "TRUE" : "";
 
     # ensure that mdi 'install.sh' script is present
     # could be missing if initial installation was performed using mdi::install()
