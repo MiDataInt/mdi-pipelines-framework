@@ -10,8 +10,10 @@
 //! custom delimiters and headerless files to be used.
 
 // dependencies
+use std::error::Error;
 use std::fs::{File, read_to_string};
 use std::io::{Read, Write, BufReader, BufWriter};
+use glob::glob;
 use csv::{Reader, ReaderBuilder, Writer, WriterBuilder, StringRecord};
 use flate2::{Compression, read::MultiGzDecoder, write::GzEncoder};
 use rust_htslib::bgzf::Writer as BgzWriter;
@@ -187,7 +189,7 @@ impl InputCsv {
     /* ------------------------------------------------------------------
     reader opening
     ------------------------------------------------------------------ */
-    /// Open a reader for an input file with full extended options support.
+    /// Open a reader for an input file with extended options support.
     pub fn open_file(filepath: &str, delimiter: u8, has_headers: bool) -> Self {
         let file = File::open(filepath).unwrap_or_else(|e| {
             panic!("failed to open file for reading {}: {}", filepath, e);
@@ -219,6 +221,23 @@ impl InputCsv {
     /// Assumes tab-delimited file with headers.
     pub fn open(filepath: &str) -> Self {
         Self::open_file(filepath, b'\t', true)
+    }
+
+    /// Open a reader for an input file obtained from a directory 
+    /// and file extension with extended options support.
+    pub fn open_file_from_glob(
+        dir:         &str, 
+        extension:   &str, 
+        delimiter:   u8, 
+        has_headers: bool
+    ) -> Result<Self, Box<dyn Error>> {
+        let pattern = format!("{}/*.{}", dir, extension);
+        let filepath = glob(&pattern)?
+            .filter_map(Result::ok) 
+            .next()
+            .and_then(|path| path.to_str().map(|s| s.to_string()))
+            .unwrap();
+        Ok(InputCsv::open_file(&filepath, delimiter, has_headers))
     }
     /* ------------------------------------------------------------------
     reading from file
