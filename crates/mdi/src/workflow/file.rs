@@ -231,12 +231,21 @@ impl InputCsv {
         delimiter:   u8, 
         has_headers: bool
     ) -> Result<Self, Box<dyn Error>> {
-        let pattern = format!("{}/*.{}", dir, extension);
+        let ext = if extension.starts_with(".") {
+            &extension.to_string()[1..]
+        } else {
+            extension
+        };
+        let pattern = if dir.ends_with("/") {
+            format!("{}*.{}", dir, ext)
+        } else {
+            format!("{}/*.{}", dir, ext)
+        };
         let filepath = glob(&pattern)?
             .filter_map(Result::ok) 
             .next()
             .and_then(|path| path.to_str().map(|s| s.to_string()))
-            .unwrap();
+            .expect(&format!("Failed to find any files matching pattern: {}", pattern));
         Ok(InputCsv::open_file(&filepath, delimiter, has_headers))
     }
     /* ------------------------------------------------------------------
