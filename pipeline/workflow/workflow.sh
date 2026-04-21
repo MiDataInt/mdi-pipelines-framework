@@ -213,9 +213,16 @@ function getVersionedBinary {
     # otherwise use the working suite version to download the binary from GitHub as needed
     else 
         local VERSION_TAG=${SUITE_VERSION}
-        if [[ "${VERSION_TAG}" = "latest" || "${VERSION_TAG}" = "main" || "${VERSION_TAG}" = "HEAD" ]]; then
+
+        # for containers, always match the version of a binary to the version of the scripts in /srv/active/mdi
+        if [ ${MDI_IS_CONTAINER} != "" ]; then
+            local VERSION_TAG=${ACTIVE_SUITE_VERSION}
+
+        # for non-containers, get the latest stable version if user did not request otherwise
+        elif [[ "${VERSION_TAG}" = "latest" || "${VERSION_TAG}" = "main" || "${VERSION_TAG}" = "HEAD" ]]; then
             local VERSION_TAG=$(curl -s https://api.github.com/repos/${GITHUB_REPO}/releases/latest | jq -r .tag_name)
         fi
+
         local VERSION_DIR=${SUITE_BIN_DIR_WRK}/${VERSION_TAG}
         mkdir -p ${VERSION_DIR}
         export VERSIONED_BINARY_PATH=${VERSION_DIR}/${BINARY_NAME}
