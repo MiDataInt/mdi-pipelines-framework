@@ -25,8 +25,9 @@ sub setPipelineSuiteVersion {
         $version or $version = getRequestedSuiteVersion();
         $version = convertSuiteVersion($pipelineSuiteDir, $version);
         setSuiteVersion($pipelineSuiteDir, $version, $pipelineSuite);
+        $ENV{ACTIVE_SUITE_VERSION} = $version; # the suite version that will be loaded into a container's /srv/active/mdi
     }
-    $ENV{SUITE_VERSION} = $version;
+    $ENV{SUITE_VERSION} = $version; # this version info will be overwritten by jobs running in a container
 }
 
 # parse and set the version for each newly encountered external suite that is invoked in pipeline.yml
