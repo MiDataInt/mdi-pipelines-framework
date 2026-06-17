@@ -1,6 +1,7 @@
 use strict;
 use warnings;
 use File::Path qw(make_path);
+use File::Basename;
 
 # main sub for executing a pipeline action
 
@@ -364,6 +365,7 @@ sub executeTask {
             "missing environment for action '$action'\n".
             "please run 'mdi $ENV{PIPELINE_NAME} conda --create' before launching the pipeline"
         );  
+        $ENV{ENVIRONMENTS_DIR} = dirname($condaDir);
         my $executeScript = "$launcherDir/lib/execute.sh";
         -f $executeScript or die "does not exist: $executeScript\n";
         $execCommand .= "bash $executeScript;";
