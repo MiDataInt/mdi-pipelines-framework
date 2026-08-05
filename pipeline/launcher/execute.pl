@@ -283,7 +283,12 @@ sub copyTaskCodeSuites { # create a permanent, fixed working copy of all tool su
         -d $destDir or make_path($destDir);
         system("cp -fr $srcDir/* $destDir") and throwError("suite code copy failed: $!\n    $srcDir\n    $destDir");
     }
-    foreach my $suiteDir(keys %workingSuiteVersions){
+    my $staticMdiDir = $ENV{STATIC_MDI_DIR} || "__NA__";
+    my @workingSuiteDirs = $ENV{MDI_DIR} eq $staticMdiDir ?
+        glob("$staticMdiDir/suites/definitive/*/") : # when running in container-only mode
+        keys %workingSuiteVersions;
+    foreach my $suiteDir(@workingSuiteDirs){
+        $suiteDir =~ s/\/$//;
         my @parts = split("/", $suiteDir); 
         my $suiteName = $parts[$#parts];
         if($suiteName eq $pipelineSuite){ # this pipeline's suite copies the pipeline itself (all actions) and all shared modules
