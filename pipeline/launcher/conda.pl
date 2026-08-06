@@ -192,6 +192,7 @@ sub createEnvironment { # handles both create and update actions
 
     # determine how to handle this call based on environment type
     my ($envAction, $outYml);
+    my $strictOption = "--channel-priority strict";
     if($$cnd{type} eq 'named'){ # name forced by developer
         my $env = checkNamedEnvironment($cnd);
         if($$env{exists}){
@@ -200,6 +201,7 @@ sub createEnvironment { # handles both create and update actions
                 return;  
             }
             $envAction = 'update --prune';
+            $strictOption = "";
         } else {
             $envAction = 'create';
         }
@@ -228,7 +230,7 @@ sub createEnvironment { # handles both create and update actions
     # execute the environment action
     my $bash = "bash -c '
 $$cnd{shell_hook}
-$$cnd{micromamba} env $envAction --prefix $$cnd{dir} --file $$cnd{initFile} --yes
+$$cnd{micromamba} env $envAction $strictOption --prefix $$cnd{dir} --file $$cnd{initFile} --yes
 '";
     print "executing command sequence: $bash\n";
     if(system($bash)){
