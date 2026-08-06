@@ -26,13 +26,14 @@ sub createRustEnvironment {
         print $outH "---\n";
         print $outH "channels:\n";
         print $outH "  - conda-forge\n";
+        print $outH "  - nodefaults\n";
         print $outH "dependencies:\n";
         print $outH "  - rust=$rustVersion\n"; # rustc and cargo
         print $outH "  - rust-src=$rustVersion\n";
         close $outH;
         my $bash = "bash -c '
 $$cnd{shell_hook}
-$$cnd{micromamba} env create --prefix $$cnd{dir} --file $$cnd{initFile} --yes
+$$cnd{micromamba} env create --channel-priority strict --prefix $$cnd{dir} --file $$cnd{initFile} --yes
 '";
         print "executing command sequence: $bash\n";
         if(system($bash)){
