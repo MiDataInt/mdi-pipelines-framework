@@ -214,9 +214,14 @@ function getVersionedBinary {
     else 
         local VERSION_TAG=${SUITE_VERSION}
 
-        # for containers, always match the version of a binary to the version of the scripts in /srv/active/mdi
-        if [ ${MDI_IS_CONTAINER} != "" ]; then
+        # for containers via CLI, match the binary version to the version of the scripts in /srv/active/mdi
+        if [ "${MDI_IS_CONTAINER}" != "" ]; then
             local VERSION_TAG=${ACTIVE_SUITE_VERSION}
+
+            # when running a container directly, not via CLI, binary must match the vXX.XX.0 code in the container
+            if [ "${VERSION_TAG}" = "" ]; then
+                local VERSION_TAG=${SUITE_VERSION}
+            fi
 
         # for non-containers, get the latest stable version if user did not request otherwise
         elif [[ "${VERSION_TAG}" = "latest" || "${VERSION_TAG}" = "main" || "${VERSION_TAG}" = "HEAD" ]]; then
