@@ -51,6 +51,7 @@ impl InputFile {
         let mut reader: Reader<Box<dyn Read>> = ReaderBuilder::new()
             .has_headers(false) // false since we read the header ourselves below
             .delimiter(delimiter)
+            .flexible(true)
             .from_reader(reader);
         let header = if has_headers {
             let mut record = StringRecord::new();
@@ -131,6 +132,7 @@ impl OutputFile {
         let mut writer = WriterBuilder::new()
             .has_headers(false) // false since we write the header ourselves below
             .delimiter(delimiter)
+            .flexible(true)
             .from_writer(writer);
         if let Some(header) = header {
             writer
@@ -189,7 +191,20 @@ impl InputCsv {
     /* ------------------------------------------------------------------
     reader opening
     ------------------------------------------------------------------ */
-    /// Open a reader for an input file with extended options support.
+    /// Open a reader from an input stream (inner) with full extended options support.
+    pub fn open_stream<R: Read + 'static>(inner: R, delimiter: u8, has_headers: bool) -> Self {
+        let reader: Box<dyn Read> = Box::new(inner);
+        let reader = ReaderBuilder::new()
+            .has_headers(has_headers) 
+            .delimiter(delimiter)
+            .flexible(true)
+            .from_reader(reader);
+        Self { 
+            filepath: "".to_string(),
+            reader
+        }
+    }
+    /// Open a reader for an input file with full extended options support.
     pub fn open_file(filepath: &str, delimiter: u8, has_headers: bool) -> Self {
         let file = File::open(filepath).unwrap_or_else(|e| {
             panic!("failed to open file for reading {}: {}", filepath, e);
@@ -203,6 +218,7 @@ impl InputCsv {
         let reader = ReaderBuilder::new()
             .has_headers(has_headers) 
             .delimiter(delimiter)
+            .flexible(true)
             .from_reader(reader);
         Self { 
             filepath: filepath.to_string(),
@@ -294,6 +310,7 @@ impl OutputCsv {
         let writer = WriterBuilder::new()
             .has_headers(has_headers)
             .delimiter(delimiter)
+            .flexible(true)
             .from_writer(writer);
         Self { 
             filepath: filepath.to_string(),
