@@ -61,8 +61,8 @@
     # handle permissions when containerizing private repos
     if [ "$GITHUB_TOKEN" != "" ]; then
         echo "::group::Setting git credentials for private repo"
-        git config --global http.https://github.com/.extraheader \
-            "AUTHORIZATION: basic $(echo -n x-access-token:${GITHUB_TOKEN} | base64)"
+        AUTH="$(printf 'x-access-token:%s' "$GITHUB_TOKEN" | base64 | tr -d '\n')"
+        git config --global http.https://github.com/.extraheader "AUTHORIZATION: basic $AUTH"
         echo "::endgroup::"
     fi
 
