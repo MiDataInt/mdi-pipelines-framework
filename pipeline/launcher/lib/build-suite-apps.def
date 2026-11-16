@@ -61,7 +61,6 @@ Stage: build
         libjpeg-dev \
         libtiff-dev \
         libmariadb-dev \
-        libxml2 \
         libxml2-dev \
         libglpk-dev
     echo "::endgroup::"
