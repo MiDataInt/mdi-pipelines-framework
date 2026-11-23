@@ -2,9 +2,6 @@
 //! a structure to manipulate tabular records in data streams.
 //! 
 //! Data are read from STDIN and written to STDOUT to function in a Unix stream.
-//! This makes it easy to create executable crates that can be chained together,
-//! with each crate performing a specific task in a data processing pipeline.
-//! 
 //! A `record_parser` closure passed to a RecordStreamer does work on each record 
 //! or group of records. This makes it easy to create executable crates that can 
 //! be chained together, with each crate performing a specific task in a data 
@@ -24,30 +21,31 @@
 //! - over multiple records in a sorted and keyed batch using one of the `group_by_xxx_xxx()` functions
 //! 
 //! Output records can be either:
-//! - in-place modifications of input records using one of the `xxx_in_place_xxx()` functions, or
+//! - in-place modifications of input records using one of the `xxx_in_place_xxx()` functions
+//! - in-place modifications/replacements of input records using one of the `xxx_owned_xxx()` functions
 //! - entirely new records generated from input records using one of the `xxx_replace_xxx()` functions
-//! In-place modification is faster but demands that the input and output record structures   
-//! be the same. New record generation to replace input records allows the input and output 
-//! record structures to differ and allows any number of output records to be generated from 
-//! each input record.
+//! In-place modification is faster but demands that the input and output record 
+//! structures be the same. New record generation to replace input records allows 
+//! the input and output record structures to differ and allows any number of 
+//! output records to be generated from each input record.
 //!  
 //! Record/group parsing can be done either:
 //! - serially using one of the xxx_xxx_serial() functions, or
 //! - in parallel using one of the xxx_xxx_parallel() functions
-//! Only benchmarking can determine which is faster for a given task, which will depend on 
-//! the complexity of the parsing function. Notably, parallel processing if often
-//! better handled using the mdi::RecordFanner, which uses Crossbeam channels for parallel
-//! processing, in constrast to the RecordStreamer, which uses Rayon to iterate in parallel
-//! over buffered vectors of input records.
+//! Only benchmarking can determine which is faster for a given task, which will 
+//! depend on the complexity of the parsing function. Notably, parallel processing 
+//! is often better handled using the mdi::RecordFanner, which uses Crossbeam 
+//! channels for parallel processing, in constrast to the RecordStreamer, which 
+//! uses Rayon to iterate in parallel over buffered vectors of input records.
 //!
 //! Input and output records are assumed to be:
 //! - without headers, unless `has_headers()` is called on the RecordStreamer
 //! - tab-delimited, unless `delimiter(b'<delimiter>')` is called on the RecordStreamer
 //! - of a fixed number of columns, unless `flexible()` is called on the RecordStreamer
 //! 
-//! If `comment(Some(b'<char>'))` is called on the RecordStreamer to set a comment character, 
-//! initial comment lines at the beginning of the input stream will be passed directly to 
-//! the output stream. 
+//! If `comment(Some(b'<char>'))` is called on the RecordStreamer to set a comment 
+//! character, initial comment lines at the beginning of the input stream will be 
+//! passed directly to the output stream. 
 //! 
 //! Fields in input records will be trimmed of leading and trailing whitespace 
 //! unless `no_trim()` is called on the RecordStreamer.
@@ -62,10 +60,12 @@
 //! - `stream_in_place_parallel()`
 //! - `stream_replace_serial()`
 //! - `stream_replace_parallel()`
+//! - `stream_owned_serial()`
 //! - `group_by_in_place_serial()`
 //! - `group_by_in_place_parallel()`
 //! - `group_by_replace_serial()`
 //! - `group_by_replace_parallel()`
+//! - `group_by_owned_serial()`
 //! where the caller defines and provides:
 //! - data structures that describe the input and output data format (I for InputRecord, O for OutputRecord)
 //! - a `record_parser` function or closure that processes the data, returning:
@@ -76,7 +76,9 @@
 //!     - Ok(Vec<usize>) carrying the 0-referenced indices of the (reordered) input records that should be written to the output stream, if any
 //!   - for xxx_replace_xxx functions:
 //!     - Ok(Vec<OutputRecord>) carrying the output record(s) resulting from processing of the input record(s), if any
-//!
+//!   - for xxx_owned_xxx functions:
+//!     - Ok(Vec<Record>) carrying the output record(s) resulting from processing of the input record(s), if any
+//! 
 //! The work to be done on input records is arbitrary and defined by the caller.
 //! Some examples of work that can be done include:
 //! - filtering records based on a condition
@@ -322,6 +324,38 @@ impl RecordStreamer {
         self.flush_stream(wtr);
     }
 
+    /// `stream_owned_serial()` processes input records from STDIN to STDOUT:
+    ///     - one at a time as they are encountered, without parallel processing
+    ///     - passing and receiving owned record vectors from the record parser
+    pub fn stream_owned_serial <R, F>(
+        &mut self, 
+        mut record_parser: F
+    )
+    where
+        R: DeserializeOwned + Serialize,
+        F: FnMut(Vec<R>) -> Result<Vec<R>, Box<dyn Error>>,
+    {
+        self.mode = "RecordStreamer::stream_owned_serial()".to_string();
+        let (mut rdr, mut wtr) = self.init_io_streams(None);
+        let mut records: Vec<R> = Vec::new();
+        for (i0, line) in rdr.deserialize().enumerate() {
+            let i1 = Some(i0 + 1);
+            records.push(line.unwrap_or_else(|e| 
+                self.line_error(DESERIALIZING, i1, &e)
+            ));
+            records = record_parser(records).unwrap_or_else(|e| 
+                self.line_error(PROCESSING, i1, e.as_ref())
+            );
+            for record in &records {
+                wtr.serialize(record).unwrap_or_else(|e| 
+                    self.line_error(WRITING, i1, &e)
+                );                
+            }
+            records.clear();
+        }
+        self.flush_stream(wtr);
+    }
+
     /// `group_by_in_place_serial()` processes input records from STDIN to STDOUT:
     ///     - in groups of records with the same sequential key, without parallel processing
     ///     - in place, i.e., only filtering, sorting or updating the input records
@@ -468,6 +502,38 @@ impl RecordStreamer {
         }
         input_record_group_buffer.push(input_record_group);
         self.do_group_by_replace_parallel(&mut wtr, &input_record_group_buffer, &record_parser, None);
+        self.flush_stream(wtr);
+    }
+
+    /// `group_by_owned_serial()` processes input records from STDIN to STDOUT:
+    ///     - in groups of records with the same sequential key, without parallel processing
+    ///     - passing and receiving owned record vectors from the record parser
+    pub fn group_by_owned_serial <R, F>(
+        &mut self, 
+        mut record_parser: F, 
+        grouping_fields: &[&str]
+    )
+    where
+        R: DeserializeOwned + Serialize,
+        F: FnMut(Vec<R>) -> Result<Vec<R>, Box<dyn Error>>,
+    {
+        self.mode = "RecordStreamer::group_by_owned_serial()".to_string();
+        let (mut rdr, mut wtr) = self.init_io_streams(None);
+        let mut records: Vec<R> = Vec::new();
+        let mut previous_key: Option<String> = None;
+        for (i0, line) in rdr.deserialize().enumerate() {
+            let input_record = line.unwrap_or_else(|e| 
+                self.line_error(DESERIALIZING, Some(i0 + 1), &e)
+            );
+            let this_key = self.get_composite_key(&input_record, grouping_fields, i0);
+            if previous_key.as_ref().map_or(false, |k| k != &this_key) {
+                records = self.do_group_by_owned_serial(&mut wtr, records, &mut record_parser, Some(i0));
+                records.clear();
+            }
+            previous_key = Some(this_key);
+            records.push(input_record);
+        }
+        self.do_group_by_owned_serial(&mut wtr, records, &mut record_parser, None);
         self.flush_stream(wtr);
     }
 
@@ -758,7 +824,34 @@ impl RecordStreamer {
             }
         }
     }
-
+    fn do_group_by_owned_serial<R, F>(
+        &self,
+        wtr: &mut csv::Writer<Stdout>, 
+        records: Vec<R>, 
+        record_parser: &mut F,
+        i0: Option<usize>,
+    ) -> Vec<R> 
+    where
+        R: DeserializeOwned + Serialize,
+        F: FnMut(Vec<R>) -> Result<Vec<R>, Box<dyn Error>>,
+    {
+        let n_input_records = records.len();
+        match record_parser(records) {
+            Ok(records) => {
+                for record in &records {
+                    wtr.serialize(record).unwrap_or_else(|e| {
+                        let i1 = if let Some(i0) = i0 { Some(i0 - n_input_records + 1) } else { None };
+                        self.line_error(WRITING, i1, &e);
+                    });
+                }
+                records
+            },
+            Err(e) => {
+                let i1 = if let Some(i0) = i0 { Some(i0 - n_input_records + 1) } else { None };
+                self.line_error(PROCESSING, i1, e.as_ref());
+            }
+        }
+    }
     /*  ------------------------------------------------------------------
     grouping methods for keyed batch processing
     ------------------------------------------------------------------ */
